@@ -10,6 +10,8 @@
         :start-date="startDate"
       />
       <TimelinePage v-else-if="active === 'timeline'" />
+      <DietPage v-else-if="active === 'diet'" />
+      <RecipePage v-else-if="active === 'diary'" />
       <PlaceholderPanel
         v-else
         :title="currentLabel"
@@ -24,6 +26,8 @@ import SidebarNav from './components/SidebarNav.vue'
 import HomeOverview from './components/panels/HomeOverview.vue'
 import PlaceholderPanel from './components/panels/PlaceholderPanel.vue'
 import TimelinePage from './timeline/TimelinePage.vue'
+import DietPage from './diet/DietPage.vue'
+import RecipePage from './recipe/RecipePage.vue'
 import { LOVE_SECTIONS } from './constants/sections.js'
 import { LOVE_START_DATE, MESSAGE_ITEMS, TIMELINE_ITEMS } from './mock/homeData.js'
 

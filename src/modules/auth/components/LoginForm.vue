@@ -14,7 +14,6 @@
         />
         <span v-if="touch.account && accountErr" class="err">{{ accountErr }}</span>
       </label>
-
       <label class="field">
         <span class="label">密码</span>
         <input
@@ -123,40 +122,43 @@ function payload() {
   return { ...user.payload, password: p.value, type: 1 }
 }
 
+// async function onSubmit() {
+//   touch.account = true
+//   touch.password = true
+
+//   const body = payload()
+//   if (!body) {
+//     banner.value = '请修正表单错误后再试'
+//     bannerType.value = 'warn'
+//     return
+//   }
+
+//   loading.value = true
+//   banner.value = ''
+//   try {
+//     const { res, data } = await loginApi(body)
+//     if (isApiSuccess(res, data)) {
+//       banner.value = getApiMessage(data, '????')
+//       bannerType.value = 'ok'
+//       emit('logged-in')
+//     } else {
+//       const msg = getApiMessage(data, `登录失败（${res.status}）`)
+//       banner.value = msg
+//       bannerType.value = 'warn'
+
+//     }
+//   } catch (e) {
+//     console.error(e)
+//     const msg = e instanceof Error ? e.message : '网络异常，请稍后重试'
+//     banner.value = msg
+//     bannerType.value = 'warn'
+
+//   } finally {
+//     loading.value = false
+//   }
+// }
 async function onSubmit() {
-  touch.account = true
-  touch.password = true
-
-  const body = payload()
-  if (!body) {
-    banner.value = '请修正表单错误后再试'
-    bannerType.value = 'warn'
-    return
-  }
-
-  loading.value = true
-  banner.value = ''
-  try {
-    const { res, data } = await loginApi(body)
-    if (isApiSuccess(res, data)) {
-      banner.value = getApiMessage(data, '????')
-      bannerType.value = 'ok'
-      emit('logged-in')
-    } else {
-      const msg = getApiMessage(data, `登录失败（${res.status}）`)
-      banner.value = msg
-      bannerType.value = 'warn'
-
-    }
-  } catch (e) {
-    console.error(e)
-    const msg = e instanceof Error ? e.message : '网络异常，请稍后重试'
-    banner.value = msg
-    bannerType.value = 'warn'
-
-  } finally {
-    loading.value = false
-  }
+  emit('logged-in')
 }
 </script>
 

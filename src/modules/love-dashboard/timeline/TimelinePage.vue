@@ -110,12 +110,36 @@ const {
   border-radius: 12px;
   padding: 0.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
+  overflow-y: auto;
+  height: calc(100vh - 420px);
+  position: sticky;
+  top: 0;
+  flex-shrink: 0;
 }
 
 .event-list-area {
   background: transparent;
-  overflow: hidden;
+  overflow-y: auto;
+  height: calc(100vh - 420px);
+}
+
+/* Custom Scrollbar for Event List */
+.event-list-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.event-list-area::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.event-list-area::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.event-list-area::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* 响应式设计 */

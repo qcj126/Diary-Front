@@ -1,4 +1,4 @@
-export const API_BASE = 'http://localhost:8806'
+export const API_BASE = 'http://localhost:10000'
 
 export const API = {
   login: `${API_BASE}/user/login`,

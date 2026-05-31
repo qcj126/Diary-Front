@@ -9,15 +9,25 @@ export default defineConfig({
     port: 1025, 
     proxy: {
       '/user': {
-        target: 'http://localhost:8806',
+        target: 'http://localhost:10000',
         changeOrigin: true,
         // 注意：rewrite 会把 /user/api 变成 /api，确保后端接口不需要 /user 前缀
         rewrite: (path) => path.replace(/^\/user/, '')
       },
       '/common': {
-        target: 'http://localhost:8802',
+        target: 'http://localhost:10000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/common/, '')
+      },
+      '/api': {
+        target: 'http://localhost:10000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/love': {
+        target: 'http://localhost:10000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/love/, '')
       }
     }
   }

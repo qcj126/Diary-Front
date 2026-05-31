@@ -46,7 +46,7 @@
 
       <footer class="foot">
         <span>后端 API：</span>
-        <code class="mono">http://localhost:8806</code>
+        <code class="mono">http://localhost:10000</code> (后端网关)
       </footer>
     </main>
   </div>
