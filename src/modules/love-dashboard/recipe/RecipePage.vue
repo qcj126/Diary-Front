@@ -19,7 +19,7 @@
           </a>
         </nav>
         <div class="sidebar-action">
-          <button class="add-recipe-btn">
+          <button class="add-recipe-btn" @click="showAddSteps = true">
             <span class="material-symbols-outlined">add</span>
             添加新食谱
           </button>
@@ -43,49 +43,66 @@
       <!-- Main Content Area -->
       <main class="content-area">
         <div class="content-wrapper">
-          <header class="page-header">
-            <h1 class="page-title">食谱时间轴</h1>
-            <p class="page-subtitle">您的烹饪之旅，按天有序呈现。</p>
-          </header>
+          <!-- Add Cooking Steps Interface -->
+          <AddCookingSteps v-if="showAddSteps" :embedded="true" @close="showAddSteps = false" />
 
-          <!-- Timeline Section -->
-          <div class="timeline-container">
-            <!-- Day Group: Today -->
-            <section class="day-section">
-              <div class="day-header">
-                <div class="day-badge" :class="{ 'today': todayData.isToday }">
-                  {{ todayData.isToday ? '今天' : '' }}
+          <!-- Recipe Timeline -->
+          <div v-else>
+            <header class="page-header">
+              <h1 class="page-title">食谱时间轴</h1>
+              <p class="page-subtitle">您的烹饪之旅，按天有序呈现。</p>
+            </header>
+
+            <!-- Timeline Section -->
+            <div>
+              <RecipeDetailPage
+                v-if="selectedRecipe"
+                :recipe="selectedRecipe"
+                @close="closeRecipeDetail"
+              />
+
+              <div v-else>
+                <div class="timeline-container">
+                  <!-- Day Group: Today -->
+                  <section class="day-section">
+                    <div class="day-header">
+                      <div class="day-badge" :class="{ 'today': todayData.isToday }">
+                        {{ todayData.isToday ? '今天' : '' }}
+                      </div>
+                      <h2 class="day-date">{{ todayData.date }}</h2>
+                    </div>
+
+                    <!-- Recipe Entries -->
+                    <div 
+                      v-for="recipe in todayData.recipes" 
+                      :key="recipe.id"
+                      class="timeline-entry"
+                    >
+                      <RecipeCard
+                        :meal-type="recipe.mealType"
+                        :duration="recipe.duration"
+                        :title="recipe.title"
+                        :image-url="recipe.imageUrl"
+                        :ingredients="recipe.ingredients"
+                        :steps="recipe.steps"
+                        :is-favorite="recipe.isFavorite"
+                        @update:is-favorite="(val) => updateFavorite(recipe.id, val)"
+                        @toggle-ingredient="(index) => toggleIngredient(recipe.id, index)"
+                        @viewRecipe="openRecipeDetail(recipe)"
+                      />
+                    </div>
+                  </section>
                 </div>
-                <h2 class="day-date">{{ todayData.date }}</h2>
-              </div>
 
-              <!-- Recipe Entries -->
-              <div 
-                v-for="recipe in todayData.recipes" 
-                :key="recipe.id"
-                class="timeline-entry"
-              >
-                <RecipeCard
-                  :meal-type="recipe.mealType"
-                  :duration="recipe.duration"
-                  :title="recipe.title"
-                  :image-url="recipe.imageUrl"
-                  :ingredients="recipe.ingredients"
-                  :steps="recipe.steps"
-                  :is-favorite="recipe.isFavorite"
-                  @update:is-favorite="(val) => updateFavorite(recipe.id, val)"
-                  @toggle-ingredient="(index) => toggleIngredient(recipe.id, index)"
-                />
+                <!-- Day Group: Yesterday (Visual teaser) -->
+                <section class="day-section yesterday">
+                  <div class="day-header">
+                    <div class="day-badge">昨天</div>
+                    <h2 class="day-date">{{ yesterdayData.date }}</h2>
+                  </div>
+                </section>
               </div>
-            </section>
-
-            <!-- Day Group: Yesterday (Visual teaser) -->
-            <section class="day-section yesterday">
-              <div class="day-header">
-                <div class="day-badge">昨天</div>
-                <h2 class="day-date">{{ yesterdayData.date }}</h2>
-              </div>
-            </section>
+            </div>
           </div>
         </div>
       </main>
@@ -96,11 +113,15 @@
 <script setup>
 import { ref } from 'vue'
 import RecipeCard from './components/RecipeCard.vue'
+import RecipeDetailPage from './RecipeDetailPage.vue'
+import AddCookingSteps from './AddCookingSteps.vue'
 import { RECIPE_DATA, RECIPE_CATEGORIES } from './mock/recipeData.js'
 
 const todayData = ref(RECIPE_DATA.today)
 const yesterdayData = ref(RECIPE_DATA.yesterday)
 const categories = ref(RECIPE_CATEGORIES)
+const selectedRecipe = ref(null)
+const showAddSteps = ref(false)
 
 const updateFavorite = (recipeId, isFavorite) => {
   const recipe = todayData.value.recipes.find(r => r.id === recipeId)
@@ -114,6 +135,14 @@ const toggleIngredient = (recipeId, ingredientIndex) => {
   if (recipe && recipe.ingredients[ingredientIndex]) {
     recipe.ingredients[ingredientIndex].checked = !recipe.ingredients[ingredientIndex].checked
   }
+}
+
+const openRecipeDetail = (recipe) => {
+  selectedRecipe.value = recipe
+}
+
+const closeRecipeDetail = () => {
+  selectedRecipe.value = null
 }
 </script>
 

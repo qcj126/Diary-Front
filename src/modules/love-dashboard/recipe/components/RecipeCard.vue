@@ -57,7 +57,7 @@
           </div>
         </div>
         
-        <button class="view-recipe-btn">
+        <button class="view-recipe-btn" type="button" @click="viewRecipe">
           查看完整食谱
           <span class="material-symbols-outlined">arrow_forward</span>
         </button>
@@ -102,7 +102,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:isFavorite', 'toggleIngredient'])
+const emit = defineEmits(['update:isFavorite', 'toggleIngredient', 'viewRecipe'])
 
 const toggleFavorite = () => {
   emit('update:isFavorite', !props.isFavorite)
@@ -110,6 +110,10 @@ const toggleFavorite = () => {
 
 const toggleIngredient = (index) => {
   emit('toggleIngredient', index)
+}
+
+const viewRecipe = () => {
+  emit('viewRecipe')
 }
 </script>
 
