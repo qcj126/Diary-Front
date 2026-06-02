@@ -221,14 +221,14 @@ async function submit() {
   font-size: 0.9rem;
   font-weight: 600;
   color: #fff;
-  background: linear-gradient(135deg, #0ea5e9, #6366f1);
-  box-shadow: 0 12px 32px rgba(14, 165, 233, 0.35);
+  background: linear-gradient(135deg, #1e40af, #3755c3);
+  box-shadow: 0 12px 32px rgba(30, 64, 175, 0.38);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .trigger-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 16px 40px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 16px 40px rgba(59, 130, 246, 0.42);
 }
 
 .trigger-btn.inline {
@@ -290,8 +290,8 @@ async function submit() {
   align-items: flex-end;
   justify-content: center;
   padding: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(2, 6, 23, 0.62);
+  backdrop-filter: blur(8px);
 }
 
 @media (min-width: 640px) {
@@ -308,15 +308,18 @@ async function submit() {
   overflow: auto;
   padding: 1.25rem 1.25rem 1.5rem;
   border-radius: 20px 20px 0 0;
-  background: var(--auth-panel-bg, #fff);
-  color: var(--auth-fg, #0f172a);
-  box-shadow: 0 -8px 40px rgba(15, 23, 42, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--auth-fg, #fff);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 @media (min-width: 640px) {
   .drawer {
     border-radius: 20px;
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
   }
 }
 
@@ -340,14 +343,14 @@ async function submit() {
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
-  color: var(--auth-muted, #64748b);
+  color: var(--auth-muted, rgba(255, 255, 255, 0.56));
   padding: 0.25rem;
   border-radius: 8px;
 }
 
 .icon-btn:hover {
-  background: var(--auth-tabs-bg, #f1f5f9);
-  color: var(--auth-fg, #0f172a);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--auth-fg, #fff);
 }
 
 .drawer-desc {
@@ -385,13 +388,14 @@ async function submit() {
 
 .input {
   box-sizing: border-box;
-  padding: 0.75rem 0.9rem;
+  padding: 0.9rem 1rem;
   border: 1px solid var(--auth-border, #e2e8f0);
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 1rem;
   background: var(--auth-input-bg, #fff);
   color: var(--auth-fg, #0f172a);
   outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s, background 0.2s;
 }
 
 .input.grow {
@@ -400,8 +404,10 @@ async function submit() {
 }
 
 .input:focus {
-  border-color: var(--auth-primary, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 0 15px var(--auth-glow, rgba(59, 130, 246, 0.42));
+  transform: scale(1.01);
 }
 
 .err {
@@ -417,14 +423,14 @@ async function submit() {
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  background: var(--auth-input-bg, #fff);
-  color: var(--auth-fg, #0f172a);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--auth-fg, #fff);
   white-space: nowrap;
   transition: background 0.15s;
 }
 
 .btn.secondary:hover:not(:disabled) {
-  background: var(--auth-tabs-bg, #f8fafc);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .btn.secondary:disabled {
@@ -433,15 +439,29 @@ async function submit() {
 }
 
 .btn.primary {
+  position: relative;
+  overflow: hidden;
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   color: #fff;
-  background: linear-gradient(135deg, var(--auth-primary, #6366f1), var(--auth-primary-2, #8b5cf6));
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
-  transition: filter 0.15s, transform 0.15s, opacity 0.15s;
+  background: linear-gradient(135deg, var(--auth-primary-2, #1e40af), #3755c3);
+  box-shadow: 0 14px 34px rgba(30, 64, 175, 0.34);
+  transition: filter 0.15s, transform 0.15s, opacity 0.15s, box-shadow 0.15s;
+}
+
+.btn.primary::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 20%;
+  height: 200%;
+  background: rgba(255, 255, 255, 0.22);
+  transform: rotate(30deg);
+  transition: transform 0.6s ease-in-out;
 }
 
 .btn.primary.full {
@@ -452,6 +472,11 @@ async function submit() {
 .btn.primary:hover:not(:disabled) {
   filter: brightness(1.05);
   transform: translateY(-1px);
+  box-shadow: 0 18px 42px rgba(30, 64, 175, 0.44);
+}
+
+.btn.primary:hover:not(:disabled)::after {
+  transform: translate(620%, 0) rotate(30deg);
 }
 
 .btn.primary:disabled {

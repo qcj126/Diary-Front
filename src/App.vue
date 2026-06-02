@@ -2,15 +2,19 @@
   <LoveDashboard v-if="loggedIn" />
 
   <div v-else class="app-root">
-    <div class="bg-effects" aria-hidden="true" />
+    <div class="bg-effects" aria-hidden="true">
+      <span class="mesh-blob mesh-blob-a" />
+      <span class="mesh-blob mesh-blob-b" />
+      <span class="mesh-blob mesh-blob-c" />
+    </div>
 
     <main class="shell">
-      <header class="hero">
+      <header class="hero entrance-anim">
         <h1 class="title">DiaryLove</h1>
         <p class="subtitle">安全登录与注册 · 模块化前端</p>
       </header>
 
-      <div class="panel card">
+      <div class="panel card entrance-anim">
         <nav v-if="page !== 'reset'" class="segmented" aria-label="登录或注册">
           <button
             type="button"
@@ -78,21 +82,24 @@ function handleResetDone() {
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
 
 :root {
-  --auth-fg: #0f172a;
-  --auth-fg-soft: #334155;
-  --auth-muted: #64748b;
-  --auth-placeholder: #94a3b8;
-  --auth-border: #e2e8f0;
-  --auth-input-bg: #f8fafc;
-  --auth-tabs-bg: #f1f5f9;
-  --auth-panel-bg: #ffffff;
-  --auth-code-bg: #f1f5f9;
-  --auth-code-fg: #475569;
-  --auth-primary: #6366f1;
-  --auth-primary-2: #8b5cf6;
+  --auth-fg: #ffffff;
+  --auth-fg-soft: rgba(255, 255, 255, 0.72);
+  --auth-muted: rgba(255, 255, 255, 0.56);
+  --auth-placeholder: rgba(255, 255, 255, 0.3);
+  --auth-border: rgba(255, 255, 255, 0.1);
+  --auth-input-bg: rgba(255, 255, 255, 0.05);
+  --auth-tabs-bg: transparent;
+  --auth-panel-bg: rgba(255, 255, 255, 0.05);
+  --auth-code-bg: rgba(255, 255, 255, 0.08);
+  --auth-code-fg: rgba(255, 255, 255, 0.76);
+  --auth-primary: #b8c4ff;
+  --auth-primary-2: #1e40af;
   --auth-primary-contrast: #ffffff;
-  --auth-danger: #ef4444;
-  --auth-success: #16a34a;
+  --auth-danger: #ff8a8a;
+  --auth-success: #86efac;
+  --auth-deep: #020617;
+  --auth-blue: #1e40af;
+  --auth-glow: rgba(59, 130, 246, 0.42);
 }
 
 *,
@@ -110,7 +117,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: #0b1020;
+  background: var(--auth-deep);
 }
 
 #app {
@@ -123,6 +130,7 @@ body {
   position: relative;
   min-height: 100vh;
   color: var(--auth-fg);
+  overflow: hidden;
 }
 
 .bg-effects {
@@ -130,19 +138,66 @@ body {
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  overflow: hidden;
   background:
-    radial-gradient(ellipse 80% 55% at 20% 15%, rgba(99, 102, 241, 0.28), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 25%, rgba(14, 165, 233, 0.22), transparent 50%),
-    radial-gradient(ellipse 60% 45% at 50% 100%, rgba(139, 92, 246, 0.18), transparent 55%),
-    linear-gradient(165deg, #0b1020 0%, #111827 45%, #0f172a 100%);
+    radial-gradient(circle at 50% -20%, rgba(30, 64, 175, 0.28), transparent 34rem),
+    linear-gradient(145deg, #020617 0%, #08111f 48%, #020617 100%);
+}
+
+.bg-effects::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(circle at center, black, transparent 72%);
+}
+
+.mesh-blob {
+  position: absolute;
+  display: block;
+  border-radius: 999px;
+  filter: blur(80px);
+  opacity: 0.42;
+  animation: drift 20s infinite alternate ease-in-out;
+}
+
+.mesh-blob-a {
+  width: 32rem;
+  height: 32rem;
+  top: -13rem;
+  left: -13rem;
+  background: #1e3a8a;
+}
+
+.mesh-blob-b {
+  width: 26rem;
+  height: 26rem;
+  right: -9rem;
+  bottom: -8rem;
+  background: #4c1d95;
+  animation-delay: -5s;
+  animation-direction: alternate-reverse;
+}
+
+.mesh-blob-c {
+  width: 20rem;
+  height: 20rem;
+  left: 45%;
+  top: 58%;
+  background: #0ea5e9;
+  opacity: 0.18;
+  animation-delay: -11s;
 }
 
 .shell {
   position: relative;
   z-index: 1;
-  max-width: 440px;
+  max-width: 480px;
   margin: 0 auto;
-  padding: 2.5rem 1.25rem 5rem;
+  padding: 2rem 1rem 4rem;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -151,65 +206,81 @@ body {
 
 .hero {
   text-align: center;
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.5rem;
 }
 
 .title {
   margin: 0;
-  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  font-size: clamp(2rem, 6vw, 2.6rem);
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   color: #f8fafc;
-  text-shadow: 0 2px 24px rgba(99, 102, 241, 0.35);
+  text-shadow: 0 0 28px rgba(184, 196, 255, 0.35);
 }
 
 .subtitle {
   margin: 0.5rem 0 0;
   font-size: 0.95rem;
-  color: rgba(226, 232, 240, 0.72);
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .panel.card {
-  background: rgba(255, 255, 255, 0.96);
-  border-radius: 22px;
-  padding: 1.5rem 1.35rem 1.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.04),
-    0 28px 70px rgba(15, 23, 42, 0.2);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 24px;
+  padding: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .segmented {
+  position: relative;
   display: flex;
-  gap: 0.5rem;
-  padding: 0.35rem;
-  margin-bottom: 1.5rem;
-  border-radius: 14px;
-  background: var(--auth-tabs-bg);
+  gap: 0;
+  padding: 0;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+}
+
+.segmented::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 50%;
+  height: 2px;
+  background: var(--auth-primary);
+  transform: translateX(0);
+  transition: transform 0.3s ease;
+}
+
+.segmented:has(.seg-btn:nth-child(2).active)::after {
+  transform: translateX(100%);
 }
 
 .seg-btn {
   flex: 1;
   border: none;
-  padding: 0.6rem 0.75rem;
-  border-radius: 11px;
-  font-size: 0.95rem;
+  padding: 0 0 1rem;
+  border-radius: 0;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
-  color: var(--auth-muted);
+  color: rgba(255, 255, 255, 0.5);
   background: transparent;
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  transition: color 0.2s;
 }
 
 .seg-btn:hover {
-  color: var(--auth-fg);
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .seg-btn.active {
-  background: #fff;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
-  color: var(--auth-fg);
+  background: transparent;
+  box-shadow: none;
+  color: var(--auth-primary);
 }
 
 .reset-head {
@@ -234,7 +305,7 @@ body {
   margin-top: 1.5rem;
   text-align: center;
   font-size: 0.8rem;
-  color: rgba(226, 232, 240, 0.58);
+  color: rgba(255, 255, 255, 0.48);
 }
 
 .mono {
@@ -242,7 +313,55 @@ body {
   font-size: 0.78rem;
   padding: 0.15rem 0.4rem;
   border-radius: 6px;
-  background: rgba(15, 23, 42, 0.35);
+  background: rgba(255, 255, 255, 0.08);
   color: #e2e8f0;
+}
+
+.entrance-anim {
+  animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.panel.entrance-anim {
+  animation-delay: 0.08s;
+}
+
+@keyframes drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate(50px, 100px) scale(1.1);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mesh-blob,
+  .entrance-anim {
+    animation: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .panel.card {
+    padding: 1.35rem;
+    border-radius: 22px;
+  }
+
+  .shell {
+    padding-block: 1.25rem 2rem;
+  }
 }
 </style>

@@ -41,9 +41,8 @@ let resizeHandler = null
 let lastTimestamp = 0
 
 const gap = 32
-const desktopCardWidth = 320
-const tabletCardWidth = 280
-const mobileCardWidth = 240
+const desktopCardWidth = 240
+const desktopCardHeight = 300
 const speedPxPerSecond = 118
 const manualStepCount = 1
 
@@ -73,14 +72,7 @@ function updateMetrics() {
   const width = viewportRef.value?.clientWidth ?? 0
   if (!width) return
 
-  let currentCardWidth = desktopCardWidth
-  if (width < 640) {
-    currentCardWidth = mobileCardWidth
-  } else if (width < 1080) {
-    currentCardWidth = tabletCardWidth
-  }
-
-  cardStep.value = currentCardWidth + gap
+  cardStep.value = desktopCardWidth + gap
 
   if (loopWidth.value > 0) {
     offset.value %= loopWidth.value
@@ -221,8 +213,8 @@ defineExpose({
 
 .timeline-card {
   position: relative;
-  width: 320px;
-  aspect-ratio: 4 / 5;
+  width: 240px;
+  height: 300px;
   border-radius: 2rem;
   overflow: hidden;
   flex-shrink: 0;
@@ -330,7 +322,7 @@ defineExpose({
   margin: 0 0 0.75rem;
   color: #fff;
   font-family: Manrope, Inter, sans-serif;
-  font-size: 32px;
+  font-size: 24px;
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -341,44 +333,11 @@ defineExpose({
   margin: 0;
   color: #b9cacb;
   font-family: Inter, sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.6;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-}
-
-@media (max-width: 1080px) {
-  .timeline-card {
-    width: 280px;
-  }
-
-  .card-title {
-    font-size: 26px;
-  }
-}
-
-@media (max-width: 640px) {
-  .carousel-viewport {
-    padding: 0 1rem;
-  }
-
-  .timeline-card {
-    width: 240px;
-    border-radius: 1.5rem;
-  }
-
-  .card-overlay {
-    padding: 1.25rem;
-  }
-
-  .card-title {
-    font-size: 22px;
-  }
-
-  .card-content {
-    font-size: 14px;
-  }
 }
 </style>

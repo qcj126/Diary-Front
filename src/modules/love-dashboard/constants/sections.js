@@ -1,12 +1,10 @@
 export const LOVE_SECTIONS = [
-  { key: 'home', label: '恋爱首页' },
-  { key: 'timeline', label: '恋爱时光轴' },
-  { key: 'dates', label: '恋爱の日期' },
-  { key: 'diary', label: '厨房创食记' },
-  { key: 'album', label: '恋爱相册集' },
-  { key: 'wishlist', label: '恋爱心愿单' },
-  { key: 'board', label: '恋爱留言板' },
-  { key: 'stats', label: '恋爱の统计' },
-  { key: 'ledger', label: '恋爱账目册' },
-  { key: 'diet', label: '饮食记录' }
+  { key: 'home', label: '主页', icon: 'home' },
+  { key: 'timeline', label: '时光机', icon: 'auto_stories' },
+  { key: 'dates', label: '恋爱记录', icon: 'favorite' },
+  { key: 'diary', label: '厨房创食记', icon: 'edit_note' },
+  { key: 'wishlist', label: '阶段目标', icon: 'flag' },
+  { key: 'board', label: '生活随想', icon: 'chat_bubble' },
+  { key: 'ledger', label: '账目', icon: 'payments' },
+  { key: 'diet', label: '饮食记录', icon: 'restaurant' },
 ]

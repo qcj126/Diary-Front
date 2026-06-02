@@ -221,14 +221,14 @@ async function onSubmit() {
 .input {
   width: 100%;
   box-sizing: border-box;
-  padding: 0.75rem 0.9rem;
+  padding: 0.9rem 1rem;
   border: 1px solid var(--auth-border);
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 1rem;
   background: var(--auth-input-bg);
   color: var(--auth-fg);
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s, background 0.2s;
 }
 
 .input::placeholder {
@@ -236,8 +236,10 @@ async function onSubmit() {
 }
 
 .input:focus {
-  border-color: var(--auth-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 0 15px var(--auth-glow);
+  transform: scale(1.01);
 }
 
 .err {
@@ -263,28 +265,51 @@ async function onSubmit() {
 }
 
 .banner.info {
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(184, 196, 255, 0.1);
   color: var(--auth-primary);
 }
 
 .btn.primary {
+  position: relative;
+  overflow: hidden;
   margin-top: 0.25rem;
   width: 100%;
-  padding: 0.85rem 1rem;
+  padding: 1rem;
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   color: #fff;
-  background: linear-gradient(135deg, var(--auth-primary), var(--auth-primary-2));
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
-  transition: transform 0.15s, filter 0.15s, opacity 0.15s;
+  background: linear-gradient(135deg, var(--auth-primary-2), #3755c3);
+  box-shadow: 0 14px 34px rgba(30, 64, 175, 0.34);
+  transition: transform 0.15s, filter 0.15s, opacity 0.15s, box-shadow 0.15s;
+}
+
+.btn.primary::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 20%;
+  height: 200%;
+  background: rgba(255, 255, 255, 0.22);
+  transform: rotate(30deg);
+  transition: transform 0.6s ease-in-out;
 }
 
 .btn.primary:hover:not(:disabled) {
   filter: brightness(1.05);
   transform: translateY(-1px);
+  box-shadow: 0 18px 42px rgba(30, 64, 175, 0.44);
+}
+
+.btn.primary:hover:not(:disabled)::after {
+  transform: translate(620%, 0) rotate(30deg);
+}
+
+.btn.primary:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .btn.primary:disabled {

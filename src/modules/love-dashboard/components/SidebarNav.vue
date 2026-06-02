@@ -1,6 +1,15 @@
 <template>
   <aside class="sidebar">
-    <h2 class="brand">DiaryLove</h2>
+    <div class="brand-block">
+      <div class="brand-icon">
+        <span class="material-symbols-outlined">auto_stories</span>
+      </div>
+      <div>
+        <h2 class="brand">时光记</h2>
+        <p>记录生活点滴</p>
+      </div>
+    </div>
+
     <nav class="nav">
       <button
         v-for="item in sections"
@@ -10,9 +19,27 @@
         :class="{ active: item.key === modelValue }"
         @click="$emit('update:modelValue', item.key)"
       >
-        {{ item.label }}
+        <span class="material-symbols-outlined">{{ item.icon }}</span>
+        <span>{{ item.label }}</span>
       </button>
     </nav>
+
+    <button class="quick-button" type="button">快速记录</button>
+
+    <div class="profile">
+      <div class="profile-row">
+        <div class="avatar">陈</div>
+        <div>
+          <strong>陈子墨</strong>
+          <span>普通用户</span>
+        </div>
+      </div>
+
+      <a href="#" aria-label="版本信息">
+        <span class="material-symbols-outlined">info</span>
+        <span>版本信息 v2.4.0</span>
+      </a>
+    </div>
   </aside>
 </template>
 
@@ -33,55 +60,188 @@ defineEmits(['update:modelValue'])
 
 <style scoped>
 .sidebar {
-  width: 260px;
-  min-width: 260px;
-  background: #0f172a;
-  color: #e2e8f0;
-  padding: 1.25rem 0.8rem;
-  border-right: 1px solid rgba(148, 163, 184, 0.15);
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: 256px;
+  padding: 24px;
+  border-right: 1px solid #c4c7c7;
+  background: #f7f3f2;
+  color: #1c1b1b;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+.brand-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 8px;
+  background: #000000;
+  color: #ffffff;
 }
 
 .brand {
-  margin: 0 0 1rem;
-  padding: 0 0.6rem;
-  font-size: 1.2rem;
-  color: #fff;
+  margin: 0;
+  color: #000000;
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.brand-block p {
+  margin: 4px 0 0;
+  color: rgba(68, 71, 72, 0.7);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
 }
 
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  flex: 1;
+  gap: 4px;
 }
 
 .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 24px;
   text-align: left;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
-  color: #cbd5e1;
+  color: #444748;
   cursor: pointer;
-  font-size: 0.95rem;
-  padding: 0.62rem 0.75rem;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  padding: 12px 24px;
   transition: background 0.2s, color 0.2s;
 }
 
 .nav-item:hover {
-  background: rgba(99, 102, 241, 0.18);
-  color: #fff;
+  background: #e0e3e5;
+  color: #1c1b1b;
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(14, 165, 233, 0.35));
-  color: #fff;
+  background: #000000;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.quick-button {
+  width: 100%;
+  min-height: 48px;
+  margin: 24px 0;
+  border: 0;
+  border-radius: 12px;
+  background: #1c1b1a;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.quick-button:hover {
+  opacity: 0.9;
+}
+
+.profile {
+  margin-top: auto;
+  padding-top: 24px;
+  border-top: 1px solid #c4c7c7;
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.avatar {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #101828, #77716f);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.profile strong,
+.profile span {
+  display: block;
+}
+
+.profile strong {
+  font-size: 14px;
+}
+
+.profile-row span {
+  color: #444748;
+  font-size: 12px;
+}
+
+.profile a {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  color: #444748;
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.profile a:hover {
+  color: #000000;
 }
 
 @media (max-width: 900px) {
   .sidebar {
+    position: sticky;
+    top: 0;
     width: 100%;
-    min-width: 0;
+    min-height: 0;
+    padding: 16px;
     border-right: none;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+    border-bottom: 1px solid #c4c7c7;
+  }
+
+  .brand-block {
+    margin-bottom: 16px;
+  }
+
+  .nav {
+    flex-direction: row;
+    flex: none;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .nav-item {
+    flex: 0 0 auto;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+
+  .quick-button,
+  .profile {
+    display: none;
   }
 }
 </style>

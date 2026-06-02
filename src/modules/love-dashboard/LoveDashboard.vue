@@ -5,9 +5,6 @@
     <main class="content">
       <HomeOverview
         v-if="active === 'home'"
-        :timeline="timeline"
-        :messages="messages"
-        :start-date="startDate"
       />
       <TimelinePage v-else-if="active === 'timeline'" />
       <DietPage v-else-if="active === 'diet'" />
@@ -23,19 +20,15 @@
 <script setup>
 import { computed, ref } from 'vue'
 import SidebarNav from './components/SidebarNav.vue'
-import HomeOverview from './components/panels/HomeOverview.vue'
+import HomeOverview from '../homepage/HomePage.vue'
 import PlaceholderPanel from './components/panels/PlaceholderPanel.vue'
 import TimelinePage from './timeline/TimelinePage.vue'
 import DietPage from './diet/DietPage.vue'
 import RecipePage from './recipe/RecipePage.vue'
 import { LOVE_SECTIONS } from './constants/sections.js'
-import { LOVE_START_DATE, MESSAGE_ITEMS, TIMELINE_ITEMS } from './mock/homeData.js'
 
 const active = ref('home')
 const sections = LOVE_SECTIONS
-const timeline = TIMELINE_ITEMS
-const messages = MESSAGE_ITEMS
-const startDate = LOVE_START_DATE
 
 const currentLabel = computed(() => sections.find((x) => x.key === active.value)?.label ?? '')
 </script>
@@ -44,18 +37,23 @@ const currentLabel = computed(() => sections.find((x) => x.key === active.value)
 .dashboard {
   min-height: 100vh;
   display: flex;
-  background: #f1f5f9;
+  background: #fdf8f8;
 }
 
 .content {
   flex: 1;
   min-width: 0;
-  padding: 1rem;
+  margin-left: 256px;
+  padding: 0;
 }
 
 @media (max-width: 900px) {
   .dashboard {
     flex-direction: column;
+  }
+
+  .content {
+    margin-left: 0;
   }
 }
 </style>
