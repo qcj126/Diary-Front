@@ -1,4 +1,3 @@
-// 事件分类定义 - 包含所有大类和子类
 export const EVENT_CATEGORIES = [
   {
     key: 'diary',
@@ -7,9 +6,9 @@ export const EVENT_CATEGORIES = [
     color: 'blue',
     children: [
       { key: 'normal_diary', label: '普通日记', icon: '📝' },
-      { key: 'whisper', label: '悄悄话', icon: '🤫' },
-      { key: 'love_letter', label: '信件/情书', icon: '💌' }
-    ]
+      { key: 'whisper', label: '悄悄话', icon: '💭' },
+      { key: 'love_letter', label: '信件/情书', icon: '💌' },
+    ],
   },
   {
     key: 'photo',
@@ -20,8 +19,8 @@ export const EVENT_CATEGORIES = [
       { key: 'group_photo', label: '普通合照', icon: '📸' },
       { key: 'selfie', label: '自拍', icon: '🤳' },
       { key: 'scenery', label: '风景/静物', icon: '🖼️' },
-      { key: 'polaroid', label: '拍立得/胶片', icon: '🎞️' }
-    ]
+      { key: 'polaroid', label: '拍立得/胶片', icon: '🎞️' },
+    ],
   },
   {
     key: 'anniversary',
@@ -29,13 +28,13 @@ export const EVENT_CATEGORIES = [
     icon: '🎉',
     color: 'red',
     children: [
-      { key: 'days_together', label: '在一起天数', icon: '💕' },
+      { key: 'days_together', label: '在一起天数', icon: '💞' },
       { key: 'milestone', label: '恋爱里程碑', icon: '🏆' },
       { key: 'birthday', label: '生日', icon: '🎂' },
-      { key: 'festival', label: '节日', icon: '🎄' },
+      { key: 'festival', label: '节日', icon: '🎁' },
       { key: 'proposal', label: '求婚/订婚', icon: '💍' },
-      { key: 'wedding', label: '领证/婚礼', icon: '📜' }
-    ]
+      { key: 'wedding', label: '领证/婚礼', icon: '📜' },
+    ],
   },
   {
     key: 'wishlist_complete',
@@ -45,9 +44,9 @@ export const EVENT_CATEGORIES = [
     children: [
       { key: 'travel_wish', label: '旅行心愿', icon: '✈️' },
       { key: 'food_wish', label: '美食心愿', icon: '🍜' },
-      { key: 'experience_wish', label: '体验心愿', icon: '🎫' },
-      { key: 'gift_wish', label: '礼物心愿', icon: '🎁' }
-    ]
+      { key: 'experience_wish', label: '体验心愿', icon: '🎯' },
+      { key: 'gift_wish', label: '礼物心愿', icon: '🎁' },
+    ],
   },
   {
     key: 'gift',
@@ -57,8 +56,8 @@ export const EVENT_CATEGORIES = [
     children: [
       { key: 'give_gift', label: '赠送礼物', icon: '🎀' },
       { key: 'receive_gift', label: '收到礼物', icon: '🎁' },
-      { key: 'handmade_gift', label: '手工礼物', icon: '✂️' }
-    ]
+      { key: 'handmade_gift', label: '手工礼物', icon: '✂️' },
+    ],
   },
   {
     key: 'travel',
@@ -69,20 +68,20 @@ export const EVENT_CATEGORIES = [
       { key: 'short_trip', label: '短途旅行', icon: '🚗' },
       { key: 'long_trip', label: '长途旅行', icon: '🗺️' },
       { key: 'camping', label: '露营/户外', icon: '⛺' },
-      { key: 'hotel', label: '酒店/民宿', icon: '🏨' }
-    ]
+      { key: 'hotel', label: '酒店/民宿', icon: '🏡' },
+    ],
   },
   {
     key: 'food',
     label: '美食',
-    icon: '🍔',
+    icon: '🍝',
     color: 'orange',
     children: [
       { key: 'restaurant', label: '餐厅打卡', icon: '🍽️' },
-      { key: 'homemade', label: '自制美食', icon: '👨‍🍳' },
-      { key: 'takeout', label: '外卖/零食', icon: '🍕' },
-      { key: 'dessert', label: '甜品/奶茶', icon: '🍰' }
-    ]
+      { key: 'homemade', label: '自制美食', icon: '👩‍🍳' },
+      { key: 'takeout', label: '外卖/零食', icon: '🍟' },
+      { key: 'dessert', label: '甜品/奶茶', icon: '🧋' },
+    ],
   },
   {
     key: 'entertainment',
@@ -93,8 +92,8 @@ export const EVENT_CATEGORIES = [
       { key: 'movie', label: '电影', icon: '🎬' },
       { key: 'music', label: '音乐/演唱会', icon: '🎵' },
       { key: 'game', label: '游戏', icon: '🎮' },
-      { key: 'reading', label: '阅读/学习', icon: '📚' }
-    ]
+      { key: 'reading', label: '阅读/学习', icon: '📚' },
+    ],
   },
   {
     key: 'daily_life',
@@ -105,10 +104,10 @@ export const EVENT_CATEGORIES = [
       { key: 'walk', label: '散步/遛弯', icon: '🚶' },
       { key: 'shopping', label: '购物', icon: '🛒' },
       { key: 'housework', label: '家务', icon: '🧹' },
-      { key: 'video_call', label: '视频通话', icon: '📞' },
+      { key: 'video_call', label: '视频通话', icon: '📱' },
       { key: 'sleep', label: '睡觉/起床', icon: '😴' },
-      { key: 'fight', label: '吵架/和好', icon: '💔' }
-    ]
+      { key: 'fight', label: '吵架/和好', icon: '💗' },
+    ],
   },
   {
     key: 'milestone',
@@ -116,15 +115,14 @@ export const EVENT_CATEGORIES = [
     icon: '🏆',
     color: 'gold',
     children: [
-      { key: 'reunion', label: '复合', icon: '🔄' },
+      { key: 'reunion', label: '复合', icon: '🔁' },
       { key: 'meet_parents', label: '见家长', icon: '👪' },
       { key: 'cohabitation', label: '同居', icon: '🏠' },
-      { key: 'end_distance', label: '异国/异地结束', icon: '🤝' }
-    ]
-  }
+      { key: 'end_distance', label: '异地结束', icon: '🧳' },
+    ],
+  },
 ]
 
-// 色系对应的 CSS 颜色值
 export const COLOR_MAP = {
   blue: { primary: '#3b82f6', light: '#dbeafe', bg: '#eff6ff' },
   purple: { primary: '#8b5cf6', light: '#ede9fe', bg: '#f5f3ff' },
@@ -135,5 +133,5 @@ export const COLOR_MAP = {
   gold: { primary: '#eab308', light: '#fef9c3', bg: '#fefce8' },
   green: { primary: '#22c55e', light: '#dcfce7', bg: '#f0fdf4' },
   indigo: { primary: '#6366f1', light: '#e0e7ff', bg: '#eef2ff' },
-  gray: { primary: '#6b7280', light: '#f3f4f6', bg: '#f9fafb' }
+  gray: { primary: '#6b7280', light: '#f3f4f6', bg: '#f9fafb' },
 }

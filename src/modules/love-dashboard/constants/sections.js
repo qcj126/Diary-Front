@@ -8,5 +8,5 @@ export const LOVE_SECTIONS = [
   { key: 'board', label: '恋爱留言板' },
   { key: 'stats', label: '恋爱の统计' },
   { key: 'ledger', label: '恋爱账目册' },
-  { key: 'diet', label: '恋爱饮食记录' }
+  { key: 'diet', label: '饮食记录' }
 ]

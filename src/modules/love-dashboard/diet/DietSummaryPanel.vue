@@ -1,256 +1,353 @@
 <template>
-  <div class="summary-panel horizontal-layout">
-    <section class="summary-block summary-intake">
-      <h3>今日摄入汇总</h3>
-      <div class="intake-chart">
-        <svg viewBox="0 0 36 36" class="donut intake-donut">
-          <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#E2E8F0" stroke-width="5" />
-          <circle 
-            v-if="kcalRatio > 0"
-            cx="18" cy="18" r="15.915" 
-            fill="transparent" 
-            :stroke="colors.kcal" 
-            :stroke-dasharray="kcalRatio + ' ' + (100-kcalRatio)" 
-            stroke-dashoffset="0" 
-            stroke-width="5" 
-          />
-        </svg>
-        <div class="intake-legend">
-          <div><span class="dot" :style="{background: colors.kcal}"></span>卡路里 {{ total.kcal }} kcal</div>
-          <div><span class="dot" :style="{background: colors.protein}"></span>蛋白质 {{ total.protein }}g</div>
-          <div><span class="dot" :style="{background: colors.carbs}"></span>碳水 {{ total.carbs }}g</div>
-          <div><span class="dot" :style="{background: colors.fat}"></span>脂肪 {{ total.fat }}g</div>
+  <div class="summary-stack">
+    <section class="summary-card spotlight-card">
+      <p class="panel-kicker">Nutrition</p>
+      <h3 class="panel-title">今日营养总览</h3>
+
+      <div class="ring-block">
+        <div class="ring-chart">
+          <svg viewBox="0 0 220 220" class="donut-chart">
+            <circle cx="110" cy="110" r="78" fill="transparent" stroke="#eadfdc" stroke-width="18" />
+            <circle
+              v-if="proteinRatio > 0"
+              cx="110"
+              cy="110"
+              r="78"
+              fill="transparent"
+              :stroke="colors.protein"
+              :stroke-dasharray="proteinArc + ' ' + emptyArc(proteinArc)"
+              stroke-dashoffset="0"
+              stroke-width="18"
+              class="chart-segment"
+            />
+            <circle
+              v-if="carbsRatio > 0"
+              cx="110"
+              cy="110"
+              r="78"
+              fill="transparent"
+              :stroke="colors.carbs"
+              :stroke-dasharray="carbsArc + ' ' + emptyArc(carbsArc)"
+              :stroke-dashoffset="-(proteinArc)"
+              stroke-width="18"
+              class="chart-segment"
+            />
+            <circle
+              v-if="fatRatio > 0"
+              cx="110"
+              cy="110"
+              r="78"
+              fill="transparent"
+              :stroke="colors.fat"
+              :stroke-dasharray="fatArc + ' ' + emptyArc(fatArc)"
+              :stroke-dashoffset="-(proteinArc + carbsArc)"
+              stroke-width="18"
+              class="chart-segment"
+            />
+          </svg>
+
+          <div class="chart-center">
+            <span class="center-label">今日热量</span>
+            <strong>{{ total.kcal }}</strong>
+            <span class="center-unit">kcal</span>
+          </div>
+        </div>
+
+        <div class="macro-list">
+          <div class="macro-row">
+            <span class="macro-label"><i :style="{ background: colors.protein }" />蛋白质</span>
+            <strong>{{ total.protein }}g · {{ proteinRatio }}%</strong>
+          </div>
+          <div class="macro-row">
+            <span class="macro-label"><i :style="{ background: colors.carbs }" />碳水</span>
+            <strong>{{ total.carbs }}g · {{ carbsRatio }}%</strong>
+          </div>
+          <div class="macro-row">
+            <span class="macro-label"><i :style="{ background: colors.fat }" />脂肪</span>
+            <strong>{{ total.fat }}g · {{ fatRatio }}%</strong>
+          </div>
         </div>
       </div>
     </section>
-    <section class="summary-block summary-ratio">
-      <h3>三大营养素比例</h3>
-      <div class="ratio-chart">
-        <svg viewBox="0 0 36 36" class="donut ratio-donut">
-          <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#E2E8F0" stroke-width="5" />
-          <circle cx="18" cy="18" r="15.915" fill="transparent" :stroke="colors.protein" :stroke-dasharray="proteinRatio + ' ' + (100-proteinRatio)" stroke-dashoffset="0" stroke-width="5" />
-          <circle cx="18" cy="18" r="15.915" fill="transparent" :stroke="colors.carbs" :stroke-dasharray="carbsRatio + ' ' + (100-carbsRatio)" :stroke-dashoffset="-proteinRatio" stroke-width="5" />
-          <circle cx="18" cy="18" r="15.915" fill="transparent" :stroke="colors.fat" :stroke-dasharray="fatRatio + ' ' + (100-fatRatio)" :stroke-dashoffset="-(proteinRatio+carbsRatio)" stroke-width="5" />
-        </svg>
-        <div class="ratio-legend">
-          <div><span class="dot" :style="{background: colors.protein}"></span>蛋白质 {{ proteinRatio }}%</div>
-          <div><span class="dot" :style="{background: colors.carbs}"></span>碳水 {{ carbsRatio }}%</div>
-          <div><span class="dot" :style="{background: colors.fat}"></span>脂肪 {{ fatRatio }}%</div>
+
+    <section class="summary-card">
+      <p class="panel-kicker">Goals</p>
+      <h3 class="panel-title">目标完成进度</h3>
+
+      <div class="goal-list">
+        <div v-for="goal in goals" :key="goal.key" class="goal-row">
+          <div class="goal-head">
+            <span>{{ goal.label }}</span>
+            <strong>{{ goal.current }} / {{ goal.target }}{{ goal.unit }}</strong>
+          </div>
+          <div class="goal-track">
+            <div class="goal-fill" :style="{ width: goal.progress + '%', background: goal.color }" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="summary-card insight-card">
+      <p class="panel-kicker">Insight</p>
+      <h3 class="panel-title">今日状态小结</h3>
+
+      <div class="insight-grid">
+        <div class="insight-item">
+          <span>热量区间</span>
+          <strong>{{ total.kcal > 1600 ? '接近目标' : '略低一些' }}</strong>
+        </div>
+        <div class="insight-item">
+          <span>蛋白表现</span>
+          <strong>{{ total.protein >= 90 ? '很稳定' : '还能再补' }}</strong>
+        </div>
+        <div class="insight-item">
+          <span>饮食节奏</span>
+          <strong>{{ meals.length >= 4 ? '分配均衡' : '可增加加餐' }}</strong>
         </div>
       </div>
     </section>
   </div>
-  <section class="summary-block summary-goal">
-    <h3>今日目标</h3>
-    <div class="goal-list">
-      <div class="goal-row">
-        <div class="goal-info">
-          <span>卡路里</span>
-          <span>{{ total.kcal }} / 2000 kcal</span>
-        </div>
-        <div class="goal-bar">
-          <div class="goal-bar-inner" :style="{width: Math.min(100, Math.round(total.kcal/2000*100)) + '%', background: colors.kcal}"></div>
-        </div>
-      </div>
-      <div class="goal-row">
-        <div class="goal-info">
-          <span>蛋白质</span>
-          <span>{{ total.protein }} / 120g</span>
-        </div>
-        <div class="goal-bar">
-          <div class="goal-bar-inner" :style="{width: Math.min(100, Math.round(total.protein/120*100)) + '%', background: colors.protein}"></div>
-        </div>
-      </div>
-      <div class="goal-row">
-        <div class="goal-info">
-          <span>碳水</span>
-          <span>{{ total.carbs }} / 250g</span>
-        </div>
-        <div class="goal-bar">
-          <div class="goal-bar-inner" :style="{width: Math.min(100, Math.round(total.carbs/250*100)) + '%', background: colors.carbs}"></div>
-        </div>
-      </div>
-      <div class="goal-row">
-        <div class="goal-info">
-          <span>脂肪</span>
-          <span>{{ total.fat }} / 65g</span>
-        </div>
-        <div class="goal-bar">
-          <div class="goal-bar-inner" :style="{width: Math.min(100, Math.round(total.fat/65*100)) + '%', background: colors.fat}"></div>
-        </div>
-      </div>
-    </div>
-  </section>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+
 const props = defineProps({
   meals: {
     type: Array,
-    required: true
-  }
+    required: true,
+  },
 })
+
 const colors = {
-  kcal: '#ff6b6b',
-  protein: '#006c49',
-  carbs: '#2170e4',
-  fat: '#e29100'
+  protein: '#7a8d6e',
+  carbs: '#d36b4b',
+  fat: '#c8953d',
+  kcal: '#9a4024',
 }
-const total = computed(() => {
-  return props.meals.reduce((acc, m) => ({
-    kcal: acc.kcal + (m.kcal || 0),
-    protein: acc.protein + (m.protein || 0),
-    carbs: acc.carbs + (m.carbs || 0),
-    fat: acc.fat + (m.fat || 0)
-  }), {kcal:0, protein:0, carbs:0, fat:0})
-})
+
+const total = computed(() =>
+  props.meals.reduce(
+    (acc, meal) => ({
+      kcal: acc.kcal + (meal.kcal || 0),
+      protein: acc.protein + (meal.protein || 0),
+      carbs: acc.carbs + (meal.carbs || 0),
+      fat: acc.fat + (meal.fat || 0),
+    }),
+    { kcal: 0, protein: 0, carbs: 0, fat: 0 },
+  ),
+)
+
 const sum = computed(() => total.value.protein + total.value.carbs + total.value.fat)
-const proteinRatio = computed(() => sum.value ? Math.round(total.value.protein/sum.value*100) : 0)
-const carbsRatio = computed(() => sum.value ? Math.round(total.value.carbs/sum.value*100) : 0)
-const fatRatio = computed(() => sum.value ? 100 - proteinRatio.value - carbsRatio.value : 0)
-const kcalRatio = computed(() => total.value.kcal > 0 ? 100 : 0)
+const proteinRatio = computed(() => (sum.value ? Math.round((total.value.protein / sum.value) * 100) : 0))
+const carbsRatio = computed(() => (sum.value ? Math.round((total.value.carbs / sum.value) * 100) : 0))
+const fatRatio = computed(() => (sum.value ? Math.max(0, 100 - proteinRatio.value - carbsRatio.value) : 0))
+
+const proteinArc = computed(() => proteinRatio.value)
+const carbsArc = computed(() => carbsRatio.value)
+const fatArc = computed(() => fatRatio.value)
+
+const goals = computed(() => [
+  createGoal('kcal', '热量', total.value.kcal, 2000, ' kcal', colors.kcal),
+  createGoal('protein', '蛋白质', total.value.protein, 120, 'g', colors.protein),
+  createGoal('carbs', '碳水', total.value.carbs, 220, 'g', colors.carbs),
+  createGoal('fat', '脂肪', total.value.fat, 65, 'g', colors.fat),
+])
+
+function createGoal(key, label, current, target, unit, color) {
+  return {
+    key,
+    label,
+    current,
+    target,
+    unit,
+    color,
+    progress: Math.min(100, Math.round((current / target) * 100)),
+  }
+}
+
+function emptyArc(value) {
+  return Math.max(0, 100 - value)
+}
 </script>
 
 <style scoped>
-.summary-panel.horizontal-layout {
-  display: flex;
-  flex-direction: row;
-  gap: 2.5rem;
-  justify-content: space-between;
-  align-items: stretch;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-  border: 1px solid #e2e8f0;
-  padding: 2.2rem 2rem 1.5rem 2rem;
-  margin-bottom: 1.5rem;
-}
-.summary-block {
-  flex: 1 1 0;
-  min-width: 220px;
-  background: none;
-  box-shadow: none;
-  border: none;
-  padding: 0;
-}
-.summary-block h3 {
-  text-align: left;
-  margin: 0 0 1.5rem 0;
-  font-size: 1.15rem;
-  color: #1a202c;
-  font-weight: 600;
-}
-.summary-intake {
+.summary-stack {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 20px;
 }
-.intake-chart {
+
+.summary-card {
+  padding: 24px;
+  border-radius: 28px;
+  background: rgba(249, 242, 240, 0.9);
+  border: 1px solid #dcc1b9;
+  box-shadow: 0 16px 34px rgba(50, 47, 46, 0.06);
+}
+
+.spotlight-card {
+  background:
+    radial-gradient(circle at top, rgba(255, 219, 209, 0.65), transparent 36%),
+    rgba(249, 242, 240, 0.96);
+}
+
+.panel-kicker {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7e2c11;
+  font-weight: 700;
+}
+
+.panel-title {
+  margin: 0 0 20px;
+  font-family: 'Playfair Display', 'Times New Roman', serif;
+  font-size: 28px;
+  line-height: 1.15;
+  color: #1d1b1a;
+}
+
+.ring-block {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 2rem;
+  flex-direction: column;
+  gap: 20px;
 }
-.donut {
+
+.ring-chart {
+  position: relative;
+  width: 220px;
+  margin: 0 auto;
+}
+
+.donut-chart {
+  width: 220px;
+  height: 220px;
   transform: rotate(-90deg);
 }
-.intake-donut,
-.ratio-donut {
-  width: 100px;
-  height: 100px;
+
+.chart-segment {
+  transition: stroke-dasharray 0.3s ease;
 }
-.intake-legend {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-  font-size: 0.95rem;
-}
-.summary-ratio {
+
+.chart-center {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  text-align: center;
 }
-.ratio-chart {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 2rem;
+
+.center-label,
+.center-unit {
+  color: #89726c;
+  font-size: 13px;
 }
-.ratio-legend {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-  font-size: 0.95rem;
+
+.chart-center strong {
+  font-family: 'Playfair Display', 'Times New Roman', serif;
+  font-size: 42px;
+  line-height: 1;
+  color: #9a4024;
 }
-.dot {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  margin-right: 0.3rem;
-}
-.summary-goal {
-  margin-top: 1.5rem;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-  border: 1px solid #e2e8f0;
-  padding: 2rem 2rem 1.5rem 2rem;
-}
-.summary-goal h3 {
-  text-align: left;
-  margin: 0 0 1.5rem 0;
-  font-size: 1.15rem;
-  color: #1a202c;
-  font-weight: 600;
-}
+
+.macro-list,
 .goal-list {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  gap: 14px;
 }
+
+.macro-row,
+.goal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.macro-row strong,
+.goal-head strong,
+.insight-item strong {
+  color: #1d1b1a;
+}
+
+.macro-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #56423d;
+}
+
+.macro-label i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
 .goal-row {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 8px;
 }
-.goal-info {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.95rem;
-  color: #4a5568;
+
+.goal-head span {
+  color: #56423d;
 }
-.goal-bar {
+
+.goal-track {
   width: 100%;
-  height: 8px;
-  background: #e2e8f0;
-  border-radius: 4px;
+  height: 10px;
+  border-radius: 999px;
+  background: #eadfdc;
   overflow: hidden;
 }
-.goal-bar-inner {
+
+.goal-fill {
   height: 100%;
-  border-radius: 4px;
-  transition: width 0.3s ease;
+  border-radius: inherit;
 }
+
+.insight-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(249, 242, 240, 0.98)),
+    #f9f2f0;
+}
+
+.insight-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.insight-item {
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(220, 193, 185, 0.85);
+}
+
+.insight-item span {
+  display: block;
+  margin-bottom: 6px;
+  color: #89726c;
+  font-size: 13px;
+}
+
 @media (max-width: 900px) {
-  .summary-panel.horizontal-layout {
-    flex-direction: column;
-    gap: 1.5rem;
-    padding: 1.2rem 0.7rem 1.2rem 0.7rem;
+  .summary-card {
+    padding: 20px;
+    border-radius: 24px;
   }
-  .summary-goal {
-    padding: 1.2rem 0.7rem 1.2rem 0.7rem;
-  }
-  .intake-donut,
-  .ratio-donut {
-    width: 120px;
-    height: 120px;
-  }
-  .intake-chart,
-  .ratio-chart {
-    flex-direction: column;
-    gap: 1rem;
+
+  .ring-chart,
+  .donut-chart {
+    width: 200px;
+    height: 200px;
   }
 }
 </style>
