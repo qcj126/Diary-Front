@@ -206,3 +206,18 @@ export const RECIPE_CATEGORIES = [
   { key: 'dessert', label: '甜点', icon: 'cake' },
   { key: 'drink', label: '饮品', icon: 'local_cafe' }
 ]
+
+export const RECIPE_SETTINGS = {
+  kitchenName: 'Heirloom Kitchen',
+  ownerName: 'Lin',
+  bio: '把每日食谱、烹饪节奏和厨房偏好整理成一本带有杂志气质的数字食谱册。',
+  servingsPreset: '2 人份',
+  theme: '暖调食谱簿',
+  syncStatus: '已连接云端备份',
+  lastBackup: '2026-06-02 10:40',
+  stepSort: '手动排序优先',
+  workflowTip: '记录步骤时优先写出火候变化、食材状态和出锅判断点，方便之后复刻。',
+  showNutrition: true,
+  showCookingTime: true,
+  stickyIngredients: true
+}

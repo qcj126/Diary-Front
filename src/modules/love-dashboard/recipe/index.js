@@ -1,4 +1,5 @@
 export { default as RecipePage } from './RecipePage.vue'
 export { default as RecipeCard } from './components/RecipeCard.vue'
 export { default as RecipeDetailPage } from './RecipeDetailPage.vue'
-export { RECIPE_DATA, RECIPE_CATEGORIES } from './mock/recipeData.js'
+export { default as RecipeSettingsPage } from './RecipeSettingsPage.vue'
+export { RECIPE_DATA, RECIPE_CATEGORIES, RECIPE_SETTINGS } from './mock/recipeData.js'

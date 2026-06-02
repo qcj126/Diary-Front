@@ -1,108 +1,102 @@
 <template>
   <div class="recipe-page">
     <div class="main-layout">
-      <!-- Category Sidebar -->
       <aside class="category-sidebar">
         <div class="sidebar-header">
           <h2 class="sidebar-title">分类</h2>
           <p class="sidebar-subtitle">按餐次浏览</p>
         </div>
+
         <nav class="category-menu">
-          <a 
-            v-for="category in categories" 
+          <button
+            v-for="category in categories"
             :key="category.key"
-            href="#" 
+            type="button"
             class="menu-item"
           >
             <span class="material-symbols-outlined">{{ category.icon }}</span>
             <span>{{ category.label }}</span>
-          </a>
+          </button>
         </nav>
+
         <div class="sidebar-action">
-          <button class="add-recipe-btn" @click="showAddSteps = true">
+          <button class="add-recipe-btn" type="button">
             <span class="material-symbols-outlined">add</span>
             添加新食谱
           </button>
-          <button class="add-category-btn">
+          <button class="add-category-btn" type="button">
             <span class="material-symbols-outlined">category</span>
             添加新分类
           </button>
         </div>
+
         <div class="sidebar-footer">
-          <a href="#" class="menu-item">
+          <button type="button" class="menu-item">
             <span class="material-symbols-outlined">menu_book</span>
             <span>我的收藏</span>
-          </a>
-          <a href="#" class="menu-item">
+          </button>
+          <button type="button" class="menu-item" @click="openSettings">
             <span class="material-symbols-outlined">settings</span>
             <span>设置</span>
-          </a>
+          </button>
         </div>
       </aside>
 
-      <!-- Main Content Area -->
       <main class="content-area">
-        <div class="content-wrapper">
-          <!-- Add Cooking Steps Interface -->
-          <AddCookingSteps v-if="showAddSteps" :embedded="true" @close="showAddSteps = false" />
+        <div class="content-wrapper" :class="{ 'content-wrapper-wide': isWideView }">
+          <header class="page-header" v-if="currentView === 'timeline'">
+            <h1 class="page-title">食谱时间轴</h1>
+            <p class="page-subtitle">您的烹饪之旅，按天有序呈现。</p>
+          </header>
 
-          <!-- Recipe Timeline -->
+          <RecipeSettingsPage
+            v-if="currentView === 'settings'"
+            :settings="settings"
+          />
+
+          <RecipeDetailPage
+            v-else-if="selectedRecipe"
+            :recipe="selectedRecipe"
+            @close="closeRecipeDetail"
+          />
+
           <div v-else>
-            <header class="page-header">
-              <h1 class="page-title">食谱时间轴</h1>
-              <p class="page-subtitle">您的烹饪之旅，按天有序呈现。</p>
-            </header>
-
-            <!-- Timeline Section -->
-            <div>
-              <RecipeDetailPage
-                v-if="selectedRecipe"
-                :recipe="selectedRecipe"
-                @close="closeRecipeDetail"
-              />
-
-              <div v-else>
-                <div class="timeline-container">
-                  <!-- Day Group: Today -->
-                  <section class="day-section">
-                    <div class="day-header">
-                      <div class="day-badge" :class="{ 'today': todayData.isToday }">
-                        {{ todayData.isToday ? '今天' : '' }}
-                      </div>
-                      <h2 class="day-date">{{ todayData.date }}</h2>
-                    </div>
-
-                    <!-- Recipe Entries -->
-                    <div 
-                      v-for="recipe in todayData.recipes" 
-                      :key="recipe.id"
-                      class="timeline-entry"
-                    >
-                      <RecipeCard
-                        :meal-type="recipe.mealType"
-                        :duration="recipe.duration"
-                        :title="recipe.title"
-                        :image-url="recipe.imageUrl"
-                        :ingredients="recipe.ingredients"
-                        :steps="recipe.steps"
-                        :is-favorite="recipe.isFavorite"
-                        @update:is-favorite="(val) => updateFavorite(recipe.id, val)"
-                        @toggle-ingredient="(index) => toggleIngredient(recipe.id, index)"
-                        @viewRecipe="openRecipeDetail(recipe)"
-                      />
-                    </div>
-                  </section>
+            <div class="timeline-container">
+              <section class="day-section">
+                <div class="day-header">
+                  <div class="day-badge" :class="{ today: todayData.isToday }">
+                    {{ todayData.isToday ? '今天' : '' }}
+                  </div>
+                  <h2 class="day-date">{{ todayData.date }}</h2>
                 </div>
 
-                <!-- Day Group: Yesterday (Visual teaser) -->
-                <section class="day-section yesterday">
-                  <div class="day-header">
-                    <div class="day-badge">昨天</div>
-                    <h2 class="day-date">{{ yesterdayData.date }}</h2>
-                  </div>
-                </section>
-              </div>
+                <div
+                  v-for="recipe in todayData.recipes"
+                  :key="recipe.id"
+                  class="timeline-entry"
+                >
+                  <RecipeCard
+                    :meal-type="recipe.mealType"
+                    :duration="recipe.duration"
+                    :title="recipe.title"
+                    :image-url="recipe.imageUrl"
+                    :ingredients="recipe.ingredients"
+                    :steps="recipe.steps"
+                    :is-favorite="recipe.isFavorite"
+                    @update:is-favorite="(val) => updateFavorite(recipe.id, val)"
+                    @toggle-ingredient="(index) => toggleIngredient(recipe.id, index)"
+                    @viewRecipe="openRecipeDetail(recipe)"
+                  />
+                </div>
+              </section>
             </div>
+
+            <section class="day-section yesterday">
+              <div class="day-header">
+                <div class="day-badge">昨天</div>
+                <h2 class="day-date">{{ yesterdayData.date }}</h2>
+              </div>
+            </section>
           </div>
         </div>
       </main>
@@ -111,38 +105,46 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import RecipeCard from './components/RecipeCard.vue'
 import RecipeDetailPage from './RecipeDetailPage.vue'
-import AddCookingSteps from './AddCookingSteps.vue'
-import { RECIPE_DATA, RECIPE_CATEGORIES } from './mock/recipeData.js'
+import RecipeSettingsPage from './RecipeSettingsPage.vue'
+import { RECIPE_DATA, RECIPE_CATEGORIES, RECIPE_SETTINGS } from './mock/recipeData.js'
 
 const todayData = ref(RECIPE_DATA.today)
 const yesterdayData = ref(RECIPE_DATA.yesterday)
 const categories = ref(RECIPE_CATEGORIES)
 const selectedRecipe = ref(null)
-const showAddSteps = ref(false)
+const currentView = ref('timeline')
+const settings = ref({ ...RECIPE_SETTINGS })
+
+const isWideView = computed(() => currentView.value === 'settings' || !!selectedRecipe.value)
 
 const updateFavorite = (recipeId, isFavorite) => {
-  const recipe = todayData.value.recipes.find(r => r.id === recipeId)
-  if (recipe) {
-    recipe.isFavorite = isFavorite
-  }
+  const recipe = todayData.value.recipes.find((item) => item.id === recipeId)
+  if (recipe) recipe.isFavorite = isFavorite
 }
 
 const toggleIngredient = (recipeId, ingredientIndex) => {
-  const recipe = todayData.value.recipes.find(r => r.id === recipeId)
+  const recipe = todayData.value.recipes.find((item) => item.id === recipeId)
   if (recipe && recipe.ingredients[ingredientIndex]) {
     recipe.ingredients[ingredientIndex].checked = !recipe.ingredients[ingredientIndex].checked
   }
 }
 
 const openRecipeDetail = (recipe) => {
+  currentView.value = 'detail'
   selectedRecipe.value = recipe
 }
 
 const closeRecipeDetail = () => {
+  currentView.value = 'timeline'
   selectedRecipe.value = null
+}
+
+const openSettings = () => {
+  selectedRecipe.value = null
+  currentView.value = 'settings'
 }
 </script>
 
@@ -154,31 +156,23 @@ const closeRecipeDetail = () => {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Material Symbols */
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-  font-weight: normal;
-  font-style: normal;
   font-size: 24px;
   line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
   display: inline-block;
   white-space: nowrap;
-  word-wrap: normal;
   direction: ltr;
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
 }
 
-/* Main Layout */
 .main-layout {
   display: flex;
   min-height: 100%;
 }
 
-/* Category Sidebar */
 .category-sidebar {
   width: 256px;
   padding: 24px 0;
@@ -197,10 +191,10 @@ const closeRecipeDetail = () => {
 .sidebar-header {
   padding: 0 24px;
   margin-bottom: 16px;
-  flex-shrink: 0;
 }
 
 .sidebar-title {
+  margin: 0;
   font-family: 'Playfair Display', serif;
   font-size: 24px;
   line-height: 32px;
@@ -208,17 +202,18 @@ const closeRecipeDetail = () => {
 }
 
 .sidebar-subtitle {
+  margin: 8px 0 0;
   font-size: 16px;
   line-height: 24px;
   color: #56423d;
 }
 
-.category-menu {
+.category-menu,
+.sidebar-footer {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 0 16px;
-  flex-shrink: 0;
 }
 
 .menu-item {
@@ -227,9 +222,13 @@ const closeRecipeDetail = () => {
   gap: 12px;
   padding: 12px 16px;
   color: #56423d;
-  text-decoration: none;
-  transition: background-color 0.2s;
   border-radius: 8px;
+  border: none;
+  background: transparent;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.2s ease;
 }
 
 .menu-item:hover {
@@ -245,80 +244,42 @@ const closeRecipeDetail = () => {
 
 .sidebar-action {
   padding: 0 16px;
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.add-recipe-btn,
+.add-category-btn {
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  cursor: pointer;
 }
 
 .add-recipe-btn {
   background-color: #9a4024;
   color: #ffffff;
-  border-radius: 8px;
-  padding: 12px 16px;
-  font-size: 14px;
-  line-height: 20px;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  border: none;
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-
-.add-recipe-btn:active {
-  transform: scale(0.95);
-}
-
-.add-recipe-btn .material-symbols-outlined {
-  font-size: 20px;
 }
 
 .add-category-btn {
   background-color: #ba5839;
   color: #ffffff;
-  border-radius: 8px;
-  padding: 12px 16px;
-  font-size: 14px;
-  line-height: 20px;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  border: none;
-  cursor: pointer;
-  transition: transform 0.2s, background-color 0.2s;
-}
-
-.add-category-btn:hover {
-  background-color: #9a4024;
-}
-
-.add-category-btn:active {
-  transform: scale(0.95);
-}
-
-.add-category-btn .material-symbols-outlined {
-  font-size: 20px;
 }
 
 .sidebar-footer {
   margin-top: auto;
-  padding: 0 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
 }
 
-/* Content Area */
 .content-area {
   flex: 1;
   min-width: 0;
@@ -329,7 +290,10 @@ const closeRecipeDetail = () => {
 
 .content-wrapper {
   max-width: 896px;
-  margin: 0;
+}
+
+.content-wrapper-wide {
+  max-width: 1240px;
 }
 
 .page-header {
@@ -337,22 +301,22 @@ const closeRecipeDetail = () => {
 }
 
 .page-title {
+  margin: 0 0 8px;
   font-family: 'Playfair Display', serif;
   font-size: 48px;
   line-height: 56px;
   letter-spacing: -0.02em;
   font-weight: 700;
   color: #9a4024;
-  margin-bottom: 8px;
 }
 
 .page-subtitle {
+  margin: 0;
   font-size: 18px;
   line-height: 28px;
   color: #56423d;
 }
 
-/* Timeline */
 .timeline-container {
   position: relative;
 }
@@ -407,6 +371,7 @@ const closeRecipeDetail = () => {
 }
 
 .day-date {
+  margin: 0;
   font-family: 'Playfair Display', serif;
   font-size: 32px;
   line-height: 40px;
@@ -419,7 +384,6 @@ const closeRecipeDetail = () => {
   margin-bottom: 24px;
 }
 
-/* Custom Scrollbar for Content Area */
 .content-area::-webkit-scrollbar {
   width: 6px;
 }
@@ -433,20 +397,15 @@ const closeRecipeDetail = () => {
   border-radius: 3px;
 }
 
-.content-area::-webkit-scrollbar-thumb:hover {
-  background: #89726c;
-}
-
-/* Responsive Design */
 @media (max-width: 768px) {
   .category-sidebar {
     display: none;
   }
-  
+
   .content-area {
     padding: 24px 20px;
   }
-  
+
   .page-title {
     font-size: 32px;
     line-height: 40px;
