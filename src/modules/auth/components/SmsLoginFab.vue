@@ -13,10 +13,13 @@
   <Teleport to="body">
     <Transition name="fade">
       <div v-if="open" class="overlay" role="dialog" aria-modal="true" @click.self="close">
-        <div class="drawer">
+        <div
+          class="drawer"
+          v-ripple="{ trigger: 'move', color: 'rgba(184,196,255,.2)', interval: 420, scale: 2.6 }"
+        >
           <header class="drawer-head">
-            <h2 class="drawer-title">??? + ???</h2>
-            <button type="button" class="icon-btn" aria-label="??" @click="close">�</button>
+            <h2 class="drawer-title">📱 + 🔐</h2>
+            <button type="button" class="icon-btn" aria-label="关闭" @click="close">✕</button>
           </header>
           <p class="drawer-desc">使用 JSON 请求 <code>POST /user/login</code>，载荷为 <code>phone</code> + <code>code</code>。</p>
 
@@ -59,7 +62,7 @@
 
           <p v-if="banner" class="banner" :class="bannerType">{{ banner }}</p>
 
-          <button type="button" class="btn primary full" :disabled="loading" @click="submit">
+          <button type="button" class="btn primary full" :disabled="loading" v-ripple @click="submit">
             {{ loading ? '登录中…' : '登录' }}
           </button>
         </div>
@@ -71,6 +74,7 @@
 <script setup>
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { getApiMessage, isApiSuccess, login as loginApi, sendVerifyCode } from '../api.js'
+import { ripple as vRipple } from '../directives/ripple.js'
 
 import { validatePhone, validateVerifyCode } from '../validators.js'
 
@@ -171,7 +175,7 @@ async function submit() {
   const ph = validatePhone(phone.value)
   const c = validateVerifyCode(code.value)
   if (!ph.ok || !c.ok) {
-    banner.value = '??????????'
+    banner.value = '请检查表单错误'
     bannerType.value = 'warn'
     return
   }
@@ -181,21 +185,21 @@ async function submit() {
   try {
     const { res, data } = await loginApi({ phone: ph.value, code: c.value, type: 2 })
     if (isApiSuccess(res, data)) {
-      banner.value = getApiMessage(data, '????')
+      banner.value = getApiMessage(data, '登录成功')
       bannerType.value = 'ok'
       emit('logged-in')
       setTimeout(() => {
         close()
       }, 250)
     } else {
-      const msg = getApiMessage(data, `?????${res.status}?`)
+      const msg = getApiMessage(data, `登录失败（${res.status}）`)
       banner.value = msg
       bannerType.value = 'warn'
 
     }
   } catch (e) {
     console.error(e)
-    const msg = e instanceof Error ? e.message : '??????????'
+    const msg = e instanceof Error ? e.message : '网络异常，请稍后重试'
     banner.value = msg
     bannerType.value = 'warn'
 
@@ -452,18 +456,6 @@ async function submit() {
   transition: filter 0.15s, transform 0.15s, opacity 0.15s, box-shadow 0.15s;
 }
 
-.btn.primary::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -60%;
-  width: 20%;
-  height: 200%;
-  background: rgba(255, 255, 255, 0.22);
-  transform: rotate(30deg);
-  transition: transform 0.6s ease-in-out;
-}
-
 .btn.primary.full {
   width: 100%;
   padding: 0.85rem 1rem;
@@ -473,10 +465,6 @@ async function submit() {
   filter: brightness(1.05);
   transform: translateY(-1px);
   box-shadow: 0 18px 42px rgba(30, 64, 175, 0.44);
-}
-
-.btn.primary:hover:not(:disabled)::after {
-  transform: translate(620%, 0) rotate(30deg);
 }
 
 .btn.primary:disabled {

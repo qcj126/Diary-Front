@@ -1,5 +1,8 @@
 <template>
-  <div class="auth-card">
+  <div
+    class="auth-card"
+    v-ripple="{ trigger: 'move', color: 'rgba(184,196,255,.2)', interval: 420, scale: 2.6 }"
+  >
     <p class="hint">使用 JSON 请求 <code>POST /user/login</code></p>
 
     <form class="form" @submit.prevent="onSubmit">
@@ -29,7 +32,7 @@
 
       <p v-if="banner" class="banner" :class="bannerType">{{ banner }}</p>
 
-      <button type="submit" class="btn primary" :disabled="loading">
+      <button type="submit" class="btn primary" :disabled="loading" v-ripple>
         {{ loading ? '登录中…' : '登录' }}
       </button>
 
@@ -44,6 +47,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { getApiMessage, isApiSuccess, login as loginApi } from '../api.js'
+import { ripple as vRipple } from '../directives/ripple.js'
 
 import SmsLoginFab from './SmsLoginFab.vue'
 import {
@@ -267,26 +271,10 @@ async function onSubmit() {
   transition: transform 0.15s, filter 0.15s, opacity 0.15s, box-shadow 0.15s;
 }
 
-.btn.primary::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -60%;
-  width: 20%;
-  height: 200%;
-  background: rgba(255, 255, 255, 0.22);
-  transform: rotate(30deg);
-  transition: transform 0.6s ease-in-out;
-}
-
 .btn.primary:hover:not(:disabled) {
   filter: brightness(1.05);
   transform: translateY(-1px);
   box-shadow: 0 18px 42px rgba(30, 64, 175, 0.44);
-}
-
-.btn.primary:hover:not(:disabled)::after {
-  transform: translate(620%, 0) rotate(30deg);
 }
 
 .btn.primary:active:not(:disabled) {

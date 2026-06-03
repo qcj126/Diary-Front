@@ -8,6 +8,23 @@
       <span class="mesh-blob mesh-blob-c" />
     </div>
 
+    <div class="bubble-shell" aria-hidden="true">
+      <div
+        v-for="bubble in bubbles"
+        :key="bubble.id"
+        class="bubble-box"
+        :style="{
+          width: `${bubble.size}px`,
+          height: `${bubble.size}px`,
+          opacity: bubble.opacity,
+          transform: `translate3d(${bubble.x}px, ${bubble.y}px, 0)`,
+        }"
+      >
+        <div class="bubble-ball"></div>
+        <div v-if="bubble.hasShadow" class="bubble-shadow"></div>
+      </div>
+    </div>
+
     <main class="shell">
       <header class="hero entrance-anim">
         <h1 class="title">DiaryLove</h1>
@@ -57,15 +74,95 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import LoginForm from './modules/auth/components/LoginForm.vue'
 import RegisterForm from './modules/auth/components/RegisterForm.vue'
 import ResetPasswordForm from './modules/auth/components/ResetPasswordForm.vue'
 import LoveDashboard from './modules/love-dashboard/LoveDashboard.vue'
 
+const BUBBLE_COUNT = 10
+const bubbles = ref([])
 const page = ref('login')
 const loginNotice = ref('')
 const loggedIn = ref(false)
+let bubbleFrame = 0
+let lastBubbleTime = 0
+
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min)
+}
+
+function createBubble(id) {
+  const size = randomBetween(34, 170)
+  const width = window.innerWidth
+  const height = window.innerHeight
+  const speed = randomBetween(24, 72)
+  const angle = randomBetween(0, Math.PI * 2)
+
+  return {
+    id,
+    size,
+    opacity: randomBetween(0.18, 0.62).toFixed(2),
+    hasShadow: size > 56,
+    x: randomBetween(0, Math.max(width - size, 0)),
+    y: randomBetween(0, Math.max(height - size, 0)),
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+  }
+}
+
+function moveBubbles(time = 0) {
+  const dt = Math.min((time - lastBubbleTime) / 1000, 0.04) || 0
+  lastBubbleTime = time
+  const width = window.innerWidth
+  const height = window.innerHeight
+
+  for (const bubble of bubbles.value) {
+    bubble.x += bubble.vx * dt
+    bubble.y += bubble.vy * dt
+
+    if (bubble.x <= 0) {
+      bubble.x = 0
+      bubble.vx = Math.abs(bubble.vx)
+    } else if (bubble.x + bubble.size >= width) {
+      bubble.x = width - bubble.size
+      bubble.vx = -Math.abs(bubble.vx)
+    }
+
+    if (bubble.y <= 0) {
+      bubble.y = 0
+      bubble.vy = Math.abs(bubble.vy)
+    } else if (bubble.y + bubble.size >= height) {
+      bubble.y = height - bubble.size
+      bubble.vy = -Math.abs(bubble.vy)
+    }
+  }
+
+  bubbleFrame = requestAnimationFrame(moveBubbles)
+}
+
+function clampBubblesToViewport() {
+  const width = window.innerWidth
+  const height = window.innerHeight
+
+  for (const bubble of bubbles.value) {
+    bubble.x = Math.min(Math.max(bubble.x, 0), Math.max(width - bubble.size, 0))
+    bubble.y = Math.min(Math.max(bubble.y, 0), Math.max(height - bubble.size, 0))
+  }
+}
+
+onMounted(() => {
+  bubbles.value = Array.from({ length: BUBBLE_COUNT }, (_, index) => createBubble(index))
+  lastBubbleTime = performance.now()
+  bubbleFrame = requestAnimationFrame(moveBubbles)
+  window.addEventListener('resize', clampBubblesToViewport)
+})
+
+onBeforeUnmount(() => {
+  cancelAnimationFrame(bubbleFrame)
+  window.removeEventListener('resize', clampBubblesToViewport)
+})
+
 
 function handleRegistered() {
   page.value = 'login'
@@ -155,6 +252,51 @@ body {
   mask-image: radial-gradient(circle at center, black, transparent 72%);
 }
 
+.bubble-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bubble-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+
+.bubble-ball {
+  animation: float 3.5s ease-in-out infinite;
+  height: 100%;
+  width: 100%;
+  border-radius: 50%;
+  position: relative;
+  background: radial-gradient(circle at 77% 30%,
+      white 5px,
+      aqua 8%,
+      darkblue 60%,
+      aqua 100%);
+  box-shadow: inset 0 0 20px #fff,
+      inset 10px 0 46px #eaf5fc,
+      inset 88px 0px 60px #c2d8fe,
+      inset -20px -60px 100px #fde9ea,
+      inset 0 50px 140px #fde9ea,
+      0 0 90px #fff;
+}
+
+.bubble-shadow {
+  background: #b490b27c;
+  width: 75%;
+  height: 20%;
+  left: 12.5%;
+  top: 82%;
+  animation: expand 4s infinite;
+  position: absolute;
+  border-radius: 50%;
+}
+
 .mesh-blob {
   position: absolute;
   display: block;
@@ -194,7 +336,7 @@ body {
 
 .shell {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   max-width: 480px;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
@@ -347,9 +489,37 @@ body {
   }
 }
 
+@keyframes float {
+  0% {
+    transform: translatey(0px) rotate(-10deg);
+  }
+
+  50% {
+    transform: translatey(-80px) rotate(10deg);
+  }
+
+  100% {
+    transform: translatey(0px) rotate(-10deg);
+  }
+}
+
+@keyframes expand {
+
+  0%,
+  100% {
+    transform: scale(0.5);
+  }
+
+  50% {
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mesh-blob,
-  .entrance-anim {
+  .entrance-anim,
+  .bubble-ball,
+  .bubble-shadow {
     animation: none;
   }
 }
