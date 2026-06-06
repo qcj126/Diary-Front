@@ -71,6 +71,8 @@ const tagStyle = computed(() => ({
   gap: 0.75rem;
   cursor: pointer;
   outline: none;
+  min-height: 200px;
+  height: 200px;
 }
 
 .event-card:hover {

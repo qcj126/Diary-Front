@@ -17,12 +17,23 @@
       class="category-group"
     >
       <div 
-        class="category-item"
-        :class="{ active: selectedCategory === category.key }"
-        @click="handleSelectCategory(category.key)"
+        class="category-item-wrapper"
       >
-        <span class="category-icon">{{ category.icon }}</span>
-        <span class="category-label">{{ category.label }}</span>
+        <div 
+          class="category-item"
+          :class="{ active: selectedCategory === category.key }"
+          @click="handleSelectCategory(category.key)"
+        >
+          <span class="category-icon">{{ category.icon }}</span>
+          <span class="category-label">{{ category.label }}</span>
+        </div>
+        <button 
+          class="add-btn"
+          @click.stop="handleAddCategory(category)"
+          title="添加新事件"
+        >
+          <span class="material-symbols-outlined">add</span>
+        </button>
       </div>
 
       <!-- 子类展开 -->
@@ -61,7 +72,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:category', 'update:subcategory'])
+const emit = defineEmits(['update:category', 'update:subcategory', 'add-category'])
 
 function handleSelectCategory(categoryKey) {
   emit('update:category', categoryKey)
@@ -71,13 +82,18 @@ function handleSelectCategory(categoryKey) {
 function handleSelectSubcategory(subcategoryKey) {
   emit('update:subcategory', subcategoryKey)
 }
+
+function handleAddCategory(category) {
+  emit('add-category', category)
+}
+
 </script>
 
 <style scoped>
 .category-nav {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.75rem;
   height: 100%;
   overflow-y: auto;
   padding: 0.5rem 0;
@@ -86,14 +102,51 @@ function handleSelectSubcategory(subcategoryKey) {
 .category-group {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
+}
+
+.category-item-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+  flex-shrink: 0;
+}
+
+.add-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.add-btn:active {
+  transform: scale(0.95);
+}
+
+.add-btn .material-symbols-outlined {
+  font-size: 20px;
 }
 
 .category-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 0.5rem;
-  border-radius: 8px;
+  padding: 1rem;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
   background: transparent;
@@ -122,22 +175,23 @@ function handleSelectSubcategory(subcategoryKey) {
 }
 
 .subcategories {
-  margin-left: 1.5rem;
-  margin-top: 0.25rem;
+  margin-left: 1rem;
+  margin-top: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.75rem;
 }
 
 .subcategory-item {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.4rem;
-  border-radius: 6px;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  background: transparent;
 }
 
 .subcategory-item:hover {

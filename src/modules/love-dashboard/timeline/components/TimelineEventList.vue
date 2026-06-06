@@ -60,7 +60,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['load-more', 'select-event'])
-
 const eventListRef = ref(null)
 
 function handleLoadMore() {
@@ -100,10 +99,11 @@ function getEventIcon(event) {
 
 .event-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 0.75rem;
   flex: 1;
   min-height: 0;
+  align-content: start;
 }
 
 .empty-state {

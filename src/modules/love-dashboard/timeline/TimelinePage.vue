@@ -24,6 +24,7 @@
           :selected-subcategory="selectedSubcategory"
           @update:category="selectCategory"
           @update:subcategory="selectSubcategory"
+          @add-category="handleAddCategory"
         />
       </div>
 
@@ -40,10 +41,21 @@
       </div>
 
       <TimelineEventDetail
+        v-if="!isAddingEvent"
         class="event-detail-area"
         :event="selectedEvent"
         @save="saveEvent"
         @close="clearSelectedEvent"
+        @delete="handleDeleteEvent"
+      />
+      
+      <TimelineEventDetail
+        v-else
+        class="event-detail-area"
+        :event="null"
+        :category="addingCategory"
+        @save="handleSaveNewEvent"
+        @close="cancelAddEvent"
       />
     </div>
   </div>
@@ -60,6 +72,8 @@ import { useTimelineEvents } from './composables/useTimelineEvents.js'
 
 const categories = EVENT_CATEGORIES
 const selectedEventId = ref(null)
+const isAddingEvent = ref(false)
+const addingCategory = ref(null)
 
 const {
   allEvents,
@@ -84,6 +98,8 @@ const selectedEvent = computed(() => {
 
 function selectEvent(event) {
   selectedEventId.value = event.id
+  isAddingEvent.value = false
+  addingCategory.value = null
 }
 
 function clearSelectedEvent() {
@@ -94,6 +110,37 @@ function saveEvent(event) {
   updateEvent(event)
   selectedEventId.value = event.id
 }
+
+function handleAddCategory(category) {
+  isAddingEvent.value = true
+  addingCategory.value = category
+  selectedEventId.value = null
+}
+
+function cancelAddEvent() {
+  isAddingEvent.value = false
+  addingCategory.value = null
+}
+
+function handleSaveNewEvent(event) {
+  // TODO: 调用API创建新事件
+  console.log('保存新事件:', event)
+  // 保存成功后退出编辑模式
+  isAddingEvent.value = false
+  addingCategory.value = null
+  // 重新加载事件列表
+  loadMore()
+}
+
+function handleDeleteEvent(eventId) {
+  // TODO: 调用API删除事件
+  console.log('删除事件:', eventId)
+  // 删除成功后清除选择
+  clearSelectedEvent()
+  // 重新加载事件列表
+  loadMore()
+}
+
 </script>
 
 <style scoped>
@@ -225,6 +272,52 @@ function saveEvent(event) {
 .event-detail-area {
   height: calc(100vh - 560px);
   overflow-y: auto;
+}
+
+.add-event-panel {
+  padding: 1.5rem;
+  background: rgba(32, 31, 33, 0.6);
+  backdrop-filter: blur(12px);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  color: #e5e1e4;
+}
+
+.add-event-panel h3 {
+  margin: 0;
+  color: #dbfcff;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+}
+
+.add-event-panel p {
+  margin: 0;
+  color: #b9cacb;
+  font-size: 0.9rem;
+}
+
+.cancel-btn {
+  padding: 0.75rem 1.5rem;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 10px;
+  background: rgba(0, 240, 255, 0.1);
+  color: #7df4ff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: flex-start;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.1);
+}
+
+.cancel-btn:hover {
+  background: rgba(0, 240, 255, 0.2);
+  border-color: rgba(0, 240, 255, 0.5);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
 }
 
 .event-list-area::-webkit-scrollbar,
