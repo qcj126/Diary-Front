@@ -1,8 +1,11 @@
 import { ref, computed } from 'vue'
 import { TIMELINE_EVENTS } from '../mock/timelineData.js'
 import { CAROUSEL_CONFIG } from '../constants/carouselConfig.js'
+import { CATEGORY_FILTER_MAP } from '../constants/eventCategories.js'
 
 export function useTimelineEvents() {
+  const events = ref(TIMELINE_EVENTS.map(event => ({ ...event })))
+
   // 当前选中的大类和子类
   const selectedCategory = ref('all')
   const selectedSubcategory = ref(null)
@@ -18,7 +21,7 @@ export function useTimelineEvents() {
 
   // 所有事件(按日期降序排列)
   const allEvents = computed(() => {
-    return [...TIMELINE_EVENTS].sort((a, b) => 
+    return [...events.value].sort((a, b) => 
       new Date(b.date).getTime() - new Date(a.date).getTime()
     )
   })
@@ -45,10 +48,14 @@ export function useTimelineEvents() {
     let events = allEvents.value
     
     if (selectedCategory.value !== 'all') {
-      events = events.filter(e => e.categoryKey === selectedCategory.value)
+      const categoryFilter = CATEGORY_FILTER_MAP[selectedCategory.value]
+      const categoryKey = categoryFilter?.categoryKey || selectedCategory.value
+      const subcategoryKey = selectedSubcategory.value || categoryFilter?.subcategoryKey
+
+      events = events.filter(e => e.categoryKey === categoryKey)
       
-      if (selectedSubcategory.value) {
-        events = events.filter(e => e.subcategoryKey === selectedSubcategory.value)
+      if (subcategoryKey) {
+        events = events.filter(e => e.subcategoryKey === subcategoryKey)
       }
     }
     
@@ -79,10 +86,14 @@ export function useTimelineEvents() {
     let events = allEvents.value
     
     if (selectedCategory.value !== 'all') {
-      events = events.filter(e => e.categoryKey === selectedCategory.value)
+      const categoryFilter = CATEGORY_FILTER_MAP[selectedCategory.value]
+      const categoryKey = categoryFilter?.categoryKey || selectedCategory.value
+      const subcategoryKey = selectedSubcategory.value || categoryFilter?.subcategoryKey
+
+      events = events.filter(e => e.categoryKey === categoryKey)
       
-      if (selectedSubcategory.value) {
-        events = events.filter(e => e.subcategoryKey === selectedSubcategory.value)
+      if (subcategoryKey) {
+        events = events.filter(e => e.subcategoryKey === subcategoryKey)
       }
     }
     
@@ -157,7 +168,18 @@ export function useTimelineEvents() {
     console.log('选择子类:', subcategoryKey, '初始加载:', initialLoadCount, '条')
   }
 
+  function updateEvent(updatedEvent) {
+    const index = events.value.findIndex(event => event.id === updatedEvent.id)
+    if (index === -1) return
+
+    events.value[index] = {
+      ...events.value[index],
+      ...updatedEvent,
+    }
+  }
+
   return {
+    allEvents,
     selectedCategory,
     selectedSubcategory,
     currentPage,
@@ -172,6 +194,7 @@ export function useTimelineEvents() {
     prevPage,
     loadMore,
     selectCategory,
-    selectSubcategory
+    selectSubcategory,
+    updateEvent
   }
 }

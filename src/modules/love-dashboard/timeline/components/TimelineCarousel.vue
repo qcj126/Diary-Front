@@ -217,6 +217,7 @@ defineExpose({
   height: 300px;
   border-radius: 2rem;
   overflow: hidden;
+  clip-path: inset(0 round 2rem);
   flex-shrink: 0;
   cursor: pointer;
   transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
@@ -231,7 +232,6 @@ defineExpose({
 }
 
 .timeline-card:hover {
-  transform: scale(1.04) translateY(-8px);
   border-color: #d1bcff;
   box-shadow:
     0 0 30px rgba(209, 188, 255, 0.2),
@@ -303,8 +303,10 @@ defineExpose({
 }
 
 .card-date {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
   width: fit-content;
-  margin-bottom: 0.5rem;
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
   background: rgba(0, 240, 255, 0.1);

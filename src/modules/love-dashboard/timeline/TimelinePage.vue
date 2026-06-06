@@ -1,7 +1,7 @@
 <template>
   <div class="timeline-page">
     <header class="timeline-header">
-      <h1>恋爱时光轴</h1>
+      <h1>恋爱时光机</h1>
     </header>
 
     <section class="hero-copy">
@@ -13,22 +13,7 @@
     </section>
 
     <div class="carousel-section">
-      <TimelineCarousel ref="carouselRef" :events="recentEvents" />
-    </div>
-
-    <div class="carousel-actions">
-      <button class="action-btn" type="button" aria-label="上一张" @click="goPrev">
-        <span class="material-symbols-outlined">chevron_left</span>
-      </button>
-      <div class="action-dots">
-        <span class="dot active" />
-        <span class="dot" />
-        <span class="dot" />
-        <span class="dot" />
-      </div>
-      <button class="action-btn" type="button" aria-label="下一张" @click="goNext">
-        <span class="material-symbols-outlined">chevron_right</span>
-      </button>
+      <TimelineCarousel :events="recentEvents" />
     </div>
 
     <div class="events-section">
@@ -50,24 +35,34 @@
           :hasMore="hasMore"
           :totalEventsCount="totalEventsCount"
           @load-more="loadMore"
+          @select-event="selectEvent"
         />
       </div>
+
+      <TimelineEventDetail
+        class="event-detail-area"
+        :event="selectedEvent"
+        @save="saveEvent"
+        @close="clearSelectedEvent"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { EVENT_CATEGORIES } from './constants/eventCategories.js'
 import TimelineCarousel from './components/TimelineCarousel.vue'
 import TimelineCategoryNav from './components/TimelineCategoryNav.vue'
+import TimelineEventDetail from './components/TimelineEventDetail.vue'
 import TimelineEventList from './components/TimelineEventList.vue'
 import { useTimelineEvents } from './composables/useTimelineEvents.js'
 
 const categories = EVENT_CATEGORIES
-const carouselRef = ref(null)
+const selectedEventId = ref(null)
 
 const {
+  allEvents,
   selectedCategory,
   selectedSubcategory,
   currentPage,
@@ -79,14 +74,25 @@ const {
   selectCategory,
   selectSubcategory,
   totalEventsCount,
+  updateEvent,
 } = useTimelineEvents()
 
-function goPrev() {
-  carouselRef.value?.prev()
+const selectedEvent = computed(() => {
+  if (!selectedEventId.value) return null
+  return allEvents.value.find(event => event.id === selectedEventId.value) || null
+})
+
+function selectEvent(event) {
+  selectedEventId.value = event.id
 }
 
-function goNext() {
-  carouselRef.value?.next()
+function clearSelectedEvent() {
+  selectedEventId.value = null
+}
+
+function saveEvent(event) {
+  updateEvent(event)
+  selectedEventId.value = event.id
 }
 </script>
 
@@ -191,60 +197,9 @@ function goNext() {
   overflow: hidden;
 }
 
-.carousel-actions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 2rem;
-  margin-top: -0.5rem;
-}
-
-.action-btn {
-  width: 56px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  border: 1px solid #00f0ff;
-  background: transparent;
-  color: #00f0ff;
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
-  cursor: pointer;
-  transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease, transform 0.25s ease;
-}
-
-.action-btn:hover {
-  background: #00f0ff;
-  color: #131315;
-  box-shadow: 0 0 28px rgba(0, 240, 255, 0.42);
-  transform: translateY(-2px);
-}
-
-.action-btn:active {
-  transform: translateY(0) scale(0.97);
-}
-
-.action-dots {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: #353437;
-}
-
-.dot.active {
-  background: #00f0ff;
-  box-shadow: 0 0 8px #00f0ff;
-}
-
 .events-section {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: 180px minmax(0, 1fr) 360px;
   gap: 1rem;
   flex: 1;
   min-height: 0;
@@ -267,18 +222,26 @@ function goNext() {
   border-radius: 1rem;
 }
 
+.event-detail-area {
+  height: calc(100vh - 560px);
+  overflow-y: auto;
+}
+
 .event-list-area::-webkit-scrollbar,
+.event-detail-area::-webkit-scrollbar,
 .category-nav-area::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 
 .event-list-area::-webkit-scrollbar-track,
+.event-detail-area::-webkit-scrollbar-track,
 .category-nav-area::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .event-list-area::-webkit-scrollbar-thumb,
+.event-detail-area::-webkit-scrollbar-thumb,
 .category-nav-area::-webkit-scrollbar-thumb {
   background: rgba(0, 240, 255, 0.3);
   border-radius: 2px;
@@ -298,7 +261,8 @@ function goNext() {
   }
 
   .category-nav-area,
-  .event-list-area {
+  .event-list-area,
+  .event-detail-area {
     height: auto;
     max-height: none;
   }

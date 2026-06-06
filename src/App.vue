@@ -28,7 +28,6 @@
     <main class="shell">
       <header class="hero entrance-anim">
         <h1 class="title">DiaryLove</h1>
-        <p class="subtitle">安全登录与注册 · 模块化前端</p>
       </header>
 
       <div class="panel card entrance-anim">
@@ -65,10 +64,6 @@
         <ResetPasswordForm v-else @done="handleResetDone" />
       </div>
 
-      <footer class="foot">
-        <span>后端 API：</span>
-        <code class="mono">http://localhost:10000</code> (后端网关)
-      </footer>
     </main>
   </div>
 </template>

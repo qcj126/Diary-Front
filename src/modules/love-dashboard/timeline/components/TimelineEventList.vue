@@ -8,6 +8,7 @@
         :event="event"
         :category-label="getCategoryLabel(event)"
         :event-icon="getEventIcon(event)"
+        @select="handleSelectEvent"
       />
       
       <!-- 空状态 -->
@@ -58,12 +59,16 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['load-more'])
+const emit = defineEmits(['load-more', 'select-event'])
 
 const eventListRef = ref(null)
 
 function handleLoadMore() {
   emit('load-more')
+}
+
+function handleSelectEvent(event) {
+  emit('select-event', event)
 }
 
 function getCategoryLabel(event) {

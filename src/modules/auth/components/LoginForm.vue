@@ -3,8 +3,6 @@
     class="auth-card"
     v-ripple="{ trigger: 'move', color: 'rgba(184,196,255,.2)', interval: 420, scale: 2.6 }"
   >
-    <p class="hint">使用 JSON 请求 <code>POST /user/login</code></p>
-
     <form class="form" @submit.prevent="onSubmit">
       <label class="field">
         <span class="label">用户</span>

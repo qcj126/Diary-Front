@@ -21,7 +21,6 @@
             <h2 class="drawer-title">📱 + 🔐</h2>
             <button type="button" class="icon-btn" aria-label="关闭" @click="close">✕</button>
           </header>
-          <p class="drawer-desc">使用 JSON 请求 <code>POST /user/login</code>，载荷为 <code>phone</code> + <code>code</code>。</p>
 
           <label class="field">
             <span class="label">手机号</span>
