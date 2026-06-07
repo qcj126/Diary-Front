@@ -1,11 +1,10 @@
 <template>
-  <div class="timeline-page">
+  <div class="timeline-page" ref="timelinePageRef">
     <header class="timeline-header">
       <h1>恋爱时光机</h1>
     </header>
 
     <section class="hero-copy">
-      <span class="hero-kicker">Love Timeline · Neon Glow</span>
       <h2>岁月如歌，瞬间永恒</h2>
       <p>
         沿着记忆的轨迹，回望我们一起发光的节点。时间不再只是数字，而是被照片、心动和陪伴点亮的故事。
@@ -62,13 +61,33 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { EVENT_CATEGORIES } from './constants/eventCategories.js'
 import TimelineCarousel from './components/TimelineCarousel.vue'
 import TimelineCategoryNav from './components/TimelineCategoryNav.vue'
 import TimelineEventDetail from './components/TimelineEventDetail.vue'
 import TimelineEventList from './components/TimelineEventList.vue'
 import { useTimelineEvents } from './composables/useTimelineEvents.js'
+
+const timelinePageRef = ref(null)
+
+function handleWheel(e) {
+  // 检查事件目标是否在可滚动的子元素内，如果是则允许滚动
+  let target = e.target
+  while (target && target !== e.currentTarget) {
+    const style = getComputedStyle(target)
+    const overflowY = style.overflowY
+    if (
+      (overflowY === 'auto' || overflowY === 'scroll') &&
+      target.scrollHeight > target.clientHeight
+    ) {
+      return // 子元素可滚动，不阻止
+    }
+    target = target.parentElement
+  }
+  // 阻止页面级别的滚动
+  e.preventDefault()
+}
 
 const categories = EVENT_CATEGORIES
 const selectedEventId = ref(null)
@@ -132,6 +151,18 @@ function handleSaveNewEvent(event) {
   loadMore()
 }
 
+onMounted(() => {
+  if (timelinePageRef.value) {
+    timelinePageRef.value.addEventListener('wheel', handleWheel, { passive: false })
+  }
+})
+
+onBeforeUnmount(() => {
+  if (timelinePageRef.value) {
+    timelinePageRef.value.removeEventListener('wheel', handleWheel)
+  }
+})
+
 function handleDeleteEvent(eventId) {
   // TODO: 调用API删除事件
   console.log('删除事件:', eventId)
@@ -145,7 +176,7 @@ function handleDeleteEvent(eventId) {
 
 <style scoped>
 .timeline-page {
-  min-height: 100%;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -203,21 +234,7 @@ function handleDeleteEvent(eventId) {
 
 .hero-copy {
   padding: 0.5rem 1rem 0;
-}
-
-.hero-kicker {
-  display: inline-flex;
-  margin-bottom: 0.6rem;
-  padding: 0.35rem 0.85rem;
-  border: 1px solid rgba(0, 240, 255, 0.2);
-  border-radius: 999px;
-  background: rgba(0, 240, 255, 0.08);
-  color: #7df4ff;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.14);
+  margin-top: -10px;
 }
 
 .hero-copy h2 {
@@ -250,7 +267,7 @@ function handleDeleteEvent(eventId) {
   gap: 1rem;
   flex: 1;
   min-height: 0;
-  margin-top: -0.5rem;
+  margin-top: calc(-0.5rem - 20px);
 }
 
 .category-nav-area {

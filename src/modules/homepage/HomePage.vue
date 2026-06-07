@@ -1,5 +1,5 @@
 <template>
-  <section class="home-page">
+  <section class="home-page" @wheel="handleWheel">
     <header class="home-header">
       <div>
         <h1>{{ todayLabel }}</h1>
@@ -268,6 +268,24 @@
 import { computed, onMounted, ref } from 'vue'
 import memoryImage from '../../../stitch_timeline_glow.png'
 
+function handleWheel(e) {
+  // 检查事件目标是否在可滚动的子元素内，如果是则允许滚动
+  let target = e.target
+  while (target && target !== e.currentTarget) {
+    const style = getComputedStyle(target)
+    const overflowY = style.overflowY
+    if (
+      (overflowY === 'auto' || overflowY === 'scroll') &&
+      target.scrollHeight > target.clientHeight
+    ) {
+      return // 子元素可滚动，不阻止
+    }
+    target = target.parentElement
+  }
+  // 阻止主页级别的滚动
+  e.preventDefault()
+}
+
 const quickText = ref('')
 const progressReady = ref(false)
 const targetEditorOpen = ref(false)
@@ -516,6 +534,8 @@ onMounted(() => {
   padding: 40px 64px;
   color: #1c1b1b;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .home-header {

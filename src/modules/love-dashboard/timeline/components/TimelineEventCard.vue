@@ -71,8 +71,8 @@ const tagStyle = computed(() => ({
   gap: 0.75rem;
   cursor: pointer;
   outline: none;
-  min-height: 200px;
-  height: 200px;
+  height: 100%;
+  min-height: 0;
 }
 
 .event-card:hover {
@@ -104,6 +104,9 @@ const tagStyle = computed(() => ({
 
 .card-body {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.35rem;
 }
 
 .event-title {
@@ -118,10 +121,23 @@ const tagStyle = computed(() => ({
   font-size: 0.9rem;
   color: #475569;
   line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+}
+
+.card-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.card-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.card-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.card-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .card-footer {

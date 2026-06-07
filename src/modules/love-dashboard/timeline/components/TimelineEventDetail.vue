@@ -406,7 +406,7 @@ watch(
 
 .actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 0.75rem;
   margin-top: 0.25rem;
 }

@@ -89,21 +89,21 @@ function getEventIcon(event) {
 
 <style scoped>
 .event-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  position: relative;
   height: 100%;
-  overflow-y: auto;
-  padding-right: 0.5rem;
+  overflow: hidden;
 }
 
 .event-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 200px;
   gap: 0.75rem;
-  flex: 1;
-  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
   align-content: start;
+  padding-right: 0.5rem;
+  padding-bottom: 5.5rem;
 }
 
 .empty-state {
@@ -118,10 +118,16 @@ function getEventIcon(event) {
 }
 
 .load-more-area {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
   display: flex;
   justify-content: center;
   padding: 1rem;
-  flex-shrink: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(19, 19, 21, 0), rgba(19, 19, 21, 0.92) 38%, rgba(19, 19, 21, 0.98));
 }
 
 .load-more-btn {
@@ -135,6 +141,7 @@ function getEventIcon(event) {
   cursor: pointer;
   transition: all 0.3s;
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  pointer-events: auto;
 }
 
 .load-more-btn:hover {
@@ -151,23 +158,30 @@ function getEventIcon(event) {
   color: #94a3b8;
   font-size: 0.9rem;
   text-align: center;
+  pointer-events: auto;
 }
 
 /* 滚动条样式 */
-.event-list::-webkit-scrollbar {
+.event-grid::-webkit-scrollbar {
   width: 6px;
 }
 
-.event-list::-webkit-scrollbar-track {
+.event-grid::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.event-list::-webkit-scrollbar-thumb {
+.event-grid::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
 }
 
-.event-list::-webkit-scrollbar-thumb:hover {
+.event-grid::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+@media (max-width: 720px) {
+  .event-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
