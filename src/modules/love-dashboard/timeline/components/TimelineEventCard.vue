@@ -1,5 +1,13 @@
 <template>
-  <div class="event-card" :style="cardStyle">
+  <article
+    class="event-card"
+    :style="cardStyle"
+    role="button"
+    tabindex="0"
+    @click="$emit('select', event)"
+    @keydown.enter.prevent="$emit('select', event)"
+    @keydown.space.prevent="$emit('select', event)"
+  >
     <div class="card-header">
       <span class="event-icon">{{ eventIcon }}</span>
       <span class="event-date">{{ event.date }}</span>
@@ -13,7 +21,7 @@
     <div class="card-footer">
       <span class="category-tag" :style="tagStyle">{{ categoryLabel }}</span>
     </div>
-  </div>
+  </article>
 </template>
 
 <script setup>
@@ -34,6 +42,8 @@ const props = defineProps({
     default: '📝'
   }
 })
+
+defineEmits(['select'])
 
 const colorScheme = computed(() => {
   return COLOR_MAP[props.event.color] || COLOR_MAP.blue
@@ -59,11 +69,21 @@ const tagStyle = computed(() => ({
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  cursor: pointer;
+  outline: none;
+  height: 100%;
+  min-height: 0;
 }
 
 .event-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   transform: translateY(-2px);
+}
+
+.event-card:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.24),
+    0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .card-header {
@@ -84,6 +104,9 @@ const tagStyle = computed(() => ({
 
 .card-body {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.35rem;
 }
 
 .event-title {
@@ -98,10 +121,23 @@ const tagStyle = computed(() => ({
   font-size: 0.9rem;
   color: #475569;
   line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+}
+
+.card-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.card-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.card-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.card-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .card-footer {
