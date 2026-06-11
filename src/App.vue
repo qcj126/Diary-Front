@@ -170,53 +170,6 @@ function handleResetDone() {
 }
 </script>
 
-<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
-
-:root {
-  --auth-fg: #ffffff;
-  --auth-fg-soft: rgba(255, 255, 255, 0.72);
-  --auth-muted: rgba(255, 255, 255, 0.56);
-  --auth-placeholder: rgba(255, 255, 255, 0.3);
-  --auth-border: rgba(255, 255, 255, 0.1);
-  --auth-input-bg: rgba(255, 255, 255, 0.05);
-  --auth-tabs-bg: transparent;
-  --auth-panel-bg: rgba(255, 255, 255, 0.05);
-  --auth-code-bg: rgba(255, 255, 255, 0.08);
-  --auth-code-fg: rgba(255, 255, 255, 0.76);
-  --auth-primary: #b8c4ff;
-  --auth-primary-2: #1e40af;
-  --auth-primary-contrast: #ffffff;
-  --auth-danger: #ff8a8a;
-  --auth-success: #86efac;
-  --auth-deep: #020617;
-  --auth-blue: #1e40af;
-  --auth-glow: rgba(59, 130, 246, 0.42);
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html {
-  font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  background: var(--auth-deep);
-}
-
-#app {
-  min-height: 100vh;
-}
-</style>
-
 <style scoped>
 .app-root {
   position: relative;

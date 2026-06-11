@@ -31,7 +31,8 @@ const props = defineProps({
 })
 
 const viewportRef = ref(null)
-const cardStep = ref(352)
+const cardStep = ref(0)
+const cardWidth = ref(0)
 const offset = ref(0)
 const isReady = ref(false)
 const isPlaying = ref(true)
@@ -40,20 +41,20 @@ let animationId = null
 let resizeHandler = null
 let lastTimestamp = 0
 
-const gap = 32
-const desktopCardWidth = 240
-const desktopCardHeight = 300
-const speedPxPerSecond = 118
+const carouselItemCount = 10
+const visibleItemCount = 10
+const desktopGap = 14
+const mobileGap = 10
+const speedPxPerSecond = 92
 const manualStepCount = 1
 
 const normalizedEvents = computed(() => {
   if (!props.events.length) return []
 
-  const source = props.events.length >= 20 ? props.events.slice(0, 20) : props.events
+  const source = props.events.slice(0, carouselItemCount)
   const filled = []
-  const minimumItems = Math.max(20, source.length)
 
-  for (let i = 0; i < minimumItems; i += 1) {
+  for (let i = 0; i < carouselItemCount; i += 1) {
     filled.push(source[i % source.length])
   }
 
@@ -66,13 +67,22 @@ const loopWidth = computed(() => normalizedEvents.value.length * cardStep.value)
 const trackStyle = computed(() => ({
   transform: `translate3d(-${offset.value}px, 0, 0)`,
   opacity: isReady.value ? 1 : 0,
+  '--carousel-card-width': `${cardWidth.value}px`,
+  '--carousel-gap': `${widthGap.value}px`,
 }))
+
+const widthGap = computed(() => cardStep.value && cardWidth.value ? cardStep.value - cardWidth.value : desktopGap)
 
 function updateMetrics() {
   const width = viewportRef.value?.clientWidth ?? 0
   if (!width) return
 
-  cardStep.value = desktopCardWidth + gap
+  const gap = width <= 720 ? mobileGap : desktopGap
+  const availableWidth = Math.max(width, 0)
+  const nextCardWidth = Math.max(72, (availableWidth - gap * (visibleItemCount - 1)) / visibleItemCount)
+
+  cardWidth.value = nextCardWidth
+  cardStep.value = nextCardWidth + gap
 
   if (loopWidth.value > 0) {
     offset.value %= loopWidth.value
@@ -199,12 +209,12 @@ defineExpose({
   width: 100%;
   height: 100%;
   overflow: hidden;
-  padding: 0 1.5rem 1.25rem;
+  padding: 0 0 0.75rem;
 }
 
 .carousel-track {
   display: flex;
-  gap: 2rem;
+  gap: var(--carousel-gap, 14px);
   width: max-content;
   height: 100%;
   will-change: transform;
@@ -213,11 +223,13 @@ defineExpose({
 
 .timeline-card {
   position: relative;
-  width: 240px;
-  height: 300px;
-  border-radius: 2rem;
+  width: var(--carousel-card-width, 120px);
+  aspect-ratio: 4 / 3;
+  min-height: 96px;
+  max-height: 180px;
+  border-radius: 1.35rem;
   overflow: hidden;
-  clip-path: inset(0 round 2rem);
+  clip-path: inset(0 round 1.35rem);
   flex-shrink: 0;
   cursor: pointer;
   transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
@@ -228,7 +240,7 @@ defineExpose({
   border: 0.5px solid rgba(255, 255, 255, 0.12);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 18px 44px rgba(0, 0, 0, 0.28);
+    0 14px 32px rgba(0, 0, 0, 0.26);
 }
 
 .timeline-card:hover {
@@ -296,7 +308,7 @@ defineExpose({
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 2rem;
+  padding: clamp(0.45rem, 0.9vw, 1.2rem);
   background:
     linear-gradient(180deg, transparent 0%, rgba(19, 19, 21, 0.2) 35%, #131315 100%),
     linear-gradient(35deg, rgba(0, 240, 255, 0.08), transparent 38%, rgba(209, 188, 255, 0.12));
@@ -304,27 +316,27 @@ defineExpose({
 
 .card-date {
   position: absolute;
-  top: 1rem;
-  left: 1rem;
+  top: clamp(0.4rem, 0.7vw, 0.75rem);
+  left: clamp(0.4rem, 0.7vw, 0.75rem);
   width: fit-content;
-  padding: 0.25rem 0.75rem;
+  padding: 0.2rem clamp(0.35rem, 0.55vw, 0.75rem);
   border-radius: 999px;
   background: rgba(0, 240, 255, 0.1);
   color: #00f0ff;
   border: 1px solid rgba(0, 240, 255, 0.18);
   box-shadow: 0 0 18px rgba(0, 240, 255, 0.16);
   font-family: Inter, sans-serif;
-  font-size: 14px;
+  font-size: clamp(8px, 0.62vw, 11px);
   line-height: 1.2;
   letter-spacing: 0.05em;
   font-weight: 600;
 }
 
 .card-title {
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.45rem;
   color: #fff;
   font-family: Manrope, Inter, sans-serif;
-  font-size: 24px;
+  font-size: clamp(10px, 0.95vw, 17px);
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -335,11 +347,21 @@ defineExpose({
   margin: 0;
   color: #b9cacb;
   font-family: Inter, sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: clamp(9px, 0.7vw, 12px);
+  line-height: 1.5;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+}
+
+@media (max-width: 720px) {
+  .timeline-card {
+    min-height: 80px;
+  }
+
+  .card-content {
+    display: none;
+  }
 }
 </style>

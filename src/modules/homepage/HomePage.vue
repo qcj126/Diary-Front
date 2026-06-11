@@ -1,5 +1,5 @@
 <template>
-  <section class="home-page" @wheel="handleWheel">
+  <section class="home-page">
     <header class="home-header">
       <div>
         <h1>{{ todayLabel }}</h1>
@@ -529,27 +529,27 @@ onMounted(() => {
 <style scoped>
 .home-page {
   width: 100%;
-  max-width: 1440px;
+  max-width: 1680px;
   margin: 0 auto;
-  padding: 40px 64px;
+  padding: clamp(24px, 3vw, 44px) clamp(18px, 4vw, 64px);
   color: #1c1b1b;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 .home-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 40px;
+  gap: clamp(16px, 2vw, 24px);
+  margin-bottom: clamp(24px, 3vw, 40px);
 }
 
 .home-header h1 {
   margin: 0;
-  font-size: 32px;
-  line-height: 40px;
+  font-size: clamp(24px, 2vw, 34px);
+  line-height: 1.2;
   font-weight: 600;
 }
 
@@ -570,6 +570,7 @@ onMounted(() => {
   background: #f1edec;
   font-size: 16px;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .sunny {
@@ -584,8 +585,8 @@ onMounted(() => {
 
 .quick-entry {
   position: relative;
-  max-width: 768px;
-  margin: 0 auto 64px;
+  width: min(100%, 820px);
+  margin: 0 auto clamp(36px, 4vw, 64px);
 }
 
 .quick-entry input {
@@ -639,15 +640,15 @@ onMounted(() => {
 }
 
 .summary-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-bottom: 64px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  margin-bottom: clamp(36px, 4vw, 64px);
 }
 
 .neo-card {
   border: 1px solid #e5e7eb;
-  border-radius: 24px;
+  border-radius: 20px;
   background: #f7f9fb;
-  padding: 24px;
+  padding: clamp(18px, 2vw, 24px);
   transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -666,7 +667,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 292px;
+  min-height: clamp(248px, 26vw, 292px);
 }
 
 .card-head,
@@ -1069,13 +1070,14 @@ onMounted(() => {
 }
 
 .feature-grid {
-  grid-template-columns: minmax(0, 6fr) minmax(320px, 4fr);
-  margin-bottom: 64px;
+  grid-template-columns: minmax(360px, 6fr) minmax(300px, 4fr);
+  margin-bottom: clamp(36px, 4vw, 64px);
 }
 
 .memory-photo {
   position: relative;
-  height: 400px;
+  min-height: 280px;
+  height: clamp(300px, 34vw, 440px);
   overflow: hidden;
   border-radius: 24px;
   background: #e5e2e1;
@@ -1123,12 +1125,12 @@ onMounted(() => {
 .thoughts-card {
   display: flex;
   flex-direction: column;
-  min-height: 400px;
+  min-height: clamp(300px, 34vw, 440px);
 }
 
 .thoughts-head {
   position: relative;
-  margin-bottom: 40px;
+  margin-bottom: clamp(20px, 3vw, 40px);
 }
 
 .thoughts-head button {
@@ -1184,8 +1186,8 @@ onMounted(() => {
 
 .thought-list {
   display: grid;
-  gap: 40px;
-  max-height: 292px;
+  gap: clamp(22px, 3vw, 40px);
+  max-height: min(292px, 38vh);
   overflow-y: auto;
   padding-right: 8px;
   scrollbar-width: thin;
@@ -1272,8 +1274,8 @@ onMounted(() => {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
-  gap: 24px;
-  padding: 24px;
+  gap: 16px 24px;
+  padding: clamp(18px, 2vw, 24px);
   border: 1px solid rgba(196, 199, 199, 0.3);
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.8);
@@ -1330,11 +1332,6 @@ onMounted(() => {
 }
 
 @media (max-width: 1180px) {
-  .home-page {
-    padding: 32px 24px;
-  }
-
-  .summary-grid,
   .feature-grid {
     grid-template-columns: 1fr;
   }
@@ -1342,7 +1339,7 @@ onMounted(() => {
 
 @media (max-width: 720px) {
   .home-page {
-    padding: 24px 16px 88px;
+    padding: 20px 14px 88px;
   }
 
   .home-header {
@@ -1368,12 +1365,16 @@ onMounted(() => {
 
   .quick-entry input {
     height: 58px;
-    padding-left: 20px;
+    padding: 0 64px 0 18px;
     font-size: 16px;
   }
 
   .memory-photo {
-    height: 320px;
+    height: 300px;
+  }
+
+  .summary-card {
+    min-height: 0;
   }
 
   .home-footer {

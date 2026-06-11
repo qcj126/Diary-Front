@@ -22,9 +22,9 @@ import { computed, ref } from 'vue'
 import SidebarNav from './components/SidebarNav.vue'
 import HomeOverview from '../homepage/HomePage.vue'
 import PlaceholderPanel from './components/panels/PlaceholderPanel.vue'
-import TimelinePage from './timeline/TimelinePage.vue'
-import DietPage from './diet/DietPage.vue'
-import RecipePage from './recipe/RecipePage.vue'
+import TimelinePage from '../timeline/TimelinePage.vue'
+import DietPage from '../diet/DietPage.vue'
+import RecipePage from '../recipe/RecipePage.vue'
 import { LOVE_SECTIONS } from './constants/sections.js'
 
 const active = ref('home')
@@ -38,6 +38,7 @@ const currentLabel = computed(() => sections.find((x) => x.key === active.value)
   min-height: 100vh;
   display: flex;
   background: #fdf8f8;
+  overflow-x: hidden;
 }
 
 .content {
@@ -45,6 +46,7 @@ const currentLabel = computed(() => sections.find((x) => x.key === active.value)
   min-width: 0;
   margin-left: 256px;
   padding: 0;
+  min-height: 100vh;
 }
 
 @media (max-width: 900px) {

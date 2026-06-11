@@ -179,8 +179,8 @@ function emptyArc(value) {
 }
 
 .summary-card {
-  padding: 24px;
-  border-radius: 28px;
+  padding: clamp(18px, 2vw, 24px);
+  border-radius: 24px;
   background: rgba(249, 242, 240, 0.9);
   border: 1px solid #dcc1b9;
   box-shadow: 0 16px 34px rgba(50, 47, 46, 0.06);
@@ -205,7 +205,7 @@ function emptyArc(value) {
 .panel-title {
   margin: 0 0 20px;
   font-family: 'Playfair Display', 'Times New Roman', serif;
-  font-size: 28px;
+  font-size: clamp(22px, 2vw, 28px);
   line-height: 1.15;
   color: #1d1b1a;
 }
@@ -218,13 +218,13 @@ function emptyArc(value) {
 
 .ring-chart {
   position: relative;
-  width: 220px;
+  width: min(220px, 100%);
   margin: 0 auto;
 }
 
 .donut-chart {
-  width: 220px;
-  height: 220px;
+  width: min(220px, 100%);
+  height: auto;
   transform: rotate(-90deg);
 }
 
@@ -346,8 +346,7 @@ function emptyArc(value) {
 
   .ring-chart,
   .donut-chart {
-    width: 200px;
-    height: 200px;
+    width: min(200px, 100%);
   }
 }
 </style>

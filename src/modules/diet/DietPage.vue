@@ -159,11 +159,12 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 
 <style scoped>
 .diet-dashboard {
-  min-height: calc(100vh - 2rem);
+  width: 100%;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 20px;
+  gap: clamp(16px, 2vw, 24px);
+  padding: clamp(14px, 2.4vw, 28px);
   background:
     radial-gradient(circle at top left, rgba(212, 233, 197, 0.55), transparent 28%),
     radial-gradient(circle at top right, rgba(255, 219, 209, 0.65), transparent 32%),
@@ -181,9 +182,9 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 .hero-card {
   display: flex;
   justify-content: space-between;
-  gap: 24px;
-  padding: 36px 40px;
-  border-radius: 32px;
+  gap: clamp(18px, 2.4vw, 32px);
+  padding: clamp(24px, 3vw, 40px);
+  border-radius: 28px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(249, 242, 240, 0.98)),
     #fff8f6;
@@ -192,7 +193,7 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 }
 
 .hero-copy {
-  max-width: 760px;
+  max-width: min(760px, 100%);
 }
 
 .eyebrow,
@@ -210,7 +211,7 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 .page-title {
   margin: 0;
   font-family: 'Playfair Display', 'Times New Roman', serif;
-  font-size: clamp(32px, 5vw, 54px);
+  font-size: clamp(30px, 4vw, 54px);
   line-height: 1.05;
   letter-spacing: -0.03em;
   color: #9a4024;
@@ -219,15 +220,15 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 .page-subtitle {
   margin: 16px 0 0;
   max-width: 680px;
-  font-size: 17px;
-  line-height: 28px;
+  font-size: clamp(15px, 1.2vw, 17px);
+  line-height: 1.65;
   color: #56423d;
 }
 
 .hero-meta {
   display: grid;
   gap: 12px;
-  min-width: 220px;
+  min-width: min(220px, 100%);
   align-content: start;
 }
 
@@ -248,6 +249,7 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 .diet-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   padding: 18px 20px;
   border-radius: 24px;
@@ -260,6 +262,7 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 .segment-buttons {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .seg-btn {
@@ -282,7 +285,8 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 }
 
 .search-bar {
-  flex: 1;
+  flex: 1 1 260px;
+  min-width: min(100%, 240px);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -306,6 +310,7 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 .action-btns {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .primary-btn,
@@ -316,6 +321,7 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .primary-btn {
@@ -332,7 +338,7 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 
 .diet-main {
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.95fr);
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.95fr);
   gap: 24px;
   min-height: 0;
 }
@@ -348,7 +354,7 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 .section-heading h2 {
   margin: 0;
   font-family: 'Playfair Display', 'Times New Roman', serif;
-  font-size: 32px;
+  font-size: clamp(24px, 2.2vw, 32px);
   line-height: 1.1;
   color: #1d1b1a;
 }
@@ -363,9 +369,14 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
   min-width: 0;
 }
 
+@media (max-width: 1280px) {
+  .diet-main {
+    grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.9fr);
+  }
+}
+
 @media (max-width: 1100px) {
   .hero-card,
-  .diet-header,
   .section-heading {
     flex-direction: column;
     align-items: stretch;
@@ -382,7 +393,7 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 
 @media (max-width: 720px) {
   .diet-dashboard {
-    padding: 14px;
+    padding: 12px;
   }
 
   .hero-card {
@@ -396,7 +407,13 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 
   .segment-buttons,
   .action-btns {
-    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .seg-btn,
+  .primary-btn,
+  .secondary-btn {
+    flex: 1 1 auto;
   }
 }
 </style>

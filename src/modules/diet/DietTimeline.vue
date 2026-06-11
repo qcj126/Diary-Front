@@ -113,19 +113,19 @@ defineProps({
 
 .meal-card {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) auto;
-  gap: 18px;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) auto;
+  gap: clamp(14px, 1.6vw, 18px);
   align-items: stretch;
-  padding: 18px;
-  border-radius: 28px;
+  padding: clamp(14px, 1.6vw, 18px);
+  border-radius: 24px;
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(220, 193, 185, 0.92);
   box-shadow: 0 18px 34px rgba(50, 47, 46, 0.07);
 }
 
 .meal-photo {
-  min-height: 188px;
-  border-radius: 22px;
+  min-height: clamp(150px, 16vw, 188px);
+  border-radius: 18px;
   overflow: hidden;
   background: linear-gradient(135deg, #f3ecea, #e8e1df);
 }
@@ -175,7 +175,7 @@ defineProps({
 .meal-name {
   margin: 0;
   font-family: 'Playfair Display', 'Times New Roman', serif;
-  font-size: 30px;
+  font-size: clamp(22px, 2vw, 30px);
   line-height: 1.1;
   color: #1d1b1a;
 }
@@ -232,6 +232,21 @@ defineProps({
   font-weight: 700;
 }
 
+@media (max-width: 1180px) {
+  .meal-card {
+    grid-template-columns: minmax(120px, 170px) minmax(0, 1fr);
+  }
+
+  .meal-kcal {
+    grid-column: 2;
+    min-width: 0;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+}
+
 @media (max-width: 900px) {
   .timeline-line {
     left: 22px;
@@ -255,6 +270,30 @@ defineProps({
     align-items: baseline;
     justify-content: flex-start;
     gap: 8px;
+  }
+}
+
+@media (max-width: 560px) {
+  .timeline-line {
+    display: none;
+  }
+
+  .timeline-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .time-rail {
+    align-items: flex-start;
+    flex-direction: row;
+  }
+
+  .meal-photo {
+    min-height: 180px;
+  }
+
+  .meal-topline {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

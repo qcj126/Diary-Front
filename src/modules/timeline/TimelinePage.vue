@@ -179,7 +179,7 @@ function handleDeleteEvent(eventId) {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.65rem;
   padding: 1rem;
   color: #e5e1e4;
   background:
@@ -213,7 +213,7 @@ function handleDeleteEvent(eventId) {
 .timeline-header {
   display: flex;
   align-items: center;
-  min-height: 68px;
+  min-height: 56px;
   padding: 0 1.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   background: rgba(14, 14, 16, 0.46);
@@ -233,15 +233,15 @@ function handleDeleteEvent(eventId) {
 }
 
 .hero-copy {
-  padding: 0.5rem 1rem 0;
-  margin-top: -10px;
+  padding: 0.25rem 1rem 0;
+  margin-top: -8px;
 }
 
 .hero-copy h2 {
-  margin: 0 0 0.6rem;
+  margin: 0 0 0.35rem;
   color: #e5e1e4;
   font-family: Manrope, Inter, sans-serif;
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(1.6rem, 3vw, 2.45rem);
   line-height: 1.1;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -251,12 +251,12 @@ function handleDeleteEvent(eventId) {
   margin: 0;
   max-width: 48rem;
   color: #b9cacb;
-  font-size: 0.95rem;
-  line-height: 1.6;
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .carousel-section {
-  height: 340px;
+  height: 252px;
   margin-inline: -1rem;
   overflow: hidden;
 }
@@ -267,11 +267,11 @@ function handleDeleteEvent(eventId) {
   gap: 1rem;
   flex: 1;
   min-height: 0;
-  margin-top: calc(-0.5rem - 20px);
+  margin-top: -2.15rem;
 }
 
 .category-nav-area {
-  height: calc(100vh - 560px);
+  height: calc(100vh - 410px);
   overflow-y: auto;
   padding: 0.75rem;
   border: 0.5px solid rgba(255, 255, 255, 0.1);
@@ -281,13 +281,13 @@ function handleDeleteEvent(eventId) {
 }
 
 .event-list-area {
-  height: calc(100vh - 560px);
+  height: calc(100vh - 410px);
   overflow-y: auto;
   border-radius: 1rem;
 }
 
 .event-detail-area {
-  height: calc(100vh - 560px);
+  height: calc(100vh - 410px);
   overflow-y: auto;
 }
 
@@ -363,7 +363,7 @@ function handleDeleteEvent(eventId) {
   }
 
   .carousel-section {
-    height: 300px;
+    height: 220px;
   }
 
   .events-section {

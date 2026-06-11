@@ -1,0 +1,6 @@
+@import './base/global.css';
+@import './modules/auth.css';
+@import './modules/dashboard.css';
+@import './modules/timeline.css';
+@import './modules/diet.css';
+@import './modules/recipe.css';

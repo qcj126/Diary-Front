@@ -36,7 +36,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { formatDate, milestoneInfo } from '../../utils/date.js'
+import { formatDate, milestoneInfo } from '../../../shared/utils/date.js'
 
 const props = defineProps({
   timeline: {
