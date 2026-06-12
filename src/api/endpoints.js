@@ -20,6 +20,14 @@ export const LOVE_DASHBOARD_API = {
 export const TIMELINE_API = {
   uploadImages: `${API_BASE}/file/upload/images`,
   queryImageUrls: `${API_BASE}/query/images/urls`,
+  categoryAdd: `${API_BASE}/time-machine/category/add`,
+  categoryUpdate: `${API_BASE}/time-machine/category/update`,
+  categoryDelete: `${API_BASE}/time-machine/category/delete`,
+  categoryQuery: `${API_BASE}/time-machine/category/query`,
+  cardAdd: `${API_BASE}/time-machine/card/add`,
+  cardUpdate: `${API_BASE}/time-machine/card/update`,
+  cardDelete: `${API_BASE}/time-machine/card/delete`,
+  cardQuery: `${API_BASE}/time-machine/card/query`,
 }
 
 export const API_ENDPOINTS = {

@@ -127,6 +127,9 @@ const IMAGE_URL_POLL_LIMIT = 10
 
 const draft = reactive({
   id: '',
+  rawId: null,
+  userId: null,
+  categoryId: null,
   title: '',
   date: '',
   content: '',
@@ -196,6 +199,9 @@ function getDefaultTitle() {
 
 function syncDraft(event) {
   draft.id = event?.id || ''
+  draft.rawId = event?.rawId || null
+  draft.userId = event?.userId || null
+  draft.categoryId = event?.categoryId || props.category?.id || null
   draft.title = event?.title || ''
   draft.date = event?.date || ''
   draft.content = event?.content || ''
@@ -208,6 +214,9 @@ function resetDraft() {
   if (props.category) {
     // 如果是新建模式，重置为空草稿但保留分类
     draft.id = ''
+    draft.rawId = null
+    draft.userId = props.category?.userId || null
+    draft.categoryId = props.category?.id || null
     draft.title = ''
     draft.date = new Date().toISOString().split('T')[0]
     draft.content = ''
@@ -296,6 +305,9 @@ watch(
     if (category && !event) {
       // 新建模式：初始化空草稿
       draft.id = ''
+      draft.rawId = null
+      draft.userId = category.userId || null
+      draft.categoryId = category.id || null
       draft.title = ''
       draft.date = new Date().toISOString().split('T')[0]
       draft.content = ''

@@ -45,7 +45,7 @@
         :event="selectedEvent"
         @save="saveEvent"
         @close="clearSelectedEvent"
-        @delete="handleDeleteEvent"
+        @delete="handleDeleteEventWithApi"
       />
       
       <TimelineEventDetail
@@ -53,7 +53,7 @@
         class="event-detail-area"
         :event="null"
         :category="addingCategory"
-        @save="handleSaveNewEvent"
+        @save="handleSaveNewEventWithApi"
         @close="cancelAddEvent"
       />
     </div>
@@ -62,7 +62,6 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { EVENT_CATEGORIES } from './constants/eventCategories.js'
 import TimelineCarousel from './components/TimelineCarousel.vue'
 import TimelineCategoryNav from './components/TimelineCategoryNav.vue'
 import TimelineEventDetail from './components/TimelineEventDetail.vue'
@@ -89,12 +88,12 @@ function handleWheel(e) {
   e.preventDefault()
 }
 
-const categories = EVENT_CATEGORIES
 const selectedEventId = ref(null)
 const isAddingEvent = ref(false)
 const addingCategory = ref(null)
 
 const {
+  categories,
   allEvents,
   selectedCategory,
   selectedSubcategory,
@@ -107,7 +106,10 @@ const {
   selectCategory,
   selectSubcategory,
   totalEventsCount,
+  refreshTimeline,
+  createEvent,
   updateEvent,
+  removeEvent,
 } = useTimelineEvents()
 
 const selectedEvent = computed(() => {
@@ -125,9 +127,13 @@ function clearSelectedEvent() {
   selectedEventId.value = null
 }
 
-function saveEvent(event) {
-  updateEvent(event)
-  selectedEventId.value = event.id
+async function saveEvent(event) {
+  try {
+    const savedEvent = await updateEvent(event)
+    selectedEventId.value = savedEvent?.id || event.id
+  } catch (error) {
+    console.error(error)
+  }
 }
 
 function handleAddCategory(category) {
@@ -151,10 +157,22 @@ function handleSaveNewEvent(event) {
   loadMore()
 }
 
+async function handleSaveNewEventWithApi(event) {
+  try {
+    const savedEvent = await createEvent(event)
+    isAddingEvent.value = false
+    addingCategory.value = null
+    selectedEventId.value = savedEvent?.id || null
+  } catch (error) {
+    console.error(error)
+  }
+}
+
 onMounted(() => {
   if (timelinePageRef.value) {
     timelinePageRef.value.addEventListener('wheel', handleWheel, { passive: false })
   }
+  refreshTimeline()
 })
 
 onBeforeUnmount(() => {
@@ -170,6 +188,15 @@ function handleDeleteEvent(eventId) {
   clearSelectedEvent()
   // 重新加载事件列表
   loadMore()
+}
+
+async function handleDeleteEventWithApi(eventId) {
+  try {
+    await removeEvent(eventId)
+    clearSelectedEvent()
+  } catch (error) {
+    console.error(error)
+  }
 }
 
 </script>
