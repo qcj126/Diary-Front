@@ -1,7 +1,4 @@
-import { API_BASE } from '../../../api/index.js'
-
-const IMAGE_UPLOAD_URL = `${API_BASE}/file/upload/images`
-const IMAGE_URLS_QUERY_URL = `${API_BASE}/query/images/urls`
+import { API_BASE, TIMELINE_API } from '../../../api/index.js'
 
 function parseApiPayload(text) {
   if (!text) return null
@@ -43,7 +40,7 @@ export async function uploadTimelineImages(files, imageDTO) {
   formData.append('code', String(payload.code ?? ''))
   formData.append('userId', String(payload.userId ?? ''))
 
-  const res = await fetch(IMAGE_UPLOAD_URL, {
+  const res = await fetch(TIMELINE_API.uploadImages, {
     method: 'POST',
     body: formData,
   })
@@ -59,7 +56,7 @@ export async function uploadTimelineImages(files, imageDTO) {
 }
 
 export async function queryTimelineImageUrls(imageIds) {
-  const res = await fetch(IMAGE_URLS_QUERY_URL, {
+  const res = await fetch(TIMELINE_API.queryImageUrls, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(imageIds),

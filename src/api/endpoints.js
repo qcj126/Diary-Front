@@ -17,7 +17,13 @@ export const LOVE_DASHBOARD_API = {
   stats: `${API_BASE}/love/stats`,
 }
 
+export const TIMELINE_API = {
+  uploadImages: `${API_BASE}/file/upload/images`,
+  queryImageUrls: `${API_BASE}/query/images/urls`,
+}
+
 export const API_ENDPOINTS = {
   auth: AUTH_API,
   loveDashboard: LOVE_DASHBOARD_API,
+  timeline: TIMELINE_API,
 }
