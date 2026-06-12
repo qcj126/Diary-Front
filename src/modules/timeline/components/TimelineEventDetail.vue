@@ -11,9 +11,13 @@
         </button>
       </header>
 
-      <div class="photo-frame">
+      <div class="photo-frame" :class="{ 'is-uploading': isUploadingImage }">
         <img v-if="draft.imageUrl" :src="draft.imageUrl" :alt="draft.title" />
         <div v-else class="photo-empty">上传照片</div>
+        <div v-if="isUploadingImage" class="photo-uploading" aria-live="polite">
+          <span class="upload-spinner" aria-hidden="true"></span>
+          <span>Uploading...</span>
+        </div>
       </div>
 
       <!-- 查看模式 -->
@@ -51,14 +55,15 @@
           <textarea v-model.trim="draft.content" rows="7" placeholder="记录这一天的细节" />
         </label>
 
-        <label class="upload-button">
-          <input type="file" accept="image/*" @change="handlePhotoUpload" />
+        <label class="upload-button" :class="{ disabled: isUploadingImage }">
+          <input type="file" accept="image/*" :disabled="isUploadingImage" @change="handlePhotoUpload" />
           上传照片
         </label>
+        <p v-if="imageUploadError" class="upload-error">{{ imageUploadError }}</p>
 
         <div class="actions">
           <button class="secondary-button" type="button" @click="cancelEditing">取消</button>
-          <button class="primary-button" type="submit">保存</button>
+          <button class="primary-button" type="submit" :disabled="isUploadingImage">保存</button>
         </div>
       </form>
 
@@ -88,7 +93,12 @@
 </template>
 
 <script setup>
-import { reactive, watch, ref } from 'vue'
+import { onBeforeUnmount, reactive, watch, ref } from 'vue'
+import {
+  normalizeImageUrl,
+  queryTimelineImageUrls,
+  uploadTimelineImages,
+} from '../api/images.js'
 
 const props = defineProps({
   event: {
@@ -106,6 +116,14 @@ const emit = defineEmits(['save', 'close', 'delete'])
 const isEditing = ref(false)
 const showDeleteConfirm = ref(false)
 const pendingDeleteId = ref('')
+const isUploadingImage = ref(false)
+const imageUploadError = ref('')
+let activeUploadToken = 0
+
+const TIMELINE_IMAGE_CODE = 1
+const IMAGE_URL_POLL_DELAY = 1000
+const IMAGE_URL_POLL_INTERVAL = 1000
+const IMAGE_URL_POLL_LIMIT = 10
 
 const draft = reactive({
   id: '',
@@ -113,8 +131,58 @@ const draft = reactive({
   date: '',
   content: '',
   imageUrl: '',
+  imageId: null,
   categoryKey: '',
 })
+
+function wait(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
+
+function readUserId() {
+  const storageKeys = ['user', 'userInfo', 'loginUser', 'currentUser']
+  const storages = [window.localStorage, window.sessionStorage]
+
+  for (const storage of storages) {
+    for (const key of storageKeys) {
+      const raw = storage.getItem(key)
+      if (!raw) continue
+
+      try {
+        const parsed = JSON.parse(raw)
+        const id = parsed?.userId ?? parsed?.id ?? parsed?.data?.userId ?? parsed?.data?.id
+        const numericId = Number(id)
+        if (Number.isFinite(numericId)) return numericId
+      } catch {
+        const numericId = Number(raw)
+        if (Number.isFinite(numericId)) return numericId
+      }
+    }
+  }
+
+  return 0
+}
+
+async function pollImageUrl(imageIds, token) {
+  await wait(IMAGE_URL_POLL_DELAY)
+
+  for (let attempt = 0; attempt < IMAGE_URL_POLL_LIMIT; attempt += 1) {
+    if (token !== activeUploadToken) return null
+
+    const images = await queryTimelineImageUrls(imageIds)
+    const image = images.find((item) => imageIds.includes(Number(item?.id)))
+    const url = normalizeImageUrl(image?.url)
+    if (url) return { id: Number(image.id), url }
+
+    if (attempt < IMAGE_URL_POLL_LIMIT - 1) {
+      await wait(IMAGE_URL_POLL_INTERVAL)
+    }
+  }
+
+  throw new Error('Image uploaded, but image URL is not ready yet.')
+}
 
 function getCategoryLabel() {
   if (props.category) return '添加新事件'
@@ -132,6 +200,7 @@ function syncDraft(event) {
   draft.date = event?.date || ''
   draft.content = event?.content || ''
   draft.imageUrl = event?.imageUrl || ''
+  draft.imageId = event?.imageId || null
   draft.categoryKey = event?.categoryKey || props.category?.key || ''
 }
 
@@ -143,24 +212,48 @@ function resetDraft() {
     draft.date = new Date().toISOString().split('T')[0]
     draft.content = ''
     draft.imageUrl = ''
+    draft.imageId = null
     draft.categoryKey = props.category.key
   } else {
     syncDraft(props.event)
   }
 }
 
-function handlePhotoUpload(event) {
-  const file = event.target.files?.[0]
+async function handlePhotoUpload(event) {
+  const input = event.target
+  const file = input.files?.[0]
   if (!file) return
 
-  const reader = new FileReader()
-  reader.addEventListener('load', () => {
-    draft.imageUrl = String(reader.result || '')
-  })
-  reader.readAsDataURL(file)
+  const token = activeUploadToken + 1
+  activeUploadToken = token
+  isUploadingImage.value = true
+  imageUploadError.value = ''
+
+  try {
+    const imageIds = await uploadTimelineImages([file], {
+      code: TIMELINE_IMAGE_CODE,
+      userId: readUserId(),
+    })
+    const image = await pollImageUrl(imageIds, token)
+    if (!image || token !== activeUploadToken) return
+
+    draft.imageId = image.id
+    draft.imageUrl = image.url
+  } catch (error) {
+    console.error(error)
+    if (token === activeUploadToken) {
+      imageUploadError.value = error instanceof Error ? error.message : 'Image upload failed.'
+    }
+  } finally {
+    if (token === activeUploadToken) {
+      isUploadingImage.value = false
+    }
+    input.value = ''
+  }
 }
 
 function handleSave() {
+  if (isUploadingImage.value) return
   emit('save', { ...draft })
   isEditing.value = false
 }
@@ -186,6 +279,9 @@ function startEditing() {
 }
 
 function cancelEditing() {
+  activeUploadToken += 1
+  isUploadingImage.value = false
+  imageUploadError.value = ''
   isEditing.value = false
   resetDraft()
 }
@@ -193,6 +289,9 @@ function cancelEditing() {
 watch(
   () => [props.event, props.category],
   ([event, category]) => {
+    activeUploadToken += 1
+    isUploadingImage.value = false
+    imageUploadError.value = ''
     isEditing.value = false
     if (category && !event) {
       // 新建模式：初始化空草稿
@@ -201,6 +300,7 @@ watch(
       draft.date = new Date().toISOString().split('T')[0]
       draft.content = ''
       draft.imageUrl = ''
+      draft.imageId = null
       draft.categoryKey = category.key
     } else {
       syncDraft(event)
@@ -208,6 +308,10 @@ watch(
   },
   { immediate: true }
 )
+
+onBeforeUnmount(() => {
+  activeUploadToken += 1
+})
 </script>
 
 <style scoped>
@@ -259,10 +363,17 @@ watch(
 }
 
 .photo-frame {
+  position: relative;
   aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: 0.8rem;
   background: rgba(255, 255, 255, 0.08);
+}
+
+.photo-frame.is-uploading img,
+.photo-frame.is-uploading .photo-empty {
+  filter: blur(1px);
+  opacity: 0.68;
 }
 
 .photo-frame img {
@@ -280,6 +391,28 @@ watch(
   font-size: 0.9rem;
 }
 
+.photo-uploading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  gap: 0.6rem;
+  align-content: center;
+  background: rgba(15, 23, 42, 0.54);
+  color: #e0fbff;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.upload-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid rgba(224, 251, 255, 0.28);
+  border-top-color: #7df4ff;
+  border-radius: 999px;
+  animation: image-upload-spin 0.8s linear infinite;
+}
+
 .upload-button {
   display: flex;
   align-items: center;
@@ -294,8 +427,26 @@ watch(
   font-weight: 700;
 }
 
+.upload-button.disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .upload-button input {
   display: none;
+}
+
+.upload-error {
+  margin: -0.5rem 0 0.5rem;
+  color: #fca5a5;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+@keyframes image-upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 查看模式样式 */
@@ -423,6 +574,12 @@ watch(
 .primary-button {
   background: linear-gradient(135deg, #00f0ff, #d1bcff);
   color: #101014;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
 }
 
 .secondary-button {
