@@ -99,6 +99,7 @@ import {
   queryTimelineImageUrls,
   uploadTimelineImages,
 } from '../api/images.js'
+import { GLOBAL_USER_ID, getImageTypeByCategoryKey } from '../constants/imageTypes.js'
 
 const props = defineProps({
   event: {
@@ -120,10 +121,8 @@ const isUploadingImage = ref(false)
 const imageUploadError = ref('')
 let activeUploadToken = 0
 
-const TIMELINE_IMAGE_CODE = 1
-const IMAGE_URL_POLL_DELAY = 1000
-const IMAGE_URL_POLL_INTERVAL = 1000
-const IMAGE_URL_POLL_LIMIT = 10
+const IMAGE_URL_POLL_DELAY = 3000
+const IMAGE_URL_POLL_INTERVAL = 3000
 
 const draft = reactive({
   id: '',
@@ -145,46 +144,32 @@ function wait(ms) {
 }
 
 function readUserId() {
-  const storageKeys = ['user', 'userInfo', 'loginUser', 'currentUser']
-  const storages = [window.localStorage, window.sessionStorage]
+  return GLOBAL_USER_ID
+}
 
-  for (const storage of storages) {
-    for (const key of storageKeys) {
-      const raw = storage.getItem(key)
-      if (!raw) continue
+function getUploadImageCode() {
+  return getImageTypeByCategoryKey(draft.categoryKey || props.category?.key).code
+}
 
-      try {
-        const parsed = JSON.parse(raw)
-        const id = parsed?.userId ?? parsed?.id ?? parsed?.data?.userId ?? parsed?.data?.id
-        const numericId = Number(id)
-        if (Number.isFinite(numericId)) return numericId
-      } catch {
-        const numericId = Number(raw)
-        if (Number.isFinite(numericId)) return numericId
-      }
-    }
-  }
-
-  return 0
+function toKey(value) {
+  return String(value ?? '').trim()
 }
 
 async function pollImageUrl(imageIds, token) {
   await wait(IMAGE_URL_POLL_DELAY)
 
-  for (let attempt = 0; attempt < IMAGE_URL_POLL_LIMIT; attempt += 1) {
+  while (token === activeUploadToken) {
     if (token !== activeUploadToken) return null
 
     const images = await queryTimelineImageUrls(imageIds)
-    const image = images.find((item) => imageIds.includes(Number(item?.id)))
+    const image = images.find((item) => imageIds.includes(String(item?.id)))
     const url = normalizeImageUrl(image?.url)
-    if (url) return { id: Number(image.id), url }
+    if (url) return { id: String(image.id), url }
 
-    if (attempt < IMAGE_URL_POLL_LIMIT - 1) {
-      await wait(IMAGE_URL_POLL_INTERVAL)
-    }
+    await wait(IMAGE_URL_POLL_INTERVAL)
   }
 
-  throw new Error('Image uploaded, but image URL is not ready yet.')
+  return null
 }
 
 function getCategoryLabel() {
@@ -198,15 +183,15 @@ function getDefaultTitle() {
 }
 
 function syncDraft(event) {
-  draft.id = event?.id || ''
-  draft.rawId = event?.rawId || null
+  draft.id = toKey(event?.id)
+  draft.rawId = event?.rawId == null ? null : toKey(event.rawId)
   draft.userId = event?.userId || null
-  draft.categoryId = event?.categoryId || props.category?.id || null
+  draft.categoryId = event?.categoryId || props.category?.id ? toKey(event?.categoryId || props.category?.id) : null
   draft.title = event?.title || ''
   draft.date = event?.date || ''
   draft.content = event?.content || ''
   draft.imageUrl = event?.imageUrl || ''
-  draft.imageId = event?.imageId || null
+  draft.imageId = event?.imageId == null ? null : toKey(event.imageId)
   draft.categoryKey = event?.categoryKey || props.category?.key || ''
 }
 
@@ -216,7 +201,7 @@ function resetDraft() {
     draft.id = ''
     draft.rawId = null
     draft.userId = props.category?.userId || null
-    draft.categoryId = props.category?.id || null
+    draft.categoryId = props.category?.id == null ? null : toKey(props.category.id)
     draft.title = ''
     draft.date = new Date().toISOString().split('T')[0]
     draft.content = ''
@@ -240,7 +225,7 @@ async function handlePhotoUpload(event) {
 
   try {
     const imageIds = await uploadTimelineImages([file], {
-      code: TIMELINE_IMAGE_CODE,
+      code: getUploadImageCode(),
       userId: readUserId(),
     })
     const image = await pollImageUrl(imageIds, token)
@@ -307,7 +292,7 @@ watch(
       draft.id = ''
       draft.rawId = null
       draft.userId = category.userId || null
-      draft.categoryId = category.id || null
+      draft.categoryId = category.id == null ? null : toKey(category.id)
       draft.title = ''
       draft.date = new Date().toISOString().split('T')[0]
       draft.content = ''

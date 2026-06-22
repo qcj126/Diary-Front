@@ -2,7 +2,8 @@ import { computed, ref } from 'vue'
 import { TIMELINE_EVENTS } from '../mock/timelineData.js'
 import { CAROUSEL_CONFIG } from '../constants/carouselConfig.js'
 import { COLOR_MAP, EVENT_CATEGORIES } from '../constants/eventCategories.js'
-import { normalizeImageUrl, queryTimelineImageUrls } from '../api/images.js'
+import { GLOBAL_USER_ID } from '../constants/imageTypes.js'
+import { normalizeImageUrl, queryCarouselImageUrls, queryTimelineImageUrls } from '../api/images.js'
 import {
   addTimeCard,
   addTimeCategory,
@@ -18,27 +19,7 @@ const CATEGORY_COLORS = Object.keys(COLOR_MAP)
 const CATEGORY_ICONS = ['📝', '🍱', '🎁', '✈️', '🏠', '🚶', '📷', '⭐']
 
 function readUserId() {
-  const keys = ['user', 'userInfo', 'loginUser', 'currentUser']
-  const storages = [window.localStorage, window.sessionStorage]
-
-  for (const storage of storages) {
-    for (const key of keys) {
-      const raw = storage.getItem(key)
-      if (!raw) continue
-
-      try {
-        const parsed = JSON.parse(raw)
-        const id = parsed?.userId ?? parsed?.id ?? parsed?.data?.userId ?? parsed?.data?.id
-        const numericId = Number(id)
-        if (Number.isFinite(numericId)) return numericId
-      } catch {
-        const numericId = Number(raw)
-        if (Number.isFinite(numericId)) return numericId
-      }
-    }
-  }
-
-  return 0
+  return GLOBAL_USER_ID
 }
 
 function toArray(data) {
@@ -64,14 +45,19 @@ function toRecordTime(value) {
 }
 
 function normalizeSavedEntity(result, fallback) {
-  if (!result || typeof result !== 'object') return fallback
+  if (result === null || typeof result === 'undefined') return fallback
+  if (typeof result !== 'object') return { ...fallback, id: result }
   return { ...fallback, ...result }
+}
+
+function toKey(value) {
+  return String(value ?? '').trim()
 }
 
 function mapCategoryDTO(dto, index = 0) {
   const id = dto?.id ?? index + 1
   return {
-    id,
+    id: toKey(id),
     userId: dto?.userId ?? readUserId(),
     key: dto?.key || `cat_${id}`,
     label: dto?.categoryName || dto?.label || `Category ${index + 1}`,
@@ -93,19 +79,19 @@ function mapCategoryToDTO(category) {
 }
 
 function categoryKeyById(categoryMap, categoryId) {
-  return categoryMap.get(Number(categoryId))?.key || 'all'
+  return categoryMap.get(toKey(categoryId))?.key || 'all'
 }
 
 function mapCardDTO(dto, categoryMap) {
   const id = dto?.id ?? Date.now()
   const categoryId = dto?.categoryId ?? null
-  const category = categoryMap.get(Number(categoryId))
+  const category = categoryMap.get(toKey(categoryId))
   return {
-    id: String(id),
-    rawId: Number(id),
+    id: toKey(id),
+    rawId: toKey(id),
     userId: dto?.userId ?? readUserId(),
     imageId: dto?.imageId ?? null,
-    categoryId,
+    categoryId: categoryId === null ? null : toKey(categoryId),
     categoryKey: categoryKeyById(categoryMap, categoryId),
     subcategoryKey: null,
     title: dto?.cardTitle || dto?.title || '',
@@ -137,16 +123,16 @@ function mapEventToCardDTO(event, categoryMap) {
 
 async function attachImageUrls(events) {
   const imageIds = [
-    ...new Set(events.map((event) => Number(event.imageId)).filter((id) => Number.isFinite(id))),
+    ...new Set(events.map((event) => String(event.imageId ?? '').trim()).filter(Boolean)),
   ]
   if (!imageIds.length) return events
 
   try {
     const images = await queryTimelineImageUrls(imageIds)
-    const imageMap = new Map(images.map((image) => [Number(image?.id), normalizeImageUrl(image?.url)]))
+    const imageMap = new Map(images.map((image) => [String(image?.id), normalizeImageUrl(image?.url)]))
     return events.map((event) => ({
       ...event,
-      imageUrl: event.imageUrl || imageMap.get(Number(event.imageId)) || '',
+      imageUrl: event.imageUrl || imageMap.get(String(event.imageId)) || '',
     }))
   } catch (error) {
     console.error(error)
@@ -157,33 +143,40 @@ async function attachImageUrls(events) {
 export function useTimelineEvents() {
   const categories = ref(EVENT_CATEGORIES.map((category, index) => mapCategoryDTO(category, index)))
   const events = ref(TIMELINE_EVENTS.map((event) => ({ ...event })))
+  const carouselImageUrls = ref([])
   const loading = ref(false)
   const error = ref('')
+  let cardQueryToken = 0
 
   const selectedCategory = ref('all')
   const selectedSubcategory = ref(null)
   const currentPage = ref(1)
-  const itemsPerPage = 10
-  const initialLoadCount = 10
-  const scrollLoadCount = 10
-  const loadedCounts = ref({})
+  const pageIndex = ref(1)
+  const pageSize = 25
+  const hasMoreCards = ref(false)
 
-  const categoryMap = computed(() => new Map(categories.value.map((category) => [Number(category.id), category])))
+  const categoryMap = computed(() => new Map(categories.value.map((category) => [toKey(category.id), category])))
 
   const allEvents = computed(() => {
     return [...events.value].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   })
 
-  const recentEvents = computed(() => allEvents.value.slice(0, CAROUSEL_CONFIG.maxItems))
+  const recentEvents = computed(() => {
+    const source = allEvents.value.slice(0, CAROUSEL_CONFIG.maxItems)
+    if (!carouselImageUrls.value.length) return source
+
+    return source.map((event, index) => ({
+      ...event,
+      imageUrl: carouselImageUrls.value[index % carouselImageUrls.value.length] || event.imageUrl,
+    }))
+  })
 
   function getLoadedCount(categoryKey, subcategoryKey) {
-    const key = subcategoryKey ? `${categoryKey}_${subcategoryKey}` : categoryKey
-    return loadedCounts.value[key] || initialLoadCount
+    return events.value.length
   }
 
   function setLoadedCount(categoryKey, subcategoryKey, count) {
-    const key = subcategoryKey ? `${categoryKey}_${subcategoryKey}` : categoryKey
-    loadedCounts.value[key] = count
+    return count
   }
 
   function getFilteredSource() {
@@ -197,14 +190,12 @@ export function useTimelineEvents() {
   }
 
   const filteredEvents = computed(() => {
-    const source = getFilteredSource()
-    const loadedCount = getLoadedCount(selectedCategory.value, selectedSubcategory.value)
-    return source.slice(0, loadedCount)
+    return getFilteredSource()
   })
 
   const totalEventsCount = computed(() => getFilteredSource().length)
-  const hasMore = computed(() => getLoadedCount(selectedCategory.value, selectedSubcategory.value) < totalEventsCount.value)
-  const totalPages = computed(() => Math.ceil(filteredEvents.value.length / itemsPerPage))
+  const hasMore = computed(() => hasMoreCards.value)
+  const totalPages = computed(() => pageIndex.value)
   const currentPageEvents = computed(() => filteredEvents.value)
 
   function goToPage(page) {
@@ -221,25 +212,26 @@ export function useTimelineEvents() {
     if (currentPage.value > 1) currentPage.value -= 1
   }
 
-  function loadMore() {
+  async function loadMore() {
     if (!hasMore.value) return
-    const currentCount = getLoadedCount(selectedCategory.value, selectedSubcategory.value)
-    const newCount = Math.min(currentCount + scrollLoadCount, totalEventsCount.value)
-    setLoadedCount(selectedCategory.value, selectedSubcategory.value, newCount)
+    await refreshCards({
+      categoryKey: selectedCategory.value,
+      nextPageIndex: pageIndex.value + 1,
+      append: true,
+    })
   }
 
-  function selectCategory(categoryKey) {
+  async function selectCategory(categoryKey) {
     selectedCategory.value = categoryKey
     selectedSubcategory.value = null
     currentPage.value = 1
-    loadedCounts.value = {}
-    setLoadedCount(categoryKey, null, initialLoadCount)
+    pageIndex.value = 1
+    await refreshCards({ categoryKey, nextPageIndex: 1, append: false })
   }
 
   function selectSubcategory(subcategoryKey) {
     selectedSubcategory.value = subcategoryKey
     currentPage.value = 1
-    setLoadedCount(selectedCategory.value, subcategoryKey, initialLoadCount)
   }
 
   async function refreshCategories() {
@@ -250,18 +242,51 @@ export function useTimelineEvents() {
     }
   }
 
-  async function refreshCards() {
-    const result = await queryTimeCards({ userId: readUserId(), deleted: 0 })
+  function getCategoryIdByKey(categoryKey) {
+    if (!categoryKey || categoryKey === 'all') return null
+    return categories.value.find((category) => category.key === categoryKey)?.id ?? null
+  }
+
+  async function refreshCards({ categoryKey = selectedCategory.value, nextPageIndex = 1, append = false } = {}) {
+    const token = cardQueryToken + 1
+    cardQueryToken = token
+    const categoryId = getCategoryIdByKey(categoryKey)
+    const result = await queryTimeCards({
+      userId: readUserId(),
+      categoryId,
+      deleted: 0,
+      pageIndex: nextPageIndex,
+      pageSize,
+    })
+    if (token !== cardQueryToken) return
+
     const mappedEvents = toArray(result)
       .map((card) => mapCardDTO(card, categoryMap.value))
       .filter((event) => event.deleted !== 1)
-    events.value = await attachImageUrls(mappedEvents)
+    const nextEvents = await attachImageUrls(mappedEvents)
+    if (token !== cardQueryToken) return
+
+    pageIndex.value = nextPageIndex
+    hasMoreCards.value = mappedEvents.length >= pageSize
+    events.value = append ? [...events.value, ...nextEvents] : nextEvents
+  }
+
+  async function refreshCarouselImages() {
+    try {
+      const urls = await queryCarouselImageUrls()
+      if (urls.length) {
+        carouselImageUrls.value = urls
+      }
+    } catch (caught) {
+      console.error(caught)
+    }
   }
 
   async function refreshTimeline() {
     loading.value = true
     error.value = ''
     try {
+      await refreshCarouselImages()
       await refreshCategories()
       await refreshCards()
     } catch (caught) {
@@ -284,14 +309,14 @@ export function useTimelineEvents() {
     const dto = mapCategoryToDTO({ ...category, userId: readUserId() })
     const saved = normalizeSavedEntity(await updateTimeCategory(dto), dto)
     const nextCategory = mapCategoryDTO(saved)
-    categories.value = categories.value.map((item) => (item.id === nextCategory.id ? { ...item, ...nextCategory } : item))
+    categories.value = categories.value.map((item) => (toKey(item.id) === toKey(nextCategory.id) ? { ...item, ...nextCategory } : item))
     return nextCategory
   }
 
   async function removeCategory(category) {
     const dto = mapCategoryToDTO({ ...category, userId: readUserId(), deleted: 1 })
     await deleteTimeCategory(dto)
-    categories.value = categories.value.filter((item) => item.id !== dto.id)
+    categories.value = categories.value.filter((item) => toKey(item.id) !== toKey(dto.id))
     if (selectedCategory.value === category?.key) selectCategory('all')
   }
 
@@ -299,7 +324,21 @@ export function useTimelineEvents() {
     const dto = mapEventToCardDTO({ ...event, userId: readUserId() }, categoryMap.value)
     const saved = normalizeSavedEntity(await addTimeCard(dto), dto)
     let nextEvent = mapCardDTO(saved, categoryMap.value)
+    nextEvent = {
+      ...nextEvent,
+      title: event?.title || nextEvent.title,
+      content: event?.content || nextEvent.content,
+      imageId: event?.imageId ?? nextEvent.imageId,
+      imageUrl: event?.imageUrl || nextEvent.imageUrl,
+      categoryId: event?.categoryId ?? nextEvent.categoryId,
+      categoryKey: event?.categoryKey || nextEvent.categoryKey,
+      date: event?.date || nextEvent.date,
+    }
     nextEvent = (await attachImageUrls([nextEvent]))[0]
+    selectedCategory.value = nextEvent.categoryKey || selectedCategory.value
+    selectedSubcategory.value = null
+    currentPage.value = 1
+    pageIndex.value = 1
     events.value = [nextEvent, ...events.value]
     return nextEvent
   }
@@ -309,19 +348,19 @@ export function useTimelineEvents() {
     const saved = normalizeSavedEntity(await updateTimeCard(dto), dto)
     let nextEvent = mapCardDTO(saved, categoryMap.value)
     nextEvent = {
-      ...events.value.find((event) => event.id === String(updatedEvent.id)),
+      ...events.value.find((event) => toKey(event.id) === toKey(updatedEvent.id)),
       ...nextEvent,
       imageUrl: updatedEvent.imageUrl || nextEvent.imageUrl,
     }
-    events.value = events.value.map((event) => (event.id === String(updatedEvent.id) ? nextEvent : event))
+    events.value = events.value.map((event) => (toKey(event.id) === toKey(updatedEvent.id) ? nextEvent : event))
     return nextEvent
   }
 
   async function removeEvent(eventId) {
-    const event = events.value.find((item) => item.id === String(eventId))
+    const event = events.value.find((item) => toKey(item.id) === toKey(eventId))
     if (!event) return
     await deleteTimeCard(mapEventToCardDTO({ ...event, deleted: 1, userId: readUserId() }, categoryMap.value))
-    events.value = events.value.filter((item) => item.id !== String(eventId))
+    events.value = events.value.filter((item) => toKey(item.id) !== toKey(eventId))
   }
 
   return {

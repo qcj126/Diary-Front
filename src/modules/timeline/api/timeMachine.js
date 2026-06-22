@@ -1,9 +1,11 @@
 import { TIMELINE_API } from '../../../api/index.js'
+import { GLOBAL_USER_ID } from '../constants/imageTypes.js'
 
 function parseApiPayload(text) {
   if (!text) return null
   try {
-    return JSON.parse(text)
+    const safeText = text.replace(/(:\s*|\[\s*|,\s*)(-?\d{16,})(?=\s*[,}\]])/g, '$1"$2"')
+    return JSON.parse(safeText)
   } catch {
     return text
   }
@@ -39,7 +41,7 @@ async function postJson(url, body, fallback) {
 export function createCategoryDTO(category = {}) {
   return {
     id: category.id ?? null,
-    userId: category.userId ?? 0,
+    userId: category.userId ?? GLOBAL_USER_ID,
     categoryName: category.categoryName ?? category.label ?? category.name ?? '',
     deleted: category.deleted ?? 0,
     sort: category.sort ?? 0,
@@ -49,13 +51,15 @@ export function createCategoryDTO(category = {}) {
 export function createCardDTO(card = {}) {
   return {
     id: card.id ?? card.rawId ?? null,
-    userId: card.userId ?? 0,
+    userId: card.userId ?? GLOBAL_USER_ID,
     imageId: card.imageId ?? null,
     categoryId: card.categoryId ?? null,
     cardTitle: card.cardTitle ?? card.title ?? '',
     cardContent: card.cardContent ?? card.content ?? '',
     recordTime: card.recordTime ?? card.date ?? new Date().toISOString(),
     deleted: card.deleted ?? 0,
+    pageIndex: card.pageIndex ?? 1,
+    pageSize: card.pageSize ?? 25,
   }
 }
 

@@ -103,7 +103,7 @@ const {
   totalPages,
   hasMore,
   loadMore,
-  selectCategory,
+  selectCategory: selectTimelineCategory,
   selectSubcategory,
   totalEventsCount,
   refreshTimeline,
@@ -114,13 +114,19 @@ const {
 
 const selectedEvent = computed(() => {
   if (!selectedEventId.value) return null
-  return allEvents.value.find(event => event.id === selectedEventId.value) || null
+  return allEvents.value.find((event) => String(event.id) === String(selectedEventId.value)) || null
 })
 
 function selectEvent(event) {
-  selectedEventId.value = event.id
+  selectedEventId.value = String(event.id)
   isAddingEvent.value = false
   addingCategory.value = null
+}
+
+async function selectCategory(categoryKey) {
+  clearSelectedEvent()
+  cancelAddEvent()
+  await selectTimelineCategory(categoryKey)
 }
 
 function clearSelectedEvent() {
@@ -130,7 +136,7 @@ function clearSelectedEvent() {
 async function saveEvent(event) {
   try {
     const savedEvent = await updateEvent(event)
-    selectedEventId.value = savedEvent?.id || event.id
+    selectedEventId.value = String(savedEvent?.id || event.id)
   } catch (error) {
     console.error(error)
   }
@@ -162,7 +168,7 @@ async function handleSaveNewEventWithApi(event) {
     const savedEvent = await createEvent(event)
     isAddingEvent.value = false
     addingCategory.value = null
-    selectedEventId.value = savedEvent?.id || null
+    selectedEventId.value = savedEvent?.id ? String(savedEvent.id) : null
   } catch (error) {
     console.error(error)
   }

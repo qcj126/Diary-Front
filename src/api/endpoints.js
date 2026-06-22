@@ -19,7 +19,8 @@ export const LOVE_DASHBOARD_API = {
 
 export const TIMELINE_API = {
   uploadImages: `${API_BASE}/file/upload/images`,
-  queryImageUrls: `${API_BASE}/query/images/urls`,
+  queryImageUrls: `${API_BASE}/file/query/images/urls`,
+  queryCarouselImages: `${API_BASE}/file/query/images/carousel`,
   categoryAdd: `${API_BASE}/time-machine/category/add`,
   categoryUpdate: `${API_BASE}/time-machine/category/update`,
   categoryDelete: `${API_BASE}/time-machine/category/delete`,
