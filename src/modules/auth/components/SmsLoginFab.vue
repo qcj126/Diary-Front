@@ -72,8 +72,9 @@
 
 <script setup>
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { getApiMessage, isApiSuccess, login as loginApi, sendVerifyCode } from '../api.js'
+import { getApiData, getApiMessage, isApiSuccess, login as loginApi, sendVerifyCode } from '../api.js'
 import { ripple as vRipple } from '../directives/ripple.js'
+import { saveAuthSession } from '../session.js'
 
 import { validatePhone, validateVerifyCode } from '../validators.js'
 
@@ -184,6 +185,7 @@ async function submit() {
   try {
     const { res, data } = await loginApi({ phone: ph.value, code: c.value, type: 2 })
     if (isApiSuccess(res, data)) {
+      saveAuthSession(getApiData(data))
       banner.value = getApiMessage(data, '登录成功')
       bannerType.value = 'ok'
       emit('logged-in')

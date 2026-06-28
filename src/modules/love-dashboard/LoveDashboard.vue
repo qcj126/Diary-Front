@@ -9,6 +9,7 @@
       <TimelinePage v-else-if="active === 'timeline'" />
       <DietPage v-else-if="active === 'diet'" />
       <RecipePage v-else-if="active === 'diary'" />
+      <GoalsPage v-else-if="active === 'wishlist'" />
       <PlaceholderPanel
         v-else
         :title="currentLabel"
@@ -25,6 +26,7 @@ import PlaceholderPanel from './components/panels/PlaceholderPanel.vue'
 import TimelinePage from '../timeline/TimelinePage.vue'
 import DietPage from '../diet/DietPage.vue'
 import RecipePage from '../recipe/RecipePage.vue'
+import GoalsPage from '../goals/GoalsPage.vue'
 import { LOVE_SECTIONS } from './constants/sections.js'
 
 const active = ref('home')

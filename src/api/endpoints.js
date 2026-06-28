@@ -2,6 +2,7 @@ export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:1
 
 export const AUTH_API = {
   login: `${API_BASE}/user/login`,
+  refresh: `${API_BASE}/user/refresh`,
   register: `${API_BASE}/user/register`,
   resetPw: `${API_BASE}/user/resetPw`,
   verifyCode: `${API_BASE}/user/verifycode`,

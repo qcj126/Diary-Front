@@ -2,6 +2,7 @@ import { API_BASE, TIMELINE_API } from '../../../api/index.js'
 
 let carouselImageUrlCache = null
 let carouselImageUrlRequest = null
+const carouselImageUrlCacheTtl = 10 * 60 * 1000
 
 function parseApiPayload(text) {
   if (!text) return null
@@ -41,6 +42,12 @@ function normalizeImageVO(image) {
   const url = normalizeImageUrl(image.url ?? image.imageUrl)
   if (!id || !url) return null
   return { id, url }
+}
+
+function normalizeCarouselImageUrl(image) {
+  if (typeof image === 'string') return normalizeImageUrl(image)
+  if (!image || typeof image !== 'object') return ''
+  return normalizeImageUrl(image.url ?? image.imageUrl)
 }
 
 export async function uploadTimelineImages(files, imageDTO) {
@@ -92,8 +99,8 @@ export async function queryTimelineImageUrls(imageIds) {
 }
 
 export async function queryCarouselImageUrls() {
-  if (carouselImageUrlCache) {
-    return [...carouselImageUrlCache]
+  if (carouselImageUrlCache && Date.now() < carouselImageUrlCache.expiresAt) {
+    return [...carouselImageUrlCache.urls]
   }
 
   if (carouselImageUrlRequest) {
@@ -115,9 +122,12 @@ async function queryCarouselImageUrlsFromApi() {
   assertApiSuccess(res, data, 'Carousel image query failed.')
 
   const images = getResponseData(data)
-  const urls = Array.isArray(images) ? images.map(normalizeImageUrl).filter(Boolean) : []
+  const urls = Array.isArray(images) ? images.map(normalizeCarouselImageUrl).filter(Boolean) : []
   if (urls.length) {
-    carouselImageUrlCache = urls
+    carouselImageUrlCache = {
+      urls,
+      expiresAt: Date.now() + carouselImageUrlCacheTtl,
+    }
   }
   return [...urls]
 }

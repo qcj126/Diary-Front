@@ -53,8 +53,17 @@ async function postJson(url, body) {
   return { res, data }
 }
 
+export function getApiData(data) {
+  if (!data || typeof data !== 'object' || !('data' in data)) return data
+  return data.data
+}
+
 export async function login(body) {
   return postJson(API.login, body)
+}
+
+export async function refreshToken(refreshToken) {
+  return postJson(API.refresh, { refreshToken })
 }
 
 export async function register(body) {

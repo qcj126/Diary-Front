@@ -44,16 +44,12 @@
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { getApiMessage, isApiSuccess, login as loginApi } from '../api.js'
+import { getApiData, getApiMessage, isApiSuccess, login as loginApi } from '../api.js'
 import { ripple as vRipple } from '../directives/ripple.js'
+import { saveAuthSession } from '../session.js'
 
 import SmsLoginFab from './SmsLoginFab.vue'
-import {
-  validateEmail,
-  validatePassword,
-  validatePhone,
-  validateUsername,
-} from '../validators.js'
+import { validatePassword, validateUsername } from '../validators.js'
 
 const props = defineProps({
   notice: {
@@ -94,18 +90,7 @@ const passwordErr = computed(() => {
 
 function parseAccount(raw) {
   const value = String(raw ?? '').trim()
-  if (!value) return { ok: false, message: '请输入用户（用户名/邮箱/手机号）' }
-
-  const ph = validatePhone(value)
-  if (ph.ok) return { ok: true, payload: { phone: ph.value } }
-
-  if (value.includes('@')) {
-    const em = validateEmail(value)
-    if (!em.ok) return { ok: false, message: em.message }
-    return { ok: true, payload: { email: em.value } }
-  }
-
-  if (/^\d+$/.test(value)) return { ok: false, message: '手机号格式不正确' }
+  if (!value) return { ok: false, message: '请输入用户名' }
 
   const user = validateUsername(value)
   if (!user.ok) return { ok: false, message: user.message }
@@ -124,43 +109,37 @@ function payload() {
   return { ...user.payload, password: p.value, type: 1 }
 }
 
-// async function onSubmit() {
-//   touch.account = true
-//   touch.password = true
-
-//   const body = payload()
-//   if (!body) {
-//     banner.value = '请修正表单错误后再试'
-//     bannerType.value = 'warn'
-//     return
-//   }
-
-//   loading.value = true
-//   banner.value = ''
-//   try {
-//     const { res, data } = await loginApi(body)
-//     if (isApiSuccess(res, data)) {
-//       banner.value = getApiMessage(data, '????')
-//       bannerType.value = 'ok'
-//       emit('logged-in')
-//     } else {
-//       const msg = getApiMessage(data, `登录失败（${res.status}）`)
-//       banner.value = msg
-//       bannerType.value = 'warn'
-
-//     }
-//   } catch (e) {
-//     console.error(e)
-//     const msg = e instanceof Error ? e.message : '网络异常，请稍后重试'
-//     banner.value = msg
-//     bannerType.value = 'warn'
-
-//   } finally {
-//     loading.value = false
-//   }
-// }
 async function onSubmit() {
-  emit('logged-in')
+  touch.account = true
+  touch.password = true
+
+  const body = payload()
+  if (!body) {
+    banner.value = '请修正表单错误后再试'
+    bannerType.value = 'warn'
+    return
+  }
+
+  loading.value = true
+  banner.value = ''
+  try {
+    const { res, data } = await loginApi(body)
+    if (isApiSuccess(res, data)) {
+      saveAuthSession(getApiData(data))
+      banner.value = getApiMessage(data, '登录成功')
+      bannerType.value = 'ok'
+      emit('logged-in')
+    } else {
+      banner.value = getApiMessage(data, `登录失败（${res.status}）`)
+      bannerType.value = 'warn'
+    }
+  } catch (e) {
+    console.error(e)
+    banner.value = e instanceof Error ? e.message : '网络异常，请稍后重试'
+    bannerType.value = 'warn'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 

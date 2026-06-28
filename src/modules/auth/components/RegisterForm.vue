@@ -3,8 +3,6 @@
     class="auth-card"
     v-ripple="{ trigger: 'move', color: 'rgba(184,196,255,.2)', interval: 420, scale: 2.6 }"
   >
-    <p class="hint">注册请求 <code>POST /user/register</code>（JSON）</p>
-
     <form class="form" @submit.prevent="onSubmit">
       <label class="field">
         <span class="label">用户名</span>
@@ -25,7 +23,7 @@
           class="input"
           type="email"
           autocomplete="email"
-          placeholder="name@example.com"
+          placeholder="选填，name@example.com"
           @blur="touch.email = true"
         />
         <span v-if="touch.email && emailErr" class="err">{{ emailErr }}</span>
@@ -40,7 +38,7 @@
           inputmode="numeric"
           maxlength="11"
           autocomplete="tel"
-          placeholder="11 位手机号"
+          placeholder="选填，11 位手机号"
           @blur="touch.phone = true"
         />
         <span v-if="touch.phone && phoneErr" class="err">{{ phoneErr }}</span>
@@ -117,10 +115,12 @@ const usernameErr = computed(() => {
   return r.ok ? '' : r.message
 })
 const emailErr = computed(() => {
+  if (!email.value.trim()) return ''
   const r = validateEmail(email.value)
   return r.ok ? '' : r.message
 })
 const phoneErr = computed(() => {
+  if (!phone.value.trim()) return ''
   const r = validatePhone(phone.value)
   return r.ok ? '' : r.message
 })
@@ -136,17 +136,20 @@ const password2Err = computed(() => {
 
 function payload() {
   const u = validateUsername(username.value)
-  const e = validateEmail(email.value)
-  const ph = validatePhone(phone.value)
+  const rawEmail = email.value.trim()
+  const rawPhone = phone.value.trim()
+  const e = rawEmail ? validateEmail(rawEmail) : { ok: true, value: '' }
+  const ph = rawPhone ? validatePhone(rawPhone) : { ok: true, value: '' }
   const p = validatePassword(password.value)
   if (!u.ok || !e.ok || !ph.ok || !p.ok) return null
   if (password2.value !== p.value) return null
-  return {
+  const body = {
     username: u.value,
-    email: e.value,
-    phone: ph.value,
     password: p.value,
   }
+  if (e.value) body.email = e.value
+  if (ph.value) body.phone = ph.value
+  return body
 }
 
 async function onSubmit() {
