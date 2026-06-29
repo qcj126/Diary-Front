@@ -6,7 +6,9 @@ export default defineConfig({
   plugins: [vue()], 
 
   server: {
-    port: 1025, 
+    host: 'localhost',
+    port: 1025,
+    strictPort: true,
     proxy: {
       '/user': {
         target: 'http://localhost:10000',

@@ -116,12 +116,14 @@
                       <h3>小分类学时差距</h3>
                       <div class="sub-gap-list">
                         <div v-for="sub in goal.subcategories" :key="`gap-${sub.name}`" class="sub-gap-row">
-                          <span>{{ sub.name }}</span>
+                          <div class="sub-gap-meta">
+                            <span>{{ sub.name }}</span>
+                            <strong>{{ sub.learnedHours }}/{{ sub.estimatedHours }}h</strong>
+                          </div>
                           <div class="sub-gap-track">
                             <i class="total" />
                             <i class="learned" :style="{ width: `${subProgress(sub)}%` }" />
                           </div>
-                          <strong>{{ sub.learnedHours }}/{{ sub.estimatedHours }}h</strong>
                         </div>
                       </div>
                     </aside>
@@ -190,42 +192,6 @@
           </tbody>
         </table>
       </div>
-    </section>
-
-    <section class="chart-grid">
-      <article class="chart-card">
-        <div class="chart-head">
-          <h2>分类学时差距</h2>
-          <span>已学 / 总时长</span>
-        </div>
-        <div class="bar-chart">
-          <div v-for="item in categoryChart" :key="item.name" class="bar-row">
-            <span>{{ item.name }}</span>
-            <div class="bar-track">
-              <i class="total" />
-              <i class="learned" :style="{ width: `${item.ratio}%` }" />
-            </div>
-            <strong>{{ item.learned }} / {{ item.total }}h</strong>
-          </div>
-        </div>
-      </article>
-
-      <article class="chart-card">
-        <div class="chart-head">
-          <h2>小分类学时差距</h2>
-          <span>已学 / 总时长</span>
-        </div>
-        <div class="bar-chart">
-          <div v-for="item in subcategoryChart" :key="item.name" class="bar-row">
-            <span>{{ item.name }}</span>
-            <div class="bar-track">
-              <i class="total" />
-              <i class="learned accent" :style="{ width: `${item.ratio}%` }" />
-            </div>
-            <strong>{{ item.learned }} / {{ item.total }}h</strong>
-          </div>
-        </div>
-      </article>
     </section>
 
     <div v-if="toast.visible" class="toast" :class="{ leaving: toast.leaving }">{{ toast.message }}</div>
@@ -393,38 +359,6 @@ const filteredGoals = computed(() =>
     return creatorHit && categoryHit && titleHit && recentHit
   }),
 )
-
-const categoryChart = computed(() => {
-  const map = new Map()
-  for (const goal of goals.value) {
-    const current = map.get(goal.category) ?? { name: goal.category, learned: 0, total: 0 }
-    current.learned += Number(goal.learnedHours) || 0
-    current.total += Number(goal.estimatedHours) || 0
-    map.set(goal.category, current)
-  }
-  return [...map.values()].map(withRatio)
-})
-
-const subcategoryChart = computed(() =>
-  goals.value
-    .flatMap((goal) =>
-      goal.subcategories.map((sub) =>
-        withRatio({
-          name: sub.name,
-          learned: Number(sub.learnedHours) || 0,
-          total: Number(sub.estimatedHours) || 0,
-        }),
-      ),
-    )
-    .slice(0, 8),
-)
-
-function withRatio(item) {
-  return {
-    ...item,
-    ratio: item.total ? Math.min(Math.round((item.learned / item.total) * 100), 100) : 0,
-  }
-}
 
 function remainingHours(goal) {
   return Math.max((Number(goal.estimatedHours) || 0) - (Number(goal.learnedHours) || 0), 0)
@@ -631,9 +565,6 @@ function saveGoal() {
 .toolbar,
 .actions,
 .query-panel,
-.chart-grid,
-.chart-head,
-.bar-row,
 .editor-modal header,
 .editor-modal footer,
 .sub-editor-head {
@@ -675,8 +606,7 @@ p {
 }
 
 .toolbar,
-.table-panel,
-.chart-card {
+.table-panel {
   border: 1px solid rgba(196, 199, 199, 0.4);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.82);
@@ -919,8 +849,7 @@ tbody tr.selected {
   font-weight: 900;
 }
 
-.progress-cell i,
-.bar-track {
+.progress-cell i {
   position: relative;
   overflow: hidden;
   border-radius: 999px;
@@ -984,15 +913,30 @@ tbody tr.selected {
 
 .sub-gap-list {
   display: grid;
-  gap: 12px;
+  gap: 0;
 }
 
 .sub-gap-row {
   display: grid;
-  gap: 6px;
+  align-content: center;
+  gap: 8px;
+  min-height: 58px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(196, 199, 199, 0.24);
 }
 
-.sub-gap-row > span {
+.sub-gap-row:last-child {
+  border-bottom: 0;
+}
+
+.sub-gap-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sub-gap-meta span {
   overflow: hidden;
   color: #444748;
   font-size: 12px;
@@ -1001,9 +945,11 @@ tbody tr.selected {
   white-space: nowrap;
 }
 
-.sub-gap-row strong {
+.sub-gap-meta strong {
+  flex: 0 0 auto;
   color: #8a625c;
   font-size: 12px;
+  line-height: 1;
 }
 
 .sub-gap-track {
@@ -1075,86 +1021,6 @@ tbody tr.selected {
 
 .sub-progress-control .material-symbols-outlined {
   font-size: 17px;
-}
-
-.chart-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-  margin-top: 18px;
-}
-
-.chart-card {
-  padding: 18px;
-}
-
-.chart-head {
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.chart-head h2 {
-  font-size: 18px;
-}
-
-.chart-head span {
-  color: #8a625c;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.bar-chart {
-  display: grid;
-  gap: 13px;
-}
-
-.bar-row {
-  align-items: center;
-  gap: 12px;
-}
-
-.bar-row > span {
-  width: 88px;
-  overflow: hidden;
-  color: #444748;
-  font-size: 12px;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bar-track {
-  flex: 1;
-  height: 14px;
-}
-
-.bar-track .learned,
-.bar-track .total {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
-}
-
-.bar-track .total {
-  width: 100%;
-  background: rgba(224, 227, 229, 0.82);
-}
-
-.bar-track .learned {
-  background: linear-gradient(90deg, #4caf50, #ff9800);
-}
-
-.bar-track .learned.accent {
-  background: linear-gradient(90deg, #2196f3, #ff9800);
-}
-
-.bar-row strong {
-  width: 86px;
-  color: #1c1b1b;
-  font-size: 12px;
-  text-align: right;
 }
 
 .toast {
@@ -1321,7 +1187,6 @@ tbody tr.selected {
   }
 
   .detail-card,
-  .chart-grid,
   .form-grid {
     grid-template-columns: 1fr;
   }
