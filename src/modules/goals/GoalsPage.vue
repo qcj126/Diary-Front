@@ -26,6 +26,10 @@
           <span class="material-symbols-outlined">search</span>
           查
         </button>
+        <button type="button" @click="exportOpen = true">
+          <span class="material-symbols-outlined">ios_share</span>
+          导出
+        </button>
       </div>
 
       <form v-if="queryPanelOpen" class="query-panel" @submit.prevent>
@@ -207,6 +211,41 @@
       </section>
     </div>
 
+    <div v-if="exportOpen" class="modal-backdrop" @click.self="exportOpen = false">
+      <form class="export-modal" @submit.prevent="confirmExport">
+        <h2>导出阶段目标</h2>
+        <div class="export-fields">
+          <label>
+            <span>文件格式</span>
+            <select v-model.number="exportForm.exportType">
+              <option :value="1">Excel</option>
+              <option :value="2">PDF</option>
+              <option :value="3">图片</option>
+            </select>
+          </label>
+          <label>
+            <span>过去天数</span>
+            <select v-model.number="exportForm.lastDays">
+              <option :value="0">全部</option>
+              <option v-for="day in exportDayOptions" :key="day" :value="day">{{ day }} 天</option>
+            </select>
+          </label>
+          <label>
+            <span>目标条数</span>
+            <select v-model.number="exportForm.exportSize">
+              <option v-for="size in exportSizeOptions" :key="size" :value="size">{{ size }} 条</option>
+            </select>
+          </label>
+        </div>
+        <footer>
+          <button type="button" @click="exportOpen = false">取消导出</button>
+          <button type="submit" class="primary" :disabled="exporting">
+            {{ exporting ? '导出中' : '确认导出' }}
+          </button>
+        </footer>
+      </form>
+    </div>
+
     <div v-if="editorOpen" class="modal-backdrop" @click.self="closeEditor">
       <form class="editor-modal" @submit.prevent="saveGoal">
         <header>
@@ -265,6 +304,7 @@
 
 <script setup>
 import { computed, reactive, ref } from 'vue'
+import { GOAL_API } from '../../api/index.js'
 
 const categories = ['技术', '学习', '健康', '生活']
 const expandedIds = ref(['goal-java'])
@@ -274,9 +314,19 @@ const editorOpen = ref(false)
 const editorMode = ref('create')
 const editingId = ref(null)
 const confirmDeleteOpen = ref(false)
+const exportOpen = ref(false)
+const exporting = ref(false)
 const toast = reactive({ visible: false, leaving: false, message: '' })
 let toastTimer = 0
 let toastLeaveTimer = 0
+
+const exportDayOptions = [1, 3, 5, 7, 10, 15, 30]
+const exportSizeOptions = [10, 20, 30, 40, 50, 100]
+const exportForm = reactive({
+  exportType: 1,
+  lastDays: 0,
+  exportSize: 50,
+})
 
 const filters = reactive({
   creator: '',
@@ -454,6 +504,29 @@ function confirmDelete() {
   expandedIds.value = expandedIds.value.filter((id) => !selectedIds.value.includes(id))
   selectedIds.value = []
   confirmDeleteOpen.value = false
+}
+
+async function confirmExport() {
+  exporting.value = true
+  try {
+    const params = new URLSearchParams({
+      exportType: String(exportForm.exportType),
+      lastDays: String(exportForm.lastDays),
+      exportSize: String(exportForm.exportSize),
+    })
+    const response = await fetch(`${GOAL_API.export}?${params.toString()}`, {
+      method: 'POST',
+    })
+    if (!response.ok) {
+      throw new Error('导出请求失败')
+    }
+    exportOpen.value = false
+    showToast('导出请求已发送')
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : '导出请求失败')
+  } finally {
+    exporting.value = false
+  }
 }
 
 function openCreate() {
@@ -1068,6 +1141,7 @@ tbody tr.selected {
 }
 
 .confirm-modal,
+.export-modal,
 .editor-modal {
   width: min(100%, 760px);
   border: 1px solid rgba(255, 255, 255, 0.65);
@@ -1087,6 +1161,64 @@ tbody tr.selected {
 .confirm-modal {
   max-width: 420px;
   padding: 24px;
+}
+
+.export-modal {
+  display: grid;
+  max-width: 680px;
+  gap: 22px;
+  padding: 24px;
+}
+
+.export-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.export-fields label {
+  display: grid;
+  gap: 8px;
+  color: #444748;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.export-fields select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(196, 199, 199, 0.58);
+  border-radius: 12px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #1c1b1b;
+  font: 800 14px/1.2 Inter, sans-serif;
+  outline: none;
+}
+
+.export-modal footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.export-modal footer button {
+  min-height: 40px;
+  border-radius: 12px;
+  padding: 0 16px;
+  background: #f1edec;
+  color: #444748;
+  font-weight: 900;
+}
+
+.export-modal footer .primary {
+  background: #1c1b1b;
+  color: #ffffff;
+}
+
+.export-modal footer button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .confirm-modal p {
@@ -1188,6 +1320,10 @@ tbody tr.selected {
 
   .detail-card,
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .export-fields {
     grid-template-columns: 1fr;
   }
 

@@ -32,8 +32,17 @@ export const TIMELINE_API = {
   cardQuery: `${API_BASE}/time-machine/card/query`,
 }
 
+export const GOAL_API = {
+  add: `${API_BASE}/goal/add`,
+  delete: `${API_BASE}/goal/delete/`,
+  update: `${API_BASE}/goal/update/`,
+  query: `${API_BASE}/goal/query/`,
+  export: `${API_BASE}/goal/export`,
+}
+
 export const API_ENDPOINTS = {
   auth: AUTH_API,
   loveDashboard: LOVE_DASHBOARD_API,
   timeline: TIMELINE_API,
+  goal: GOAL_API,
 }

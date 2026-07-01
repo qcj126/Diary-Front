@@ -1,1 +1,147 @@
 /* Shared dashboard styles belong here. Component-local dashboard styles stay scoped in src/modules/love-dashboard. */
+
+.dashboard[data-theme='night'] {
+  color-scheme: dark;
+}
+
+.dashboard,
+.dashboard * {
+  transition-duration: 2s;
+  transition-property: background, background-color, border-color, box-shadow, color, opacity;
+  transition-timing-function: ease;
+}
+
+.dashboard[data-theme='night'] .home-page,
+.dashboard[data-theme='night'] .goals-page,
+.dashboard[data-theme='night'] .ledger-page,
+.dashboard[data-theme='night'] .diet-dashboard,
+.dashboard[data-theme='night'] .recipe-page {
+  background: var(--dashboard-bg);
+  color: var(--dashboard-text);
+}
+
+.dashboard[data-theme='night'] .timeline-page {
+  background:
+    radial-gradient(circle at 16% 8%, rgba(246, 200, 95, 0.14), transparent 28%),
+    linear-gradient(135deg, #101218 0%, #171b25 58%, #111318 100%);
+  color: var(--dashboard-text);
+}
+
+.dashboard[data-theme='night'] .neo-card,
+.dashboard[data-theme='night'] .thoughts-card,
+.dashboard[data-theme='night'] .countdown,
+.dashboard[data-theme='night'] .stats,
+.dashboard[data-theme='night'] .toolbar,
+.dashboard[data-theme='night'] .table-panel,
+.dashboard[data-theme='night'] .query-panel,
+.dashboard[data-theme='night'] .detail-card,
+.dashboard[data-theme='night'] .sub-gap-panel,
+.dashboard[data-theme='night'] .sub-table-wrap,
+.dashboard[data-theme='night'] .confirm-modal,
+.dashboard[data-theme='night'] .export-modal,
+.dashboard[data-theme='night'] .editor-modal,
+.dashboard[data-theme='night'] .hero-card,
+.dashboard[data-theme='night'] .timeline-area,
+.dashboard[data-theme='night'] .summary-area,
+.dashboard[data-theme='night'] .category-sidebar,
+.dashboard[data-theme='night'] .hero-panel,
+.dashboard[data-theme='night'] .panel,
+.dashboard[data-theme='night'] .metric-card,
+.dashboard[data-theme='night'] .timeline-container,
+.dashboard[data-theme='night'] .add-event-panel,
+.dashboard[data-theme='night'] .event-card,
+.dashboard[data-theme='night'] .event-detail,
+.dashboard[data-theme='night'] .category-nav,
+.dashboard[data-theme='night'] .card-shell {
+  border-color: var(--dashboard-border-soft);
+  background: var(--dashboard-surface);
+  color: var(--dashboard-text);
+  box-shadow: var(--dashboard-shadow);
+}
+
+.dashboard[data-theme='night'] .home-header h1,
+.dashboard[data-theme='night'] .goals-header h1,
+.dashboard[data-theme='night'] .hero-copy h1,
+.dashboard[data-theme='night'] .hero-copy h2,
+.dashboard[data-theme='night'] .page-title,
+.dashboard[data-theme='night'] .page-header h1,
+.dashboard[data-theme='night'] .section-heading h2,
+.dashboard[data-theme='night'] .title-wrap h2,
+.dashboard[data-theme='night'] .thoughts-head h2,
+.dashboard[data-theme='night'] .metric-card strong,
+.dashboard[data-theme='night'] .category-top strong,
+.dashboard[data-theme='night'] .record-main strong,
+.dashboard[data-theme='night'] .bill-item strong,
+.dashboard[data-theme='night'] .account-card strong,
+.dashboard[data-theme='night'] .saving-title strong,
+.dashboard[data-theme='night'] .timeline-header h1,
+.dashboard[data-theme='night'] .add-event-panel h3 {
+  color: var(--dashboard-text-strong);
+}
+
+.dashboard[data-theme='night'] .home-header p,
+.dashboard[data-theme='night'] .goals-header p,
+.dashboard[data-theme='night'] .hero-copy p,
+.dashboard[data-theme='night'] .page-subtitle,
+.dashboard[data-theme='night'] .section-note,
+.dashboard[data-theme='night'] .section-heading p,
+.dashboard[data-theme='night'] .muted,
+.dashboard[data-theme='night'] .card-body p,
+.dashboard[data-theme='night'] .goal-note,
+.dashboard[data-theme='night'] .label,
+.dashboard[data-theme='night'] .category-meta,
+.dashboard[data-theme='night'] .record-row small,
+.dashboard[data-theme='night'] .bill-item small,
+.dashboard[data-theme='night'] .account-card small,
+.dashboard[data-theme='night'] .saving-item small,
+.dashboard[data-theme='night'] .add-event-panel p {
+  color: var(--dashboard-text-muted);
+}
+
+.dashboard[data-theme='night'] input,
+.dashboard[data-theme='night'] select,
+.dashboard[data-theme='night'] textarea,
+.dashboard[data-theme='night'] .search-box,
+.dashboard[data-theme='night'] .search-bar,
+.dashboard[data-theme='night'] .segments,
+.dashboard[data-theme='night'] .segment-buttons,
+.dashboard[data-theme='night'] .menu-item,
+.dashboard[data-theme='night'] .category-row,
+.dashboard[data-theme='night'] .record-row,
+.dashboard[data-theme='night'] .bill-item,
+.dashboard[data-theme='night'] .account-card,
+.dashboard[data-theme='night'] .saving-item,
+.dashboard[data-theme='night'] .thought-item,
+.dashboard[data-theme='night'] .sub-gap-row,
+.dashboard[data-theme='night'] .sub-table th,
+.dashboard[data-theme='night'] .sub-table td {
+  border-color: var(--dashboard-border-soft);
+  background: var(--dashboard-surface-soft);
+  color: var(--dashboard-text);
+}
+
+.dashboard[data-theme='night'] button:not(.nav-item):not(.theme-toggle),
+.dashboard[data-theme='night'] .soft-btn,
+.dashboard[data-theme='night'] .seg-btn,
+.dashboard[data-theme='night'] .segments button {
+  border-color: var(--dashboard-border);
+  background: var(--dashboard-surface-muted);
+  color: var(--dashboard-text);
+}
+
+.dashboard[data-theme='night'] .primary,
+.dashboard[data-theme='night'] .primary-btn,
+.dashboard[data-theme='night'] .quick-entry button,
+.dashboard[data-theme='night'] .card-action,
+.dashboard[data-theme='night'] .add-recipe-btn,
+.dashboard[data-theme='night'] .segments button.active,
+.dashboard[data-theme='night'] .seg-btn.active {
+  background: var(--dashboard-accent);
+  color: var(--dashboard-accent-contrast);
+}
+
+.dashboard[data-theme='night'] .progress-track,
+.dashboard[data-theme='night'] .target-track,
+.dashboard[data-theme='night'] .hero-meter {
+  background: var(--dashboard-hover);
+}

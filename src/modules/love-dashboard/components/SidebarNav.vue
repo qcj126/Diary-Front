@@ -33,6 +33,15 @@
           <strong>陈子墨</strong>
           <span>普通用户</span>
         </div>
+        <button
+          class="theme-toggle"
+          type="button"
+          :aria-label="isNightMode ? 'Switch to day mode' : 'Switch to night mode'"
+          :title="isNightMode ? 'Day mode' : 'Night mode'"
+          @click="$emit('toggle-theme')"
+        >
+          <span class="material-symbols-outlined">{{ isNightMode ? 'dark_mode' : 'light_mode' }}</span>
+        </button>
       </div>
 
       <a href="#" aria-label="版本信息">
@@ -53,9 +62,13 @@ defineProps({
     type: Array,
     required: true,
   },
+  isNightMode: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-defineEmits(['update:modelValue'])
+defineEmits(['update:modelValue', 'toggle-theme'])
 </script>
 
 <style scoped>
@@ -67,9 +80,9 @@ defineEmits(['update:modelValue'])
   flex-direction: column;
   width: 256px;
   padding: 24px;
-  border-right: 1px solid #c4c7c7;
-  background: #f7f3f2;
-  color: #1c1b1b;
+  border-right: 1px solid var(--dashboard-border, #c4c7c7);
+  background: var(--dashboard-surface-soft, #f7f3f2);
+  color: var(--dashboard-text, #1c1b1b);
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
@@ -86,13 +99,13 @@ defineEmits(['update:modelValue'])
   height: 40px;
   place-items: center;
   border-radius: 8px;
-  background: #000000;
-  color: #ffffff;
+  background: var(--dashboard-accent, #000000);
+  color: var(--dashboard-accent-contrast, #ffffff);
 }
 
 .brand {
   margin: 0;
-  color: #000000;
+  color: var(--dashboard-text-strong, #000000);
   font-size: 24px;
   line-height: 1;
   font-weight: 600;
@@ -100,7 +113,7 @@ defineEmits(['update:modelValue'])
 
 .brand-block p {
   margin: 4px 0 0;
-  color: rgba(68, 71, 72, 0.7);
+  color: var(--dashboard-text-muted, rgba(68, 71, 72, 0.7));
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -121,7 +134,7 @@ defineEmits(['update:modelValue'])
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: #444748;
+  color: var(--dashboard-text-muted, #444748);
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
@@ -131,13 +144,13 @@ defineEmits(['update:modelValue'])
 }
 
 .nav-item:hover {
-  background: #e0e3e5;
-  color: #1c1b1b;
+  background: var(--dashboard-hover, #e0e3e5);
+  color: var(--dashboard-text, #1c1b1b);
 }
 
 .nav-item.active {
-  background: #000000;
-  color: #ffffff;
+  background: var(--dashboard-accent, #000000);
+  color: var(--dashboard-accent-contrast, #ffffff);
   font-weight: 700;
 }
 
@@ -147,8 +160,8 @@ defineEmits(['update:modelValue'])
   margin: 24px 0;
   border: 0;
   border-radius: 12px;
-  background: #1c1b1a;
-  color: #ffffff;
+  background: var(--dashboard-accent, #1c1b1a);
+  color: var(--dashboard-accent-contrast, #ffffff);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -162,7 +175,7 @@ defineEmits(['update:modelValue'])
 .profile {
   margin-top: auto;
   padding-top: 24px;
-  border-top: 1px solid #c4c7c7;
+  border-top: 1px solid var(--dashboard-border, #c4c7c7);
 }
 
 .profile-row {
@@ -178,8 +191,8 @@ defineEmits(['update:modelValue'])
   height: 40px;
   place-items: center;
   border-radius: 999px;
-  background: linear-gradient(135deg, #101828, #77716f);
-  color: #ffffff;
+  background: linear-gradient(135deg, var(--dashboard-accent, #101828), var(--dashboard-text-muted, #77716f));
+  color: var(--dashboard-accent-contrast, #ffffff);
   font-weight: 700;
 }
 
@@ -193,22 +206,47 @@ defineEmits(['update:modelValue'])
 }
 
 .profile-row span {
-  color: #444748;
+  color: var(--dashboard-text-muted, #444748);
   font-size: 12px;
+}
+
+.theme-toggle {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  place-items: center;
+  border: 1px solid var(--dashboard-border, #c4c7c7);
+  border-radius: 999px;
+  background: var(--dashboard-surface, #ffffff);
+  color: var(--dashboard-accent, #1c1b1a);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+}
+
+.theme-toggle:hover {
+  border-color: var(--dashboard-accent, #1c1b1a);
+  background: var(--dashboard-accent, #1c1b1a);
+  color: var(--dashboard-accent-contrast, #ffffff);
+  transform: translateY(-1px);
+}
+
+.theme-toggle .material-symbols-outlined {
+  font-size: 20px;
 }
 
 .profile a {
   display: flex;
   align-items: center;
   gap: 24px;
-  color: #444748;
+  color: var(--dashboard-text-muted, #444748);
   text-decoration: none;
   font-size: 10px;
   font-weight: 600;
 }
 
 .profile a:hover {
-  color: #000000;
+  color: var(--dashboard-text-strong, #000000);
 }
 
 @media (max-width: 900px) {
@@ -219,7 +257,7 @@ defineEmits(['update:modelValue'])
     min-height: 0;
     padding: 16px;
     border-right: none;
-    border-bottom: 1px solid #c4c7c7;
+    border-bottom: 1px solid var(--dashboard-border, #c4c7c7);
   }
 
   .brand-block {
