@@ -15,6 +15,7 @@
       <DietPage v-else-if="active === 'diet'" />
       <RecipePage v-else-if="active === 'diary'" />
       <GoalsPage v-else-if="active === 'wishlist'" />
+      <LifeThoughtsPage v-else-if="active === 'board'" />
       <LedgerPage v-else-if="active === 'ledger'" />
       <PlaceholderPanel
         v-else
@@ -34,6 +35,7 @@ import DietPage from '../diet/DietPage.vue'
 import RecipePage from '../recipe/RecipePage.vue'
 import GoalsPage from '../goals/GoalsPage.vue'
 import LedgerPage from '../ledger/LedgerPage.vue'
+import LifeThoughtsPage from '../life-thoughts/LifeThoughtsPage.vue'
 import { LOVE_SECTIONS } from './constants/sections.js'
 
 const active = ref('home')
