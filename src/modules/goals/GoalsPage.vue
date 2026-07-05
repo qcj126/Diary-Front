@@ -165,8 +165,19 @@
                           <td>{{ sub.learnedHours }}h</td>
                           <td>{{ subRemainingHours(sub) }}h</td>
                           <td>
-                            <div class="sub-progress-vert">
-                              <div class="sub-progress-pct">{{ subProgress(sub) }}%</div>
+                            <div class="sub-progress-with-controls">
+                              <div class="sub-progress-controls-top" role="group" aria-label="sub progress controls">
+                                <button type="button" class="sub-btn minus" :aria-label="`减少${sub.name}进度`" @click="changeSubHours(goal, subIndex, -1)">
+                                  <span class="material-symbols-outlined">remove</span>
+                                </button>
+
+                                <div class="sub-progress-pct">{{ subProgress(sub) }}%</div>
+
+                                <button type="button" class="sub-btn plus" :aria-label="`增加${sub.name}进度`" @click="changeSubHours(goal, subIndex, 1)">
+                                  <span class="material-symbols-outlined">add</span>
+                                </button>
+                              </div>
+
                               <div class="progress-cell">
                                 <i><b :style="{ width: `${subProgress(sub)}%` }" /></i>
                               </div>
@@ -1058,7 +1069,57 @@ tbody tr.selected {
   padding: 13px 12px;
 }
 
-.sub-progress-vert {
+.sub-progress-with-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.sub-progress-controls-top {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  width: 100%;
+  padding: 0 4px;
+}
+
+.sub-progress-controls-top .sub-progress-pct {
+  justify-self: center;
+  text-align: center;
+  color: #ff9800;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.sub-btn {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #9a5a00;
+  border: 1px solid rgba(255, 152, 0, 0.25);
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 152, 0, 0.12);
+}
+
+.sub-btn.minus {
+  justify-self: start;
+}
+
+.sub-btn.plus {
+  justify-self: end;
+}
+
+.sub-btn:hover {
+  background: #1c1b1b;
+  color: #ffffff;
+  transform: translateY(-1px) scale(1.04);
+}
+
+.sub-progress-vert { /* legacy - kept minimal */
   display: grid;
   gap: 6px;
   justify-items: center;
@@ -1072,7 +1133,8 @@ tbody tr.selected {
   font-weight: 900;
 }
 
-.sub-progress-vert .progress-cell {
+.sub-progress-vert .progress-cell,
+.sub-progress-with-controls .progress-cell {
   width: 100%;
 }
 
