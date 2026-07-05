@@ -992,7 +992,7 @@ tbody tr.selected {
 .sub-gap-row {
   display: grid;
   align-content: center;
-  gap: 8px;
+  gap: 20px;
   min-height: 58px;
   padding: 7px 0;
   border-bottom: 1px solid rgba(196, 199, 199, 0.24);
@@ -1027,7 +1027,7 @@ tbody tr.selected {
 
 .sub-gap-track {
   position: relative;
-  height: 12px;
+  height: 18px;
   overflow: hidden;
   border-radius: 999px;
   background: #e0e3e5;
