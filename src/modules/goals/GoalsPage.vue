@@ -48,19 +48,19 @@
       <div class="table-wrap">
         <table>
           <colgroup>
-            <col class="col-select" />
-            <col class="col-expand" />
-            <col class="col-creator" />
-            <col class="col-category" />
-            <col class="col-title" />
-            <col class="col-content" />
-            <col class="col-hours" />
-            <col class="col-hours" />
-            <col class="col-progress" />
-            <col class="col-estimated" />
-            <col class="col-date" />
-            <col class="col-date" />
-            <col class="col-stale" />
+            <col :style="{ width: `${columnWidths.main.select}px` }" />
+            <col :style="{ width: `${columnWidths.main.expand}px` }" />
+            <col :style="{ width: `${columnWidths.main.creator}px` }" />
+            <col :style="{ width: `${columnWidths.main.category}px` }" />
+            <col :style="{ width: `${columnWidths.main.title}px` }" />
+            <col :style="{ width: `${columnWidths.main.content}px` }" />
+            <col :style="{ width: `${columnWidths.main.hours}px` }" />
+            <col :style="{ width: `${columnWidths.main.hours}px` }" />
+            <col :style="{ width: `${columnWidths.main.progress}px` }" />
+            <col :style="{ width: `${columnWidths.main.estimated}px` }" />
+            <col :style="{ width: `${columnWidths.main.date}px` }" />
+            <col :style="{ width: `${columnWidths.main.date}px` }" />
+            <col :style="{ width: `${columnWidths.main.stale}px` }" />
           </colgroup>
           <thead>
             <tr>
@@ -134,58 +134,53 @@
                     <div class="sub-table-wrap">
                       <table class="sub-table">
                         <colgroup>
-                          <col class="col-title" />
-                          <col class="col-content" />
-                          <col class="col-hours" />
-                          <col class="col-hours" />
-                          <col class="col-progress" />
-                          <col class="col-estimated" />
-                          <col class="col-date" />
-                          <col class="col-date" />
-                          <col class="col-stale" />
+                          <!-- 对齐到大分类列：小分类列宽使用大分类对应列宽，保证垂直对齐 -->
+                          <col :style="{ width: `${columnWidths.main.title}px` }" />
+                          <col :style="{ width: `${columnWidths.main.content}px` }" />
+                          <col :style="{ width: `${columnWidths.main.hours}px` }" />
+                          <col :style="{ width: `${columnWidths.main.hours}px` }" />
+                          <col :style="{ width: `${columnWidths.main.progress}px` }" />
+                          <col :style="{ width: `${columnWidths.main.estimated}px` }" />
+                          <col :style="{ width: `${columnWidths.main.date}px` }" />
+                          <col :style="{ width: `${columnWidths.main.date}px` }" />
+                          <col :style="{ width: `${columnWidths.main.stale}px` }" />
                         </colgroup>
                         <thead>
-                          <tr>
-                            <th>小分类</th>
-                            <th>内容</th>
-                            <th>已学时长</th>
-                            <th>剩余时长</th>
-                            <th>进度</th>
-                            <th>预计用时</th>
-                            <th>创建时间</th>
-                            <th>修改时间</th>
-                            <th>距上次更新</th>
-                          </tr>
+                        <tr>
+                          <th>小分类</th>
+                          <th>内容</th>
+                          <th>已学时长</th>
+                          <th>剩余时长</th>
+                          <th>进度</th>
+                          <th>预计用时</th>
+                          <th>创建时间</th>
+                          <th>修改时间</th>
+                          <th>距上次更新</th>
+                        </tr>
                         </thead>
                         <tbody>
-                          <tr v-for="(sub, subIndex) in goal.subcategories" :key="sub.name">
-                            <td class="strong">{{ sub.name }}</td>
-                            <td class="content-cell">{{ sub.content }}</td>
-                            <td>{{ sub.learnedHours }}h</td>
-                            <td>{{ subRemainingHours(sub) }}h</td>
-                            <td>
-                              <div class="sub-progress-control">
-                                <button type="button" :aria-label="`减少${sub.name}进度`" @click="changeSubHours(goal, subIndex, -1)">
-                                  <span class="material-symbols-outlined">remove</span>
-                                </button>
-                                <div class="progress-cell">
-                                  <span>{{ subProgress(sub) }}%</span>
-                                  <i><b :style="{ width: `${subProgress(sub)}%` }" /></i>
-                                </div>
-                                <button type="button" :aria-label="`增加${sub.name}进度`" @click="changeSubHours(goal, subIndex, 1)">
-                                  <span class="material-symbols-outlined">add</span>
-                                </button>
+                        <tr v-for="(sub, subIndex) in goal.subcategories" :key="sub.name">
+                          <td class="strong">{{ sub.name }}</td>
+                          <td class="content-cell">{{ sub.content }}</td>
+                          <td>{{ sub.learnedHours }}h</td>
+                          <td>{{ subRemainingHours(sub) }}h</td>
+                          <td>
+                            <div class="sub-progress-vert">
+                              <div class="sub-progress-pct">{{ subProgress(sub) }}%</div>
+                              <div class="progress-cell">
+                                <i><b :style="{ width: `${subProgress(sub)}%` }" /></i>
                               </div>
-                            </td>
-                            <td>{{ sub.estimatedHours }}h</td>
-                            <td><span class="time-stack"><span>{{ datePart(sub.createdAt) }}</span><span>{{ timePart(sub.createdAt) }}</span></span></td>
-                            <td><span class="time-stack"><span>{{ datePart(sub.updatedAt) }}</span><span>{{ timePart(sub.updatedAt) }}</span></span></td>
-                            <td>
+                            </div>
+                          </td>
+                          <td>{{ sub.estimatedHours }}h</td>
+                          <td><span class="time-stack"><span>{{ datePart(sub.createdAt) }}</span><span>{{ timePart(sub.createdAt) }}</span></span></td>
+                          <td><span class="time-stack"><span>{{ datePart(sub.updatedAt) }}</span><span>{{ timePart(sub.updatedAt) }}</span></span></td>
+                          <td>
                               <span :class="['stale-pill', { warn: sub.daysSinceUpdate >= 3 }]">
                                 {{ sub.daysSinceUpdate }}天
                               </span>
-                            </td>
-                          </tr>
+                          </td>
+                        </tr>
                         </tbody>
                       </table>
                     </div>
@@ -307,6 +302,36 @@ import { computed, reactive, ref } from 'vue'
 import { GOAL_API } from '../../api/index.js'
 
 const categories = ['技术', '学习', '健康', '生活']
+
+// 列宽配置 - 可以手动调整每个列的宽度
+const columnWidths = {
+  // 大分类表格列宽
+  main: {
+    select: 42,      // 选择列
+    expand: 42,      // 展开列
+    creator: 97,     // 创建人
+    category: 97,    // 分类
+    title: 140,      // 标题
+    content: 300,    // 内容
+    hours: 90,       // 已学时长/剩余时长
+    progress: 140,   // 进度
+    estimated: 110,  // 预计用时
+    date: 120,       // 创建时间/修改时间
+    stale: 120,      // 距上次更新
+  },
+  // 小分类表格列宽（与大分类对应）
+  sub: {
+    // 使用与大分类一致的列宽，保证列垂直对齐
+    title: 140,      // 小分类 -> 对齐到大分类的标题宽
+    content: 300,    // 内容 -> 对齐到大分类的内容宽
+    hours: 90,       // 已学时长/剩余时长 -> 对齐到大分类的 hours
+    progress: 140,   // 进度 -> 对齐到大分类的进度
+    estimated: 110,  // 预计用时
+    date: 120,       // 创建时间/修改时间
+    stale: 120,      // 距上次更新
+  }
+}
+
 const expandedIds = ref(['goal-java'])
 const selectedIds = ref([])
 const queryPanelOpen = ref(false)
@@ -766,45 +791,10 @@ table {
   width: 100%;
   min-width: 1484px;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
-.col-select,
-.col-expand {
-  width: 42px;
-}
-
-.col-creator {
-  width: 90px;
-}
-
-.col-category {
-  width: 80px;
-}
-
-.col-title {
-  width: 140px;
-}
-
-.col-content {
-  width: 300px;
-}
-
-.col-hours {
-  width: 90px;
-}
-
-.col-progress {
-  width: 140px;
-}
-
-.col-estimated {
-  width: 110px;
-}
-
-.col-date,
-.col-stale {
-  width: 120px;
-}
+/* 列宽由 columnWidths 配置对象通过内联样式控制，不再使用 CSS class 定义固定宽度 */
 
 th,
 td {
@@ -845,7 +835,6 @@ tbody tr.selected {
 
 .select-col,
 .expand-col {
-  width: 42px;
   text-align: center;
 }
 
@@ -930,7 +919,7 @@ tbody tr.selected {
 }
 
 .progress-cell i {
-  width: 92px;
+  width: 100%;
   height: 7px;
 }
 
@@ -948,7 +937,7 @@ tbody tr.selected {
 
 .detail-card {
   display: grid;
-  grid-template-columns: 254px minmax(0, 1fr);
+  grid-template-columns: 400px minmax(0, 1fr);
   gap: 0;
   padding: 18px 0;
   animation: unfold 0.24s ease both;
@@ -1055,8 +1044,9 @@ tbody tr.selected {
 }
 
 .sub-table {
-  min-width: 1230px;
+  min-width: 1484px;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .sub-table th {
@@ -1068,32 +1058,22 @@ tbody tr.selected {
   padding: 13px 12px;
 }
 
-.sub-progress-control {
-  display: inline-grid;
-  grid-template-columns: 28px 92px 28px;
-  align-items: center;
-  gap: 4px;
-  width: max-content;
-}
-
-.sub-progress-control button {
+.sub-progress-vert {
   display: grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  border-radius: 9px;
-  background: rgba(255, 152, 0, 0.12);
-  color: #9a5a00;
+  gap: 6px;
+  justify-items: center;
+  align-items: center;
+  width: 100%;
 }
 
-.sub-progress-control button:hover {
-  background: #1c1b1b;
-  color: #ffffff;
-  transform: translateY(-1px) scale(1.04);
+.sub-progress-vert .sub-progress-pct {
+  color: #ff9800;
+  font-size: 12px;
+  font-weight: 900;
 }
 
-.sub-progress-control .material-symbols-outlined {
-  font-size: 17px;
+.sub-progress-vert .progress-cell {
+  width: 100%;
 }
 
 .toast {
