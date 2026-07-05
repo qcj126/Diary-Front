@@ -3,8 +3,8 @@
     <template v-if="event || category">
       <header class="detail-header">
         <div>
-          <span class="detail-kicker">{{ getCategoryLabel() }}</span>
-          <h2>{{ draft.title || getDefaultTitle() }}</h2>
+          <span class="detail-kicker">{{ category ? '添加新事件' : '记录详情' }}</span>
+          <h2>{{ draft.title || (category ? '新事件' : '未命名记录') }}</h2>
         </div>
         <button class="icon-button" type="button" aria-label="关闭详情" @click="$emit('close')">
           ×
@@ -12,62 +12,95 @@
       </header>
 
       <div class="photo-frame" :class="{ 'is-uploading': isUploadingImage }">
-        <img v-if="draft.imageUrl" :src="draft.imageUrl" :alt="draft.title" />
+        <img v-if="draft.imageUrl" :src="draft.imageUrl" :alt="draft.title || '记录照片'" />
         <div v-else class="photo-empty">上传照片</div>
         <div v-if="isUploadingImage" class="photo-uploading" aria-live="polite">
           <span class="upload-spinner" aria-hidden="true"></span>
-          <span>Uploading...</span>
+          <span>上传中...</span>
         </div>
       </div>
 
-      <!-- 查看模式 -->
       <div v-if="!isEditing && !category" class="view-mode">
         <div class="info-item">
           <span class="info-label">标题</span>
           <p class="info-value">{{ draft.title || '无' }}</p>
         </div>
-
         <div class="info-item">
           <span class="info-label">日期</span>
           <p class="info-value">{{ draft.date || '无' }}</p>
         </div>
-
         <div class="info-item">
           <span class="info-label">内容</span>
           <p class="info-value content-text">{{ draft.content || '无' }}</p>
         </div>
       </div>
 
-      <!-- 编辑模式 -->
       <form v-else class="detail-form" @submit.prevent="handleSave">
         <label>
           <span>标题</span>
-          <input v-model.trim="draft.title" type="text" placeholder="写一个标题" />
+          <input
+            v-model.trim="draft.title"
+            type="text"
+            placeholder="写一个标题"
+            :required="isCreating"
+            :aria-invalid="Boolean(validationErrors.title)"
+            @input="clearValidationError('title')"
+          />
+          <p v-if="validationErrors.title" class="field-error">{{ validationErrors.title }}</p>
         </label>
 
         <label>
           <span>日期</span>
-          <input v-model="draft.date" type="date" />
+          <input
+            v-model="draft.date"
+            type="date"
+            :required="isCreating"
+            :aria-invalid="Boolean(validationErrors.date)"
+            @input="clearValidationError('date')"
+          />
+          <p v-if="validationErrors.date" class="field-error">{{ validationErrors.date }}</p>
         </label>
 
         <label>
           <span>内容</span>
-          <textarea v-model.trim="draft.content" rows="7" placeholder="记录这一天的细节" />
+          <textarea
+            v-model.trim="draft.content"
+            rows="7"
+            placeholder="记录这一天的细节"
+            :required="isCreating"
+            :aria-invalid="Boolean(validationErrors.content)"
+            @input="clearValidationError('content')"
+          />
+          <p v-if="validationErrors.content" class="field-error">{{ validationErrors.content }}</p>
         </label>
 
-        <label class="upload-button" :class="{ disabled: isUploadingImage }">
-          <input type="file" accept="image/*" :disabled="isUploadingImage" @change="handlePhotoUpload" />
-          上传照片
+        <label class="photo-field">
+          <span>照片</span>
+          <span class="upload-button" :class="{ disabled: isUploadingImage }">
+            <input type="file" accept="image/*" :disabled="isUploadingImage" @change="handlePhotoUpload" />
+            上传照片
+          </span>
+          <p v-if="validationErrors.imageUrl" class="field-error photo-error">
+            <span class="warning-icon" aria-hidden="true">!</span>
+            <span>请上传照片</span>
+          </p>
         </label>
+
         <p v-if="imageUploadError" class="upload-error">{{ imageUploadError }}</p>
 
         <div class="actions">
-          <button class="secondary-button" type="button" @click="cancelEditing">取消</button>
-          <button class="primary-button" type="submit" :disabled="isUploadingImage">保存</button>
+          <button class="success-button" type="button" @click="cancelEditing">取消</button>
+          <button
+            class="save-button"
+            :class="{ 'is-ready': canSave }"
+            type="submit"
+            :disabled="!canSave"
+          >
+            保存
+          </button>
         </div>
       </form>
 
-      <!-- 查看模式的操作按钮 - 放在最底部 -->
       <div v-if="!isEditing && !category" class="view-actions-bottom">
         <button class="danger-button" type="button" @click="handleDelete">删除</button>
         <button class="primary-button" type="button" @click="startEditing">修改</button>
@@ -79,7 +112,6 @@
       <p>点击左侧任意卡片后，可以查看详情。</p>
     </div>
 
-    <!-- 删除确认弹窗 -->
     <div v-if="showDeleteConfirm" class="delete-modal-overlay" @click.self="cancelDelete">
       <div class="delete-modal">
         <h3>确定删除？</h3>
@@ -93,7 +125,7 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, reactive, watch, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import {
   normalizeImageUrl,
   queryTimelineImageUrls,
@@ -119,10 +151,25 @@ const showDeleteConfirm = ref(false)
 const pendingDeleteId = ref('')
 const isUploadingImage = ref(false)
 const imageUploadError = ref('')
+const validationErrors = reactive({
+  title: '',
+  date: '',
+  content: '',
+  imageUrl: '',
+})
 let activeUploadToken = 0
 
 const IMAGE_URL_POLL_DELAY = 3000
 const IMAGE_URL_POLL_INTERVAL = 3000
+
+const isCreating = computed(() => Boolean(props.category))
+const hasRequiredFields = computed(() => Boolean(
+  draft.title.trim()
+    && draft.date
+    && draft.content.trim()
+    && (draft.imageUrl || draft.imageId)
+))
+const canSave = computed(() => (isCreating.value ? hasRequiredFields.value : true))
 
 const draft = reactive({
   id: '',
@@ -155,6 +202,32 @@ function toKey(value) {
   return String(value ?? '').trim()
 }
 
+function clearValidationError(field) {
+  validationErrors[field] = ''
+}
+
+function clearValidationErrors() {
+  validationErrors.title = ''
+  validationErrors.date = ''
+  validationErrors.content = ''
+  validationErrors.imageUrl = ''
+}
+
+function validateRequiredFields() {
+  clearValidationErrors()
+  if (!isCreating.value) return true
+
+  if (!draft.title.trim()) validationErrors.title = '标题为必填项'
+  if (!draft.date) validationErrors.date = '日期为必填项'
+  if (!draft.content.trim()) validationErrors.content = '内容为必填项'
+  if (!draft.imageUrl && !draft.imageId) validationErrors.imageUrl = '请上传照片'
+
+  return !validationErrors.title
+    && !validationErrors.date
+    && !validationErrors.content
+    && !validationErrors.imageUrl
+}
+
 async function pollImageUrl(imageIds, token) {
   await wait(IMAGE_URL_POLL_DELAY)
 
@@ -172,16 +245,6 @@ async function pollImageUrl(imageIds, token) {
   return null
 }
 
-function getCategoryLabel() {
-  if (props.category) return '添加新事件'
-  return '记录详情'
-}
-
-function getDefaultTitle() {
-  if (props.category) return '新事件'
-  return '未命名记录'
-}
-
 function syncDraft(event) {
   draft.id = toKey(event?.id)
   draft.rawId = event?.rawId == null ? null : toKey(event.rawId)
@@ -197,7 +260,6 @@ function syncDraft(event) {
 
 function resetDraft() {
   if (props.category) {
-    // 如果是新建模式，重置为空草稿但保留分类
     draft.id = ''
     draft.rawId = null
     draft.userId = props.category?.userId || null
@@ -222,12 +284,16 @@ async function handlePhotoUpload(event) {
   activeUploadToken = token
   isUploadingImage.value = true
   imageUploadError.value = ''
+  clearValidationError('imageUrl')
+  draft.imageUrl = URL.createObjectURL(file)
 
   try {
     const imageIds = await uploadTimelineImages([file], {
       code: getUploadImageCode(),
       userId: readUserId(),
     })
+    draft.imageId = imageIds[0] || null
+
     const image = await pollImageUrl(imageIds, token)
     if (!image || token !== activeUploadToken) return
 
@@ -236,7 +302,7 @@ async function handlePhotoUpload(event) {
   } catch (error) {
     console.error(error)
     if (token === activeUploadToken) {
-      imageUploadError.value = error instanceof Error ? error.message : 'Image upload failed.'
+      imageUploadError.value = error instanceof Error ? error.message : '图片上传失败'
     }
   } finally {
     if (token === activeUploadToken) {
@@ -247,7 +313,7 @@ async function handlePhotoUpload(event) {
 }
 
 function handleSave() {
-  if (isUploadingImage.value) return
+  if (!validateRequiredFields()) return
   emit('save', { ...draft })
   isEditing.value = false
 }
@@ -276,8 +342,15 @@ function cancelEditing() {
   activeUploadToken += 1
   isUploadingImage.value = false
   imageUploadError.value = ''
-  isEditing.value = false
+  clearValidationErrors()
   resetDraft()
+
+  if (isCreating.value) {
+    emit('close')
+    return
+  }
+
+  isEditing.value = false
 }
 
 watch(
@@ -286,9 +359,10 @@ watch(
     activeUploadToken += 1
     isUploadingImage.value = false
     imageUploadError.value = ''
+    clearValidationErrors()
     isEditing.value = false
+
     if (category && !event) {
-      // 新建模式：初始化空草稿
       draft.id = ''
       draft.rawId = null
       draft.userId = category.userId || null
@@ -410,52 +484,20 @@ onBeforeUnmount(() => {
   animation: image-upload-spin 0.8s linear infinite;
 }
 
-.upload-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0.75rem 0 1rem;
-  padding: 0.7rem 1rem;
-  border: 1px dashed rgba(125, 244, 255, 0.42);
-  border-radius: 0.75rem;
-  color: #b9fbff;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.upload-button.disabled {
-  cursor: wait;
-  opacity: 0.72;
-}
-
-.upload-button input {
-  display: none;
-}
-
-.upload-error {
-  margin: -0.5rem 0 0.5rem;
-  color: #fca5a5;
-  font-size: 0.78rem;
-  line-height: 1.5;
-}
-
-@keyframes image-upload-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* 查看模式样式 */
-.view-mode {
+.view-mode,
+.detail-form {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.view-mode {
   margin-top: 1rem;
   flex: 1;
 }
 
-.info-item {
+.info-item,
+.detail-form label {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -479,7 +521,142 @@ onBeforeUnmount(() => {
   min-height: 3rem;
 }
 
-/* 底部操作按钮区域 */
+.detail-form label {
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.detail-form input,
+.detail-form textarea {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: inherit;
+  line-height: 1.5;
+  padding: 0.68rem 0.75rem;
+  outline: none;
+}
+
+.detail-form input[aria-invalid='true'],
+.detail-form textarea[aria-invalid='true'] {
+  border-color: rgba(252, 165, 165, 0.78);
+  box-shadow: 0 0 0 3px rgba(252, 165, 165, 0.12);
+}
+
+.detail-form input:focus,
+.detail-form textarea:focus {
+  border-color: rgba(125, 244, 255, 0.68);
+  box-shadow: 0 0 0 3px rgba(125, 244, 255, 0.12);
+}
+
+.detail-form textarea {
+  resize: vertical;
+  min-height: 8rem;
+}
+
+.upload-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.7rem 1rem;
+  border: 1px dashed rgba(125, 244, 255, 0.42);
+  border-radius: 0.75rem;
+  color: #b9fbff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.upload-button.disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.upload-button input {
+  display: none;
+}
+
+.field-error,
+.upload-error {
+  margin: -0.2rem 0 0;
+  color: #fca5a5;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.photo-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.warning-icon {
+  width: 1rem;
+  height: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #facc15;
+  color: #422006;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.upload-error {
+  margin-top: 0;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.success-button,
+.save-button,
+.primary-button,
+.secondary-button {
+  border: 0;
+  border-radius: 0.65rem;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 0.68rem 1rem;
+}
+
+.success-button,
+.save-button.is-ready {
+  background: #16a34a;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(22, 163, 74, 0.28);
+}
+
+.save-button {
+  background: linear-gradient(135deg, #00f0ff, #d1bcff);
+  color: #101014;
+}
+
+.save-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #00f0ff, #d1bcff);
+  color: #101014;
+}
+
+.secondary-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e5e1e4;
+}
+
 .view-actions-bottom {
   margin-top: auto;
   padding-top: 1rem;
@@ -513,77 +690,6 @@ onBeforeUnmount(() => {
   color: #fecaca;
 }
 
-.detail-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.detail-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  color: #cbd5e1;
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.detail-form input,
-.detail-form textarea {
-  width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 0.65rem;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  font: inherit;
-  line-height: 1.5;
-  padding: 0.68rem 0.75rem;
-  outline: none;
-}
-
-.detail-form textarea {
-  resize: vertical;
-  min-height: 8rem;
-}
-
-.detail-form input:focus,
-.detail-form textarea:focus {
-  border-color: rgba(125, 244, 255, 0.68);
-  box-shadow: 0 0 0 3px rgba(125, 244, 255, 0.12);
-}
-
-.actions {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
-}
-
-.primary-button,
-.secondary-button {
-  border: 0;
-  border-radius: 0.65rem;
-  cursor: pointer;
-  font-weight: 800;
-  padding: 0.68rem 1rem;
-}
-
-.primary-button {
-  background: linear-gradient(135deg, #00f0ff, #d1bcff);
-  color: #101014;
-}
-
-.primary-button:disabled,
-.secondary-button:disabled {
-  cursor: wait;
-  opacity: 0.62;
-}
-
-.secondary-button {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e5e1e4;
-}
-
 .empty-detail {
   height: 100%;
   min-height: 18rem;
@@ -606,7 +712,6 @@ onBeforeUnmount(() => {
   line-height: 1.6;
 }
 
-/* 删除确认弹窗样式 */
 .delete-modal-overlay {
   position: fixed;
   inset: 0;
@@ -671,5 +776,11 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, #dc2626, #b91c1c);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+@keyframes image-upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

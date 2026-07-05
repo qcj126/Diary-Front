@@ -344,12 +344,21 @@ export function useTimelineEvents() {
   }
 
   async function updateEvent(updatedEvent) {
+    const currentEvent = events.value.find((event) => toKey(event.id) === toKey(updatedEvent.id))
     const dto = mapEventToCardDTO({ ...updatedEvent, userId: readUserId() }, categoryMap.value)
     const saved = normalizeSavedEntity(await updateTimeCard(dto), dto)
     let nextEvent = mapCardDTO(saved, categoryMap.value)
     nextEvent = {
-      ...events.value.find((event) => toKey(event.id) === toKey(updatedEvent.id)),
+      ...currentEvent,
       ...nextEvent,
+      id: currentEvent?.id ?? nextEvent.id,
+      rawId: currentEvent?.rawId ?? nextEvent.rawId,
+      categoryId: updatedEvent.categoryId ?? currentEvent?.categoryId ?? nextEvent.categoryId,
+      categoryKey: updatedEvent.categoryKey ?? currentEvent?.categoryKey ?? nextEvent.categoryKey,
+      title: updatedEvent.title ?? nextEvent.title,
+      content: updatedEvent.content ?? nextEvent.content,
+      date: updatedEvent.date ?? nextEvent.date,
+      imageId: updatedEvent.imageId ?? nextEvent.imageId,
       imageUrl: updatedEvent.imageUrl || nextEvent.imageUrl,
     }
     events.value = events.value.map((event) => (toKey(event.id) === toKey(updatedEvent.id) ? nextEvent : event))

@@ -77,11 +77,10 @@ import { hasAuthSession } from './modules/auth/session.js'
 import LoveDashboard from './modules/love-dashboard/LoveDashboard.vue'
 
 const BUBBLE_COUNT = 10
-const AUTH_DISABLED = true
 const bubbles = ref([])
 const page = ref('login')
 const loginNotice = ref('')
-const loggedIn = ref(AUTH_DISABLED || hasAuthSession())
+const loggedIn = ref(hasAuthSession())
 let bubbleFrame = 0
 let lastBubbleTime = 0
 
@@ -149,8 +148,6 @@ function clampBubblesToViewport() {
 }
 
 onMounted(() => {
-  if (AUTH_DISABLED) return
-
   bubbles.value = Array.from({ length: BUBBLE_COUNT }, (_, index) => createBubble(index))
   lastBubbleTime = performance.now()
   bubbleFrame = requestAnimationFrame(moveBubbles)

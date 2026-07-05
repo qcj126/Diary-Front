@@ -135,8 +135,8 @@ function clearSelectedEvent() {
 
 async function saveEvent(event) {
   try {
-    const savedEvent = await updateEvent(event)
-    selectedEventId.value = String(savedEvent?.id || event.id)
+    await updateEvent(event)
+    clearSelectedEvent()
   } catch (error) {
     console.error(error)
   }
