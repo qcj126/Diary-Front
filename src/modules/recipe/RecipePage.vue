@@ -61,6 +61,17 @@
           />
 
           <div v-else>
+            <div v-if="recipeLoading" class="recipe-status-card">
+              <span class="material-symbols-outlined">progress_activity</span>
+              <span>食谱加载中...</span>
+            </div>
+
+            <div v-else-if="recipeError" class="recipe-status-card warning">
+              <span class="material-symbols-outlined">cloud_off</span>
+              <span>{{ recipeError }}</span>
+              <button type="button" class="retry-button" @click="loadRecipes">重试</button>
+            </div>
+
             <div class="timeline-container">
               <section class="day-section">
                 <div class="day-header">
@@ -88,6 +99,10 @@
                     @viewRecipe="openRecipeDetail(recipe)"
                   />
                 </div>
+
+                <div v-if="!todayData.recipes.length && !recipeLoading" class="recipe-empty-card">
+                  暂时还没有食谱，去后端添加一道新菜后这里会自动展示。
+                </div>
               </section>
             </div>
 
@@ -105,10 +120,11 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import RecipeCard from './components/RecipeCard.vue'
 import RecipeDetailPage from './RecipeDetailPage.vue'
 import RecipeSettingsPage from './RecipeSettingsPage.vue'
+import { queryRecipes } from './api/recipe.js'
 import { RECIPE_DATA, RECIPE_CATEGORIES, RECIPE_SETTINGS } from './mock/recipeData.js'
 
 const todayData = ref(RECIPE_DATA.today)
@@ -117,8 +133,39 @@ const categories = ref(RECIPE_CATEGORIES)
 const selectedRecipe = ref(null)
 const currentView = ref('timeline')
 const settings = ref({ ...RECIPE_SETTINGS })
+const recipeLoading = ref(false)
+const recipeError = ref('')
 
 const isWideView = computed(() => currentView.value === 'settings' || !!selectedRecipe.value)
+
+const formatToday = () =>
+  new Intl.DateTimeFormat('zh-CN', {
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  }).format(new Date())
+
+const loadRecipes = async () => {
+  recipeLoading.value = true
+  recipeError.value = ''
+  try {
+    const result = await queryRecipes({ pageIndex: 1, pageSize: 20 })
+    todayData.value = {
+      date: formatToday(),
+      isToday: true,
+      recipes: result.records,
+    }
+  } catch (error) {
+    console.error(error)
+    recipeError.value =
+      error instanceof Error
+        ? `${error.message}，当前显示本地示例数据。`
+        : '食谱加载失败，当前显示本地示例数据。'
+    todayData.value = RECIPE_DATA.today
+  } finally {
+    recipeLoading.value = false
+  }
+}
 
 const updateFavorite = (recipeId, isFavorite) => {
   const recipe = todayData.value.recipes.find((item) => item.id === recipeId)
@@ -146,6 +193,8 @@ const openSettings = () => {
   selectedRecipe.value = null
   currentView.value = 'settings'
 }
+
+onMounted(loadRecipes)
 </script>
 
 <style scoped>
@@ -382,6 +431,37 @@ const openSettings = () => {
 .timeline-entry {
   margin-left: 48px;
   margin-bottom: 24px;
+}
+
+.recipe-status-card,
+.recipe-empty-card {
+  margin: 0 0 24px 48px;
+  padding: 16px 18px;
+  border: 1px solid rgba(220, 193, 185, 0.75);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.76);
+  color: #56423d;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.recipe-status-card.warning {
+  background: #fff4ed;
+  color: #7a2f16;
+}
+
+.retry-button {
+  margin-left: auto;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #9a4024;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
 }
 
 .content-area::-webkit-scrollbar {

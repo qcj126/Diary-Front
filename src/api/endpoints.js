@@ -40,9 +40,17 @@ export const GOAL_API = {
   export: `${API_BASE}/goal/export`,
 }
 
+export const RECIPE_API = {
+  add: `${API_BASE}/recipe/add`,
+  query: `${API_BASE}/recipe/query`,
+  update: `${API_BASE}/recipe/update`,
+  delete: `${API_BASE}/recipe/delete`,
+}
+
 export const API_ENDPOINTS = {
   auth: AUTH_API,
   loveDashboard: LOVE_DASHBOARD_API,
   timeline: TIMELINE_API,
   goal: GOAL_API,
+  recipe: RECIPE_API,
 }
