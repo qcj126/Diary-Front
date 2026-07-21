@@ -4,7 +4,7 @@
       <aside class="category-sidebar">
         <div class="sidebar-header">
           <h2 class="sidebar-title">分类</h2>
-          <p class="sidebar-subtitle">按餐次浏览</p>
+          <p class="sidebar-subtitle">按食谱分类筛选</p>
         </div>
 
         <nav class="category-menu">
@@ -13,6 +13,8 @@
             :key="category.key"
             type="button"
             class="menu-item"
+            :class="{ active: activeCategory === category.value }"
+            @click="selectCategory(category.value)"
           >
             <span class="material-symbols-outlined">{{ category.icon }}</span>
             <span>{{ category.label }}</span>
@@ -20,20 +22,20 @@
         </nav>
 
         <div class="sidebar-action">
-          <button class="add-recipe-btn" type="button">
+          <button class="add-recipe-btn" type="button" @click="createDraftRecipe">
             <span class="material-symbols-outlined">add</span>
             添加新食谱
           </button>
-          <button class="add-category-btn" type="button">
-            <span class="material-symbols-outlined">category</span>
-            添加新分类
+          <button class="add-category-btn" type="button" @click="loadRecipes">
+            <span class="material-symbols-outlined">sync</span>
+            重新同步
           </button>
         </div>
 
         <div class="sidebar-footer">
-          <button type="button" class="menu-item">
-            <span class="material-symbols-outlined">menu_book</span>
-            <span>我的收藏</span>
+          <button type="button" class="menu-item" @click="selectAnniversary">
+            <span class="material-symbols-outlined">favorite</span>
+            <span>纪念日食谱</span>
           </button>
           <button type="button" class="menu-item" @click="openSettings">
             <span class="material-symbols-outlined">settings</span>
@@ -45,19 +47,23 @@
       <main class="content-area">
         <div class="content-wrapper" :class="{ 'content-wrapper-wide': isWideView }">
           <header class="page-header" v-if="currentView === 'timeline'">
-            <h1 class="page-title">食谱时间轴</h1>
-            <p class="page-subtitle">您的烹饪之旅，按天有序呈现。</p>
+            <h1 class="page-title">食谱时间线</h1>
+            <p class="page-subtitle">连接后端食谱服务，记录每一道值得复刻的味道。</p>
+            <form class="search-row" @submit.prevent="loadRecipes">
+              <input v-model.trim="keyword" type="search" placeholder="搜索标题关键词" />
+              <button type="submit">搜索</button>
+            </form>
           </header>
 
-          <RecipeSettingsPage
-            v-if="currentView === 'settings'"
-            :settings="settings"
-          />
+          <RecipeSettingsPage v-if="currentView === 'settings'" :settings="settings" />
 
           <RecipeDetailPage
             v-else-if="selectedRecipe"
             :recipe="selectedRecipe"
+            :saving="recipeSaving"
             @close="closeRecipeDetail"
+            @save="saveRecipe"
+            @delete="removeRecipe"
           />
 
           <div v-else>
@@ -72,20 +78,19 @@
               <button type="button" class="retry-button" @click="loadRecipes">重试</button>
             </div>
 
+            <div v-if="recipeNotice" class="recipe-status-card success">
+              <span class="material-symbols-outlined">check_circle</span>
+              <span>{{ recipeNotice }}</span>
+            </div>
+
             <div class="timeline-container">
               <section class="day-section">
                 <div class="day-header">
-                  <div class="day-badge" :class="{ today: todayData.isToday }">
-                    {{ todayData.isToday ? '今天' : '' }}
-                  </div>
+                  <div class="day-badge today">今天</div>
                   <h2 class="day-date">{{ todayData.date }}</h2>
                 </div>
 
-                <div
-                  v-for="recipe in todayData.recipes"
-                  :key="recipe.id"
-                  class="timeline-entry"
-                >
+                <div v-for="recipe in todayData.recipes" :key="recipe.id" class="timeline-entry">
                   <RecipeCard
                     :meal-type="recipe.mealType"
                     :duration="recipe.duration"
@@ -101,17 +106,10 @@
                 </div>
 
                 <div v-if="!todayData.recipes.length && !recipeLoading" class="recipe-empty-card">
-                  暂时还没有食谱，去后端添加一道新菜后这里会自动展示。
+                  暂时还没有食谱。点击左侧“添加新食谱”创建一条，或确认后端 /recipe/query 是否已有数据。
                 </div>
               </section>
             </div>
-
-            <section class="day-section yesterday">
-              <div class="day-header">
-                <div class="day-badge">昨天</div>
-                <h2 class="day-date">{{ yesterdayData.date }}</h2>
-              </div>
-            </section>
           </div>
         </div>
       </main>
@@ -124,17 +122,21 @@ import { computed, onMounted, ref } from 'vue'
 import RecipeCard from './components/RecipeCard.vue'
 import RecipeDetailPage from './RecipeDetailPage.vue'
 import RecipeSettingsPage from './RecipeSettingsPage.vue'
-import { queryRecipes } from './api/recipe.js'
+import { addRecipe, deleteRecipe, normalizeRecipe, queryRecipes, updateRecipe } from './api/recipe.js'
 import { RECIPE_DATA, RECIPE_CATEGORIES, RECIPE_SETTINGS } from './mock/recipeData.js'
 
 const todayData = ref(RECIPE_DATA.today)
-const yesterdayData = ref(RECIPE_DATA.yesterday)
 const categories = ref(RECIPE_CATEGORIES)
 const selectedRecipe = ref(null)
 const currentView = ref('timeline')
 const settings = ref({ ...RECIPE_SETTINGS })
 const recipeLoading = ref(false)
+const recipeSaving = ref(false)
 const recipeError = ref('')
+const recipeNotice = ref('')
+const keyword = ref('')
+const activeCategory = ref(null)
+const anniversaryOnly = ref(null)
 
 const isWideView = computed(() => currentView.value === 'settings' || !!selectedRecipe.value)
 
@@ -145,11 +147,26 @@ const formatToday = () =>
     weekday: 'long',
   }).format(new Date())
 
-const loadRecipes = async () => {
+function showNotice(message) {
+  recipeNotice.value = message
+  window.setTimeout(() => {
+    if (recipeNotice.value === message) recipeNotice.value = ''
+  }, 2400)
+}
+
+async function loadRecipes() {
   recipeLoading.value = true
   recipeError.value = ''
+
   try {
-    const result = await queryRecipes({ pageIndex: 1, pageSize: 20 })
+    const result = await queryRecipes({
+      pageIndex: 1,
+      pageSize: 20,
+      category: activeCategory.value,
+      isAnniversary: anniversaryOnly.value,
+      keyword: keyword.value,
+    })
+
     todayData.value = {
       date: formatToday(),
       isToday: true,
@@ -161,37 +178,112 @@ const loadRecipes = async () => {
       error instanceof Error
         ? `${error.message}，当前显示本地示例数据。`
         : '食谱加载失败，当前显示本地示例数据。'
-    todayData.value = RECIPE_DATA.today
+    todayData.value = { ...RECIPE_DATA.today, date: formatToday() }
   } finally {
     recipeLoading.value = false
   }
 }
 
-const updateFavorite = (recipeId, isFavorite) => {
+function selectCategory(value) {
+  activeCategory.value = value
+  anniversaryOnly.value = null
+  currentView.value = 'timeline'
+  selectedRecipe.value = null
+  loadRecipes()
+}
+
+function selectAnniversary() {
+  anniversaryOnly.value = anniversaryOnly.value === 1 ? null : 1
+  currentView.value = 'timeline'
+  selectedRecipe.value = null
+  loadRecipes()
+}
+
+function updateFavorite(recipeId, isFavorite) {
   const recipe = todayData.value.recipes.find((item) => item.id === recipeId)
   if (recipe) recipe.isFavorite = isFavorite
 }
 
-const toggleIngredient = (recipeId, ingredientIndex) => {
+function toggleIngredient(recipeId, ingredientIndex) {
   const recipe = todayData.value.recipes.find((item) => item.id === recipeId)
   if (recipe && recipe.ingredients[ingredientIndex]) {
     recipe.ingredients[ingredientIndex].checked = !recipe.ingredients[ingredientIndex].checked
   }
 }
 
-const openRecipeDetail = (recipe) => {
+function openRecipeDetail(recipe) {
   currentView.value = 'detail'
   selectedRecipe.value = recipe
 }
 
-const closeRecipeDetail = () => {
+function closeRecipeDetail() {
   currentView.value = 'timeline'
   selectedRecipe.value = null
 }
 
-const openSettings = () => {
+function openSettings() {
   selectedRecipe.value = null
   currentView.value = 'settings'
+}
+
+function createDraftRecipe() {
+  currentView.value = 'detail'
+  selectedRecipe.value = normalizeRecipe({
+    title: '新食谱',
+    description: '',
+    category: activeCategory.value ?? 0,
+    mealType: 3,
+    difficulty: 1,
+    cookingTime: 30,
+    status: 1,
+    ingredients: [],
+    steps: [],
+  })
+}
+
+async function saveRecipe(recipe) {
+  recipeSaving.value = true
+  recipeError.value = ''
+
+  try {
+    if (recipe.recipeId) {
+      await updateRecipe(recipe)
+      showNotice('食谱已更新')
+    } else {
+      await addRecipe(recipe)
+      showNotice('食谱已新增')
+    }
+
+    selectedRecipe.value = null
+    currentView.value = 'timeline'
+    await loadRecipes()
+  } catch (error) {
+    console.error(error)
+    recipeError.value = error instanceof Error ? error.message : '保存食谱失败'
+  } finally {
+    recipeSaving.value = false
+  }
+}
+
+async function removeRecipe(recipe) {
+  if (!recipe.recipeId) return
+  if (!window.confirm(`确定删除“${recipe.title}”吗？`)) return
+
+  recipeSaving.value = true
+  recipeError.value = ''
+
+  try {
+    await deleteRecipe(recipe.recipeId)
+    selectedRecipe.value = null
+    currentView.value = 'timeline'
+    showNotice('食谱已删除')
+    await loadRecipes()
+  } catch (error) {
+    console.error(error)
+    recipeError.value = error instanceof Error ? error.message : '删除食谱失败'
+  } finally {
+    recipeSaving.value = false
+  }
 }
 
 onMounted(loadRecipes)
@@ -212,9 +304,6 @@ onMounted(loadRecipes)
   line-height: 1;
   display: inline-block;
   white-space: nowrap;
-  direction: ltr;
-  -webkit-font-feature-settings: 'liga';
-  -webkit-font-smoothing: antialiased;
 }
 
 .main-layout {
@@ -252,8 +341,8 @@ onMounted(loadRecipes)
 
 .sidebar-subtitle {
   margin: 8px 0 0;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 15px;
+  line-height: 22px;
   color: #56423d;
 }
 
@@ -280,15 +369,16 @@ onMounted(loadRecipes)
   transition: background-color 0.2s ease;
 }
 
-.menu-item:hover {
+.menu-item:hover,
+.menu-item.active {
   background-color: #eee7e5;
+  color: #9a4024;
 }
 
 .menu-item span:last-child {
   font-size: 14px;
   line-height: 20px;
-  letter-spacing: 0.05em;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .sidebar-action {
@@ -304,8 +394,7 @@ onMounted(loadRecipes)
   padding: 12px 16px;
   font-size: 14px;
   line-height: 20px;
-  letter-spacing: 0.05em;
-  font-weight: 600;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -346,7 +435,7 @@ onMounted(loadRecipes)
 }
 
 .page-header {
-  margin-bottom: 48px;
+  margin-bottom: 32px;
 }
 
 .page-title {
@@ -354,16 +443,42 @@ onMounted(loadRecipes)
   font-family: 'Playfair Display', serif;
   font-size: 48px;
   line-height: 56px;
-  letter-spacing: -0.02em;
   font-weight: 700;
   color: #9a4024;
 }
 
 .page-subtitle {
-  margin: 0;
+  margin: 0 0 18px;
   font-size: 18px;
   line-height: 28px;
   color: #56423d;
+}
+
+.search-row {
+  display: flex;
+  gap: 10px;
+  max-width: 560px;
+}
+
+.search-row input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(220, 193, 185, 0.9);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px 14px;
+  font: inherit;
+}
+
+.search-row button,
+.retry-button {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: #9a4024;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
 }
 
 .timeline-container {
@@ -385,10 +500,6 @@ onMounted(loadRecipes)
   margin-bottom: 48px;
 }
 
-.day-section.yesterday {
-  opacity: 0.6;
-}
-
 .day-header {
   position: relative;
   z-index: 10;
@@ -402,20 +513,14 @@ onMounted(loadRecipes)
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background-color: #e8e1df;
+  background-color: #ba5839;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #56423d;
+  color: #fffbff;
   font-size: 14px;
   line-height: 20px;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-}
-
-.day-badge.today {
-  background-color: #ba5839;
-  color: #fffbff;
+  font-weight: 700;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
@@ -453,15 +558,9 @@ onMounted(loadRecipes)
   color: #7a2f16;
 }
 
-.retry-button {
-  margin-left: auto;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 12px;
-  background: #9a4024;
-  color: #ffffff;
-  cursor: pointer;
-  font-weight: 700;
+.recipe-status-card.success {
+  background: #eef8e9;
+  color: #3a4c31;
 }
 
 .content-area::-webkit-scrollbar {
@@ -489,6 +588,16 @@ onMounted(loadRecipes)
   .page-title {
     font-size: 32px;
     line-height: 40px;
+  }
+
+  .timeline-entry,
+  .recipe-status-card,
+  .recipe-empty-card {
+    margin-left: 0;
+  }
+
+  .timeline-container::before {
+    display: none;
   }
 }
 </style>

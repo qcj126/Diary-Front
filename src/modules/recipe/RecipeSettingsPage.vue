@@ -2,10 +2,8 @@
   <section class="recipe-settings-page">
     <header class="settings-hero card-shell">
       <p class="eyebrow">Kitchen Preferences</p>
-      <h1 class="hero-title">设置界面</h1>
-      <p class="hero-description">
-        参照 Stitch 设置页的排版节奏，将功能拆成纵向大卡片，保留温暖留白、奶油色层次和编辑感很强的面板布局。
-      </p>
+      <h1 class="hero-title">食谱设置</h1>
+      <p class="hero-description">管理默认份量、步骤顺序和本地分类展示。后端数据以食谱接口为准。</p>
     </header>
 
     <section class="settings-stack">
@@ -13,7 +11,7 @@
         <div class="card-head">
           <div>
             <p class="section-kicker">Servings</p>
-            <h2>分量设置</h2>
+            <h2>默认偏好</h2>
           </div>
           <div class="head-pill">{{ settings.servingsPreset }}</div>
         </div>
@@ -30,13 +28,13 @@
           <label class="field">
             <span class="field-label">步骤排序</span>
             <select v-model="settings.stepSort">
-              <option>按创作时间</option>
-              <option>按最后修改</option>
+              <option>按步骤顺序</option>
+              <option>按创建时间</option>
               <option>手动排序优先</option>
             </select>
           </label>
           <label class="field field-wide">
-            <span class="field-label">烹饪提示</span>
+            <span class="field-label">记录提示</span>
             <textarea v-model="settings.workflowTip" rows="4" />
           </label>
         </div>
@@ -46,48 +44,32 @@
         <div class="card-head">
           <div>
             <p class="section-kicker">Data</p>
-            <h2>数据管理</h2>
+            <h2>接口状态</h2>
           </div>
           <div class="head-pill">{{ settings.syncStatus }}</div>
         </div>
 
-        <div class="data-layout">
-          <div class="data-summary">
-            <strong>最近备份</strong>
-            <p>{{ settings.lastBackup }}</p>
-          </div>
-          <div class="action-row">
-            <button class="primary-button" type="button">立即备份</button>
-            <button class="secondary-button" type="button">导出数据</button>
-            <button class="secondary-button" type="button">管理历史版本</button>
-          </div>
+        <div class="data-summary">
+          <strong>数据同步</strong>
+          <p>{{ settings.lastBackup }}</p>
         </div>
       </article>
 
       <article class="settings-card card-shell">
         <div class="card-head">
           <div>
-            <p class="section-kicker">Recipes</p>
-            <h2>管理食谱</h2>
+            <p class="section-kicker">Categories</p>
+            <h2>本地分类</h2>
           </div>
         </div>
 
         <div class="category-matrix">
-          <label 
-            v-for="(category, index) in categories" 
-            :key="category.key"
-            class="category-item"
-          >
+          <label v-for="category in categories" :key="category.key" class="category-item">
             <div class="category-info">
               <span class="material-symbols-outlined category-icon">{{ category.icon }}</span>
               <strong>{{ category.label }}</strong>
             </div>
-            <input 
-              v-model="selectedCategories" 
-              :value="category.key" 
-              type="checkbox" 
-              class="toggle-input" 
-            />
+            <input v-model="selectedCategories" :value="category.key" type="checkbox" class="toggle-input" />
           </label>
         </div>
 
@@ -106,30 +88,30 @@
       <article class="settings-card card-shell">
         <div class="card-head">
           <div>
-            <p class="section-kicker">Categories</p>
-            <h2>其他设置</h2>
+            <p class="section-kicker">Profile</p>
+            <h2>厨房资料</h2>
           </div>
         </div>
 
         <div class="toggle-list">
           <label class="toggle-row">
             <div>
-              <strong>固定食材列表滚动</strong>
-              <p>查看步骤时让食材面板保持独立滚动。</p>
+              <strong>固定食材面板</strong>
+              <p>查看步骤时保持食材列表独立滚动。</p>
             </div>
             <input v-model="settings.stickyIngredients" type="checkbox" class="toggle-input" />
           </label>
           <label class="toggle-row">
             <div>
-              <strong>主理人名称</strong>
-              <p>用于标记这本厨房食谱簿的归属。</p>
+              <strong>主人名称</strong>
+              <p>用于标记这本食谱簿的归属。</p>
             </div>
             <input v-model="settings.ownerName" type="text" class="compact-input" />
           </label>
           <label class="toggle-row toggle-row-textarea">
             <div>
               <strong>厨房简介</strong>
-              <p>给分类页和设置页补充品牌说明。</p>
+              <p>补充食谱空间的说明。</p>
             </div>
             <textarea v-model="settings.bio" rows="4" class="compact-textarea" />
           </label>
@@ -143,35 +125,33 @@
 import { ref } from 'vue'
 import { RECIPE_CATEGORIES } from './mock/recipeData.js'
 
-const props = defineProps({
+defineProps({
   settings: {
     type: Object,
-    required: true
-  }
+    required: true,
+  },
 })
 
 const categories = ref([...RECIPE_CATEGORIES])
 const selectedCategories = ref([])
 
-const addCategory = () => {
+function addCategory() {
   const newKey = `category_${Date.now()}`
   categories.value.push({
     key: newKey,
     label: '新分类',
-    icon: 'category'
+    icon: 'category',
   })
 }
 
-const deleteSelectedCategories = () => {
+function deleteSelectedCategories() {
   if (selectedCategories.value.length === 0) {
-    alert('请先选择要删除的分类')
+    window.alert('请先选择要删除的分类')
     return
   }
-  
-  if (confirm(`确定要删除选中的 ${selectedCategories.value.length} 个分类吗？`)) {
-    categories.value = categories.value.filter(
-      cat => !selectedCategories.value.includes(cat.key)
-    )
+
+  if (window.confirm(`确定要删除选中的 ${selectedCategories.value.length} 个分类吗？`)) {
+    categories.value = categories.value.filter((cat) => !selectedCategories.value.includes(cat.key))
     selectedCategories.value = []
   }
 }
@@ -185,13 +165,10 @@ const deleteSelectedCategories = () => {
 }
 
 .card-shell {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 242, 240, 0.94));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 242, 240, 0.94));
   border: 1px solid rgba(220, 193, 185, 0.78);
-  border-radius: 32px;
-  box-shadow:
-    0 24px 48px rgba(50, 47, 46, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  border-radius: 18px;
+  box-shadow: 0 24px 48px rgba(50, 47, 46, 0.08);
 }
 
 .settings-hero,
@@ -251,13 +228,15 @@ const deleteSelectedCategories = () => {
   font-weight: 700;
 }
 
-.form-grid {
+.form-grid,
+.category-matrix {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
-.field {
+.field,
+.toggle-list {
   display: grid;
   gap: 8px;
 }
@@ -278,11 +257,11 @@ const deleteSelectedCategories = () => {
 .compact-textarea {
   width: 100%;
   border: 1px solid rgba(220, 193, 185, 0.95);
-  border-radius: 18px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.88);
   color: #1d1b1a;
   font: inherit;
-  padding: 15px 16px;
+  padding: 14px 16px;
 }
 
 .field textarea,
@@ -291,28 +270,17 @@ const deleteSelectedCategories = () => {
   min-height: 120px;
 }
 
-.field select:focus,
-.field textarea:focus,
-.compact-input:focus,
-.compact-textarea:focus {
-  outline: none;
-  border-color: #9a4024;
-  box-shadow: 0 0 0 3px rgba(154, 64, 36, 0.12);
-}
-
-.data-layout {
-  display: grid;
-  gap: 18px;
-}
-
-.data-summary {
+.data-summary,
+.toggle-row,
+.category-item {
   padding: 18px 20px;
-  border-radius: 24px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid rgba(220, 193, 185, 0.68);
 }
 
-.data-summary strong {
+.data-summary strong,
+.toggle-row strong {
   display: block;
   margin-bottom: 8px;
   color: #1d1b1a;
@@ -325,14 +293,7 @@ const deleteSelectedCategories = () => {
   line-height: 1.7;
 }
 
-.action-row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
 .toggle-list {
-  display: grid;
   gap: 14px;
 }
 
@@ -341,20 +302,10 @@ const deleteSelectedCategories = () => {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
   align-items: center;
-  padding: 18px 20px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(220, 193, 185, 0.68);
 }
 
 .toggle-row-textarea {
   grid-template-columns: 1fr;
-}
-
-.toggle-row strong {
-  display: block;
-  margin-bottom: 6px;
-  color: #1d1b1a;
 }
 
 .toggle-input {
@@ -363,29 +314,7 @@ const deleteSelectedCategories = () => {
   accent-color: #9a4024;
 }
 
-.primary-button,
-.secondary-button {
-  border: none;
-  border-radius: 18px;
-  padding: 14px 20px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.primary-button {
-  background: #9a4024;
-  color: #ffffff;
-}
-
-.secondary-button {
-  background: #f3ecea;
-  color: #3a0a00;
-}
-
 .category-matrix {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
   margin-bottom: 24px;
 }
 
@@ -393,18 +322,7 @@ const deleteSelectedCategories = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 20px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(220, 193, 185, 0.68);
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.category-item:hover {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: #ba5839;
-  transform: translateY(-2px);
 }
 
 .category-info {
@@ -418,33 +336,21 @@ const deleteSelectedCategories = () => {
   font-size: 28px;
 }
 
-.category-item strong {
-  color: #1d1b1a;
-  font-size: 1rem;
-}
-
 .category-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 
 .action-button {
   border: none;
-  border-radius: 18px;
+  border-radius: 8px;
   padding: 14px 20px;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.action-button:hover {
-  transform: translateY(-1px);
 }
 
 .add-category-btn {
@@ -459,11 +365,8 @@ const deleteSelectedCategories = () => {
 
 @media (max-width: 900px) {
   .form-grid,
+  .category-matrix,
   .toggle-row {
-    grid-template-columns: 1fr;
-  }
-
-  .category-matrix {
     grid-template-columns: 1fr;
   }
 

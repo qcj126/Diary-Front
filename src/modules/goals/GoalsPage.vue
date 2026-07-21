@@ -32,7 +32,7 @@
         </button>
       </div>
 
-      <form v-if="queryPanelOpen" class="query-panel" @submit.prevent>
+      <form v-if="queryPanelOpen" class="query-panel" @submit.prevent="loadGoals(true)">
         <input v-model.trim="filters.creator" type="text" placeholder="创建人" />
         <select v-model="filters.category">
           <option value="">全部分类</option>
@@ -40,7 +40,8 @@
         </select>
         <input v-model.trim="filters.title" type="text" placeholder="标题" />
         <input v-model.number="filters.recentDays" type="number" min="0" placeholder="最近X天" />
-        <button type="button" @click="resetFilters">重置</button>
+        <button type="submit" :disabled="loading">{{ loading ? '查询中' : '查询' }}</button>
+        <button type="button" :disabled="loading" @click="resetFilters">重置</button>
       </form>
     </section>
 
@@ -199,6 +200,12 @@
                 </td>
               </tr>
             </template>
+            <tr v-if="!loading && !filteredGoals.length">
+              <td colspan="13" class="empty-cell">暂无阶段目标</td>
+            </tr>
+            <tr v-if="loading">
+              <td colspan="13" class="empty-cell">加载中...</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -211,8 +218,8 @@
         <h2>确定执行删除吗？</h2>
         <p>将删除已勾选的 {{ selectedIds.length }} 条阶段目标记录。</p>
         <div>
-          <button type="button" @click="confirmDeleteOpen = false">取消</button>
-          <button type="button" class="danger" @click="confirmDelete">确定删除</button>
+          <button type="button" :disabled="deleting" @click="confirmDeleteOpen = false">取消</button>
+          <button type="button" class="danger" :disabled="deleting" @click="confirmDelete">{{ deleting ? '删除中' : '确定删除' }}</button>
         </div>
       </section>
     </div>
@@ -224,9 +231,9 @@
           <label>
             <span>文件格式</span>
             <select v-model.number="exportForm.exportType">
-              <option :value="1">Excel</option>
-              <option :value="2">PDF</option>
-              <option :value="3">图片</option>
+              <option :value="1">PDF</option>
+              <option :value="2">图片</option>
+              <option :value="3">Excel</option>
             </select>
           </label>
           <label>
@@ -301,7 +308,7 @@
 
         <footer>
           <button type="button" @click="closeEditor">取消</button>
-          <button type="submit" class="primary">保存</button>
+          <button type="submit" class="primary" :disabled="saving">{{ saving ? '保存中' : '保存' }}</button>
         </footer>
       </form>
     </div>
@@ -309,41 +316,37 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
-import { GOAL_API } from '../../api/index.js'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { addGoal, deleteGoal, exportGoals, queryGoals, updateGoal } from './api/goals.js'
 
 const categories = ['技术', '学习', '健康', '生活']
 
-// 列宽配置 - 可以手动调整每个列的宽度
 const columnWidths = {
-  // 大分类表格列宽
   main: {
-    select: 42,      // 选择列
-    expand: 42,      // 展开列
-    creator: 97,     // 创建人
-    category: 97,    // 分类
-    title: 140,      // 标题
-    content: 300,    // 内容
-    hours: 90,       // 已学时长/剩余时长
-    progress: 140,   // 进度
-    estimated: 110,  // 预计用时
-    date: 120,       // 创建时间/修改时间
-    stale: 120,      // 距上次更新
+    select: 42,
+    expand: 42,
+    creator: 97,
+    category: 97,
+    title: 140,
+    content: 300,
+    hours: 90,
+    progress: 140,
+    estimated: 110,
+    date: 120,
+    stale: 120,
   },
-  // 小分类表格列宽（与大分类对应）
   sub: {
-    // 使用与大分类一致的列宽，保证列垂直对齐
-    title: 140,      // 小分类 -> 对齐到大分类的标题宽
-    content: 300,    // 内容 -> 对齐到大分类的内容宽
-    hours: 90,       // 已学时长/剩余时长 -> 对齐到大分类的 hours
-    progress: 140,   // 进度 -> 对齐到大分类的进度
-    estimated: 110,  // 预计用时
-    date: 120,       // 创建时间/修改时间
-    stale: 120,      // 距上次更新
-  }
+    title: 140,
+    content: 300,
+    hours: 90,
+    progress: 140,
+    estimated: 110,
+    date: 120,
+    stale: 120,
+  },
 }
 
-const expandedIds = ref(['goal-java'])
+const expandedIds = ref([])
 const selectedIds = ref([])
 const queryPanelOpen = ref(false)
 const editorOpen = ref(false)
@@ -352,6 +355,10 @@ const editingId = ref(null)
 const confirmDeleteOpen = ref(false)
 const exportOpen = ref(false)
 const exporting = ref(false)
+const loading = ref(false)
+const saving = ref(false)
+const deleting = ref(false)
+const syncingSubKey = ref('')
 const toast = reactive({ visible: false, leaving: false, message: '' })
 let toastTimer = 0
 let toastLeaveTimer = 0
@@ -360,8 +367,8 @@ const exportDayOptions = [1, 3, 5, 7, 10, 15, 30]
 const exportSizeOptions = [10, 20, 30, 40, 50, 100]
 const exportForm = reactive({
   exportType: 1,
-  lastDays: 0,
-  exportSize: 50,
+  lastDays: 7,
+  exportSize: 10,
 })
 
 const filters = reactive({
@@ -379,62 +386,7 @@ const emptyDraft = () => ({
 })
 
 const draft = reactive(emptyDraft())
-
-const goals = ref([
-  {
-    id: 'goal-java',
-    creator: '小加',
-    category: '技术',
-    title: 'Java 多线程',
-    content: '推进 XXL-JOB、虚拟线程、SpringSecurity，并沉淀线程模型理解。',
-    learnedHours: 18,
-    estimatedHours: 52,
-    progress: 35,
-    createdAt: '2026-06-01',
-    updatedAt: '2026-06-26',
-    daysSinceUpdate: 2,
-    subcategories: [
-      { name: '同步执行', content: '梳理 synchronized、Lock、CAS 的边界。', learnedHours: 5, estimatedHours: 10, createdAt: '2026-06-01', updatedAt: '2026-06-25', daysSinceUpdate: 3 },
-      { name: '异步执行', content: '整理 CompletableFuture 编排实践。', learnedHours: 4, estimatedHours: 12, createdAt: '2026-06-03', updatedAt: '2026-06-26', daysSinceUpdate: 2 },
-      { name: '线程池基础', content: '掌握核心参数、队列策略和拒绝策略。', learnedHours: 9, estimatedHours: 20, createdAt: '2026-06-04', updatedAt: '2026-06-26', daysSinceUpdate: 2 },
-    ],
-  },
-  {
-    id: 'goal-security',
-    creator: '小媛',
-    category: '学习',
-    title: 'SpringSecurity',
-    content: '完成认证、授权、JWT、过滤器链和异常处理的学习闭环。',
-    learnedHours: 7,
-    estimatedHours: 28,
-    progress: 25,
-    createdAt: '2026-06-10',
-    updatedAt: '2026-06-24',
-    daysSinceUpdate: 4,
-    subcategories: [
-      { name: '认证流程', content: '理解登录认证和上下文保存。', learnedHours: 3, estimatedHours: 8, createdAt: '2026-06-10', updatedAt: '2026-06-24', daysSinceUpdate: 4 },
-      { name: '权限模型', content: '整理 RBAC 与接口鉴权。', learnedHours: 2, estimatedHours: 10, createdAt: '2026-06-11', updatedAt: '2026-06-23', daysSinceUpdate: 5 },
-      { name: 'JWT 集成', content: '完成 token 生成、刷新和校验。', learnedHours: 2, estimatedHours: 10, createdAt: '2026-06-12', updatedAt: '2026-06-24', daysSinceUpdate: 4 },
-    ],
-  },
-  {
-    id: 'goal-health',
-    creator: '小加',
-    category: '健康',
-    title: '运动耐力',
-    content: '用步行和轻力量训练恢复身体稳定性。',
-    learnedHours: 6,
-    estimatedHours: 20,
-    progress: 30,
-    createdAt: '2026-06-15',
-    updatedAt: '2026-06-27',
-    daysSinceUpdate: 1,
-    subcategories: [
-      { name: '每日步数', content: '保持 10000 步左右。', learnedHours: 4, estimatedHours: 12, createdAt: '2026-06-15', updatedAt: '2026-06-27', daysSinceUpdate: 1 },
-      { name: '拉伸恢复', content: '睡前 10 分钟拉伸。', learnedHours: 2, estimatedHours: 8, createdAt: '2026-06-16', updatedAt: '2026-06-27', daysSinceUpdate: 1 },
-    ],
-  },
-])
+const goals = ref([])
 
 const filteredGoals = computed(() =>
   goals.value.filter((goal) => {
@@ -482,14 +434,63 @@ function currentDateTime() {
   return `${date} ${time}`
 }
 
-function changeSubHours(goal, subIndex, delta) {
+function subKey(goal, sub) {
+  return `${goal.id}-${sub.id ?? sub.name}`
+}
+
+async function loadGoals(showSuccess = false) {
+  loading.value = true
+  try {
+    const nextGoals = await queryGoals(filters)
+    goals.value = nextGoals
+    const ids = nextGoals.map((goal) => goal.id)
+    selectedIds.value = selectedIds.value.filter((id) => ids.includes(id))
+    expandedIds.value = expandedIds.value.filter((id) => ids.includes(id))
+    if (showSuccess) showToast('查询完成')
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : '查询阶段目标失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function changeSubHours(goal, subIndex, delta) {
   const sub = goal.subcategories[subIndex]
-  if (!sub) return
+  if (!sub || syncingSubKey.value) return
+
+  const previous = {
+    goalLearnedHours: goal.learnedHours,
+    goalEstimatedHours: goal.estimatedHours,
+    goalProgress: goal.progress,
+    goalUpdatedAt: goal.updatedAt,
+    goalDaysSinceUpdate: goal.daysSinceUpdate,
+    subLearnedHours: sub.learnedHours,
+    subUpdatedAt: sub.updatedAt,
+    subDaysSinceUpdate: sub.daysSinceUpdate,
+  }
   const nextHours = Math.min(Math.max((Number(sub.learnedHours) || 0) + delta, 0), Number(sub.estimatedHours) || 0)
   sub.learnedHours = nextHours
   sub.updatedAt = currentDateTime()
   sub.daysSinceUpdate = 0
   recalculateGoal(goal)
+  syncingSubKey.value = subKey(goal, sub)
+
+  try {
+    await updateGoal(goal)
+    showToast('进度已同步')
+  } catch (error) {
+    goal.learnedHours = previous.goalLearnedHours
+    goal.estimatedHours = previous.goalEstimatedHours
+    goal.progress = previous.goalProgress
+    goal.updatedAt = previous.goalUpdatedAt
+    goal.daysSinceUpdate = previous.goalDaysSinceUpdate
+    sub.learnedHours = previous.subLearnedHours
+    sub.updatedAt = previous.subUpdatedAt
+    sub.daysSinceUpdate = previous.subDaysSinceUpdate
+    showToast(error instanceof Error ? error.message : '同步进度失败')
+  } finally {
+    syncingSubKey.value = ''
+  }
 }
 
 function recalculateGoal(goal) {
@@ -506,11 +507,12 @@ function toggleExpand(id) {
     : [...expandedIds.value, id]
 }
 
-function resetFilters() {
+async function resetFilters() {
   filters.creator = ''
   filters.category = ''
   filters.title = ''
   filters.recentDays = null
+  await loadGoals(true)
 }
 
 function showToast(message) {
@@ -535,27 +537,26 @@ function handleDelete() {
   confirmDeleteOpen.value = true
 }
 
-function confirmDelete() {
-  goals.value = goals.value.filter((goal) => !selectedIds.value.includes(goal.id))
-  expandedIds.value = expandedIds.value.filter((id) => !selectedIds.value.includes(id))
-  selectedIds.value = []
-  confirmDeleteOpen.value = false
+async function confirmDelete() {
+  deleting.value = true
+  try {
+    await Promise.all(selectedIds.value.map((id) => deleteGoal(id)))
+    goals.value = goals.value.filter((goal) => !selectedIds.value.includes(goal.id))
+    expandedIds.value = expandedIds.value.filter((id) => !selectedIds.value.includes(id))
+    selectedIds.value = []
+    confirmDeleteOpen.value = false
+    showToast('删除成功')
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : '删除阶段目标失败')
+  } finally {
+    deleting.value = false
+  }
 }
 
 async function confirmExport() {
   exporting.value = true
   try {
-    const params = new URLSearchParams({
-      exportType: String(exportForm.exportType),
-      lastDays: String(exportForm.lastDays),
-      exportSize: String(exportForm.exportSize),
-    })
-    const response = await fetch(`${GOAL_API.export}?${params.toString()}`, {
-      method: 'POST',
-    })
-    if (!response.ok) {
-      throw new Error('导出请求失败')
-    }
+    await exportGoals(exportForm)
     exportOpen.value = false
     showToast('导出请求已发送')
   } catch (error) {
@@ -602,14 +603,16 @@ function removeDraftSubcategory(index) {
   draft.subcategories.splice(index, 1)
 }
 
-function saveGoal() {
+async function saveGoal() {
   const now = currentDateTime()
   const existingGoal = editorMode.value === 'edit' ? goals.value.find((item) => item.id === editingId.value) : null
   const subcategories = draft.subcategories
     .filter((sub) => sub.name.trim())
     .map((sub) => {
-      const previous = existingGoal?.subcategories.find((item) => item.name === sub.name)
+      const previous = existingGoal?.subcategories.find((item) => item.id === sub.id || item.name === sub.name)
       return {
+        id: sub.id ?? previous?.id ?? null,
+        stageGoalId: sub.stageGoalId ?? previous?.stageGoalId ?? existingGoal?.id ?? null,
         name: sub.name,
         content: sub.content,
         learnedHours: Number(sub.learnedHours) || 0,
@@ -622,41 +625,42 @@ function saveGoal() {
   const estimatedHours = subcategories.reduce((sum, sub) => sum + sub.estimatedHours, 0)
   const learnedHours = subcategories.reduce((sum, sub) => sum + sub.learnedHours, 0)
   const progress = estimatedHours ? Math.min(Math.round((learnedHours / estimatedHours) * 100), 100) : 0
-
-  if (editorMode.value === 'edit') {
-    const goal = existingGoal
-    if (goal) {
-      goal.title = draft.title
-      goal.category = draft.category
-      goal.content = draft.content
-      goal.subcategories = subcategories
-      goal.estimatedHours = estimatedHours
-      goal.learnedHours = learnedHours
-      goal.progress = progress
-      goal.updatedAt = now
-      goal.daysSinceUpdate = 0
-    }
-  } else {
-    const id = `goal-${Date.now()}`
-    goals.value.unshift({
-      id,
-      creator: '小加',
-      category: draft.category,
-      title: draft.title,
-      content: draft.content,
-      learnedHours,
-      estimatedHours,
-      progress,
-      createdAt: now,
-      updatedAt: now,
-      daysSinceUpdate: 0,
-      subcategories,
-    })
-    expandedIds.value = [id, ...expandedIds.value]
+  const payload = {
+    ...existingGoal,
+    id: editingId.value,
+    title: draft.title,
+    category: draft.category,
+    content: draft.content,
+    subcategories,
+    estimatedHours,
+    learnedHours,
+    progress,
+    updatedAt: now,
+    daysSinceUpdate: 0,
   }
 
-  closeEditor()
+  saving.value = true
+  try {
+    if (editorMode.value === 'edit') {
+      await updateGoal(payload)
+      showToast('修改成功')
+    } else {
+      await addGoal(payload)
+      showToast('新增成功')
+    }
+    closeEditor()
+    await loadGoals()
+    if (payload.id) expandedIds.value = [payload.id, ...expandedIds.value]
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : '保存阶段目标失败')
+  } finally {
+    saving.value = false
+  }
 }
+
+onMounted(() => {
+  loadGoals()
+})
 </script>
 
 <style scoped>
@@ -745,6 +749,12 @@ button {
 
 button:hover {
   transform: translateY(-1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+  transform: none;
 }
 
 .actions button,
@@ -861,6 +871,13 @@ tbody tr.selected {
 
 .strong {
   color: #1c1b1b;
+  font-weight: 900;
+}
+
+.empty-cell {
+  padding: 28px 12px;
+  color: #8a625c;
+  text-align: center;
   font-weight: 900;
 }
 

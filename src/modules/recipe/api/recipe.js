@@ -1,14 +1,14 @@
 import { RECIPE_API } from '../../../api/index.js'
 import { getAuthSession } from '../../auth/session.js'
 
-const CATEGORY_LABELS = ['家常', '西餐', '甜点', '汤粥', '其他']
-const MEAL_TYPE_LABELS = {
+export const CATEGORY_LABELS = ['家常', '西餐', '甜点', '汤粥', '其他']
+export const MEAL_TYPE_LABELS = {
   1: '早餐',
   2: '午餐',
   3: '晚餐',
   4: '夜宵',
 }
-const DIFFICULTY_LABELS = {
+export const DIFFICULTY_LABELS = {
   1: '简单',
   2: '中等',
   3: '困难',
@@ -17,14 +17,17 @@ const DIFFICULTY_LABELS = {
 function authHeaders() {
   const session = getAuthSession()
   const headers = { 'Content-Type': 'application/json' }
+
   if (session?.accessToken) {
     headers.Authorization = `${session.tokenType || 'Bearer'} ${session.accessToken}`
   }
+
   return headers
 }
 
 function parseApiPayload(text) {
   if (!text) return null
+
   try {
     const safeText = text.replace(/(:\s*|\[\s*|,\s*)(-?\d{16,})(?=\s*[,}\]])/g, '$1"$2"')
     return JSON.parse(safeText)
@@ -60,12 +63,11 @@ async function postJson(url, body, fallback) {
   return responseData(data)
 }
 
-function toList(value) {
-  return Array.isArray(value) ? value : []
-}
+const toList = (value) => (Array.isArray(value) ? value : [])
 
 function normalizeIngredient(ingredient) {
-  if (typeof ingredient === 'string') return { name: ingredient, checked: false }
+  if (typeof ingredient === 'string') return { name: ingredient, amount: '', checked: false }
+
   return {
     name: ingredient?.name ?? '',
     amount: ingredient?.amount ?? '',
@@ -85,7 +87,10 @@ function normalizeStep(step, index) {
 }
 
 function normalizeInstruction(step, index) {
-  if (typeof step === 'string') return { title: `步骤 ${index + 1}`, description: step.replace(/^\d+\.\s*/, '') }
+  if (typeof step === 'string') {
+    return { title: `步骤 ${index + 1}`, description: step.replace(/^\d+\.\s*/, '') }
+  }
+
   return {
     title: `步骤 ${step?.stepNum ?? index + 1}`,
     description: step?.description ?? '',
@@ -95,8 +100,8 @@ function normalizeInstruction(step, index) {
 export function normalizeRecipe(raw = {}) {
   const ingredients = toList(raw.ingredients).map(normalizeIngredient)
   const steps = toList(raw.steps)
-  const cookingTime = raw.cookingTime ?? 0
-  const difficulty = raw.difficulty ?? 1
+  const cookingTime = Number(raw.cookingTime ?? 0)
+  const difficulty = Number(raw.difficulty ?? 1)
   const coverImg = raw.coverImg || raw.imageUrl || '/stitch_timeline_glow.png'
   const description = raw.description || raw.story || ''
 
@@ -105,9 +110,11 @@ export function normalizeRecipe(raw = {}) {
     id: raw.id ?? raw.recipeId,
     recipeId: raw.recipeId ?? raw.id,
     mealType: MEAL_TYPE_LABELS[raw.mealType] ?? raw.mealType ?? '未分类',
+    mealTypeValue: raw.mealType ?? null,
     duration: cookingTime ? `${cookingTime} 分钟` : '未填写',
     title: raw.title ?? '未命名食谱',
     imageUrl: coverImg,
+    coverImg,
     ingredients,
     steps: steps.map(normalizeStep),
     isFavorite: Boolean(raw.isFavorite),
@@ -121,7 +128,7 @@ export function normalizeRecipe(raw = {}) {
       nutrition: toList(raw.nutrition),
       ingredients: ingredients.map(ingredientText).filter(Boolean),
       instructions: steps.map(normalizeInstruction),
-      category: CATEGORY_LABELS[raw.category] ?? raw.category,
+      category: CATEGORY_LABELS[raw.category] ?? raw.category ?? '未分类',
       story: raw.story ?? '',
     },
   }
@@ -130,6 +137,7 @@ export function normalizeRecipe(raw = {}) {
 export function normalizeRecipePage(payload = {}) {
   const rawRecords = payload.records ?? payload.list ?? payload.rows
   const records = toList(rawRecords).map(normalizeRecipe)
+
   return {
     total: Number(payload.total ?? records.length),
     pageIndex: Number(payload.pageIndex ?? 1),
@@ -141,13 +149,13 @@ export function normalizeRecipePage(payload = {}) {
 export function createRecipeDTO(recipe = {}) {
   return {
     authorId: recipe.authorId ?? null,
-    recipeId: recipe.recipeId ?? recipe.id ?? null,
+    recipeId: recipe.recipeId ?? null,
     title: recipe.title ?? '',
-    coverImg: recipe.coverImg ?? recipe.imageUrl ?? '',
+    coverImg: recipe.coverImg ?? recipe.imageUrl ?? recipe.detail?.heroImageUrl ?? '',
     description: recipe.description ?? recipe.detail?.description ?? '',
     category: recipe.category ?? null,
-    mealType: recipe.mealType ?? null,
-    difficulty: recipe.difficulty ?? null,
+    mealType: recipe.mealTypeValue ?? recipe.mealType ?? null,
+    difficulty: recipe.difficultyValue ?? recipe.difficulty ?? null,
     cookingTime: recipe.cookingTime ?? null,
     story: recipe.story ?? recipe.detail?.story ?? '',
     isAnniversary: recipe.isAnniversary ?? 0,
@@ -166,7 +174,7 @@ export function createRecipeDTO(recipe = {}) {
       description:
         typeof item === 'string'
           ? item.replace(/^\d+\.\s*/, '')
-          : item?.description ?? '',
+          : item?.description ?? item?.title ?? '',
     })),
   }
 }

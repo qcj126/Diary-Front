@@ -4,9 +4,10 @@
       <div class="image-section">
         <img :src="imageUrl" :alt="title" class="recipe-image" />
         <div class="favorite-btn-wrapper">
-          <button 
-            class="favorite-btn" 
+          <button
+            class="favorite-btn"
             :class="{ 'is-favorite': isFavorite }"
+            type="button"
             @click="toggleFavorite"
           >
             <span class="material-symbols-outlined" :data-weight="isFavorite ? 'fill' : 'regular'">
@@ -15,7 +16,7 @@
           </button>
         </div>
       </div>
-      
+
       <div class="info-section">
         <div class="header-row">
           <span class="meal-type">{{ mealType }}</span>
@@ -24,39 +25,41 @@
             <span>{{ duration }}</span>
           </div>
         </div>
-        
+
         <h3 class="recipe-title">{{ title }}</h3>
-        
+
         <div class="details-grid">
           <div class="ingredients-section">
             <h4 class="section-title">食材</h4>
             <ul class="ingredients-list">
-              <li 
-                v-for="(ingredient, index) in ingredients" 
-                :key="index"
+              <li
+                v-for="(ingredient, index) in ingredients"
+                :key="`${ingredient.name}-${index}`"
                 class="ingredient-item"
               >
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   class="ingredient-checkbox"
                   :checked="ingredient.checked"
                   @change="toggleIngredient(index)"
                 />
-                <span :class="{ 'strikethrough': ingredient.checked }">{{ ingredient.name }}</span>
+                <span :class="{ strikethrough: ingredient.checked }">
+                  {{ [ingredient.name, ingredient.amount].filter(Boolean).join(' ') }}
+                </span>
               </li>
             </ul>
           </div>
-          
+
           <div class="steps-section">
             <h4 class="section-title">步骤</h4>
             <ol class="steps-list">
-              <li v-for="(step, index) in steps" :key="index" class="step-item">
+              <li v-for="(step, index) in steps.slice(0, 3)" :key="index" class="step-item">
                 {{ step }}
               </li>
             </ol>
           </div>
         </div>
-        
+
         <button class="view-recipe-btn" type="button" @click="viewRecipe">
           查看完整食谱
           <span class="material-symbols-outlined">arrow_forward</span>
@@ -67,39 +70,37 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-
 const props = defineProps({
   mealType: {
     type: String,
-    required: true
+    required: true,
   },
   duration: {
     type: String,
-    required: true
+    required: true,
   },
   title: {
     type: String,
-    required: true
+    required: true,
   },
   imageUrl: {
     type: String,
-    required: true
+    required: true,
   },
   ingredients: {
     type: Array,
     required: true,
-    default: () => []
+    default: () => [],
   },
   steps: {
     type: Array,
     required: true,
-    default: () => []
+    default: () => [],
   },
   isFavorite: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:isFavorite', 'toggleIngredient', 'viewRecipe'])
@@ -188,11 +189,7 @@ const viewRecipe = () => {
   transition: all 0.2s;
 }
 
-.favorite-btn:hover {
-  background-color: #9a4024;
-  color: #ffffff;
-}
-
+.favorite-btn:hover,
 .favorite-btn.is-favorite {
   background-color: #9a4024;
   color: #ffffff;
@@ -212,15 +209,15 @@ const viewRecipe = () => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 16px;
   margin-bottom: 8px;
 }
 
 .meal-type {
   font-size: 12px;
   line-height: 16px;
-  font-weight: 500;
+  font-weight: 700;
   color: #ba5839;
-  text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
@@ -238,7 +235,7 @@ const viewRecipe = () => {
 .duration span:last-child {
   font-size: 12px;
   line-height: 16px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .recipe-title {
@@ -247,7 +244,7 @@ const viewRecipe = () => {
   line-height: 32px;
   font-weight: 600;
   color: #1d1b1a;
-  margin-bottom: 16px;
+  margin: 0 0 16px;
 }
 
 .details-grid {
@@ -267,9 +264,9 @@ const viewRecipe = () => {
   font-size: 14px;
   line-height: 20px;
   letter-spacing: 0.05em;
-  font-weight: 600;
+  font-weight: 700;
   color: #9a4024;
-  margin-bottom: 8px;
+  margin: 0 0 8px;
 }
 
 .ingredients-list,
@@ -284,32 +281,26 @@ const viewRecipe = () => {
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 15px;
+  line-height: 22px;
   color: #56423d;
 }
 
 .ingredient-checkbox {
   border-radius: 4px;
   border: 1px solid #dcc1b9;
-  color: #526447;
   cursor: pointer;
-}
-
-.ingredient-checkbox:focus {
-  outline: none;
-  ring: 2px solid #526447;
 }
 
 .strikethrough {
   text-decoration: line-through;
-  opacity: 0.4;
+  opacity: 0.45;
 }
 
 .step-item {
   margin-bottom: 4px;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 15px;
+  line-height: 22px;
   color: #56423d;
 }
 
@@ -318,14 +309,14 @@ const viewRecipe = () => {
   font-size: 14px;
   line-height: 20px;
   letter-spacing: 0.05em;
-  font-weight: 600;
+  font-weight: 700;
   display: flex;
   align-items: center;
   gap: 4px;
   background: none;
   border: none;
   cursor: pointer;
-  transition: text-decoration 0.2s;
+  padding: 0;
 }
 
 .view-recipe-btn:hover {
