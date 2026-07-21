@@ -11,7 +11,7 @@
             <span class="material-symbols-outlined">delete</span>
             删除
           </button>
-          <button class="save-button" type="button" :disabled="saving" @click="handleSave">
+          <button class="save-button" type="button" :disabled="saving || imageUploading" @click="handleSave">
             <span class="material-symbols-outlined">save</span>
             {{ saving ? '保存中...' : '保存食谱' }}
           </button>
@@ -24,10 +24,16 @@
           <input v-model.trim="draft.title" type="text" placeholder="例如：红烧肉" />
         </label>
 
-        <label class="field field-wide">
-          <span>封面图片 URL</span>
-          <input v-model.trim="draft.coverImg" type="url" placeholder="https://..." />
-        </label>
+        <div class="field field-wide">
+          <span>食谱图片</span>
+          <label class="upload-box">
+            <input type="file" accept="image/*" :disabled="imageUploading" @change="handleImageChange" />
+            <span class="material-symbols-outlined">add_photo_alternate</span>
+            <strong>{{ imageUploading ? '上传中...' : draft.imageId ? '可重新上传图片' : '选择图片上传' }}</strong>
+          </label>
+          <p v-if="draft.imageId" class="image-id">图片ID：{{ draft.imageId }}</p>
+          <p v-if="imageError" class="form-error">{{ imageError }}</p>
+        </div>
 
         <label class="field field-wide">
           <span>简介</span>
@@ -74,37 +80,78 @@
           <textarea v-model.trim="draft.story" rows="3" placeholder="可选，用来记录这道菜背后的故事" />
         </label>
       </div>
-
-      <div class="hero-frame">
-        <img class="hero-image" :src="draft.coverImg || '/stitch_timeline_glow.png'" :alt="draft.title" />
-      </div>
     </header>
 
     <section class="content-grid">
-      <article class="panel-card">
+      <article class="panel-card list-panel">
         <div class="section-head">
-          <p class="section-kicker">Ingredients</p>
           <h2>食材</h2>
         </div>
-        <textarea
-          v-model="ingredientsText"
-          class="large-textarea"
-          rows="10"
-          placeholder="每行一个食材，例如：五花肉 500g"
-        />
+
+        <div class="entry-list">
+          <div v-for="(ingredient, index) in ingredients" :key="ingredient.uid" class="ingredient-row">
+            <span class="ingredient-index">{{ index + 1 }}</span>
+            <label class="field compact-field">
+              <span v-if="index === 0">食材名</span>
+              <input v-model.trim="ingredient.name" type="text" aria-label="食材名" placeholder="五花肉" />
+            </label>
+            <label class="field compact-field">
+              <span v-if="index === 0">用量</span>
+              <input v-model.trim="ingredient.quantity" type="text" aria-label="用量" placeholder="500g" />
+            </label>
+            <label class="field compact-field">
+              <span v-if="index === 0">是否主料</span>
+              <select v-model.number="ingredient.isMain" aria-label="是否主料">
+                <option :value="1">1</option>
+                <option :value="0">0</option>
+              </select>
+            </label>
+            <div class="row-meta">
+              <div class="row-actions">
+                <button class="icon-button" type="button" :disabled="ingredients.length === 1" @click="removeIngredient(index)">
+                  <span class="material-symbols-outlined">remove</span>
+                </button>
+                <button class="icon-button add-inline-button" type="button" @click="addIngredientAfter(index)">
+                  <span class="material-symbols-outlined">add</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
       </article>
 
-      <article class="panel-card">
+      <article class="panel-card list-panel">
         <div class="section-head">
-          <p class="section-kicker">Method</p>
           <h2>步骤</h2>
         </div>
-        <textarea
-          v-model="stepsText"
-          class="large-textarea"
-          rows="10"
-          placeholder="每行一个步骤，例如：切块焯水"
-        />
+
+        <div class="entry-list">
+          <div v-for="(step, index) in steps" :key="step.uid" class="step-row">
+            <span class="step-number">{{ index + 1 }}</span>
+            <label class="field compact-field step-description">
+              <span v-if="index === 0">步骤描述</span>
+              <input v-model.trim="step.description" type="text" aria-label="步骤描述" placeholder="五花肉切块后冷水下锅焯水。" />
+            </label>
+            <label class="field compact-field timer-field">
+              <span v-if="index === 0">耗时</span>
+              <input v-model.number="step.timerMin" type="number" min="0" aria-label="耗时" />
+            </label>
+            <div class="row-meta">
+              <div class="row-actions">
+                <button class="icon-button" type="button" :disabled="steps.length === 1" @click="removeStep(index)">
+                  <span class="material-symbols-outlined">remove</span>
+                </button>
+                <button class="icon-button add-inline-button" type="button" @click="addStepAfter(index)">
+                  <span class="material-symbols-outlined">add</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
       </article>
     </section>
   </section>
@@ -112,6 +159,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { uploadRecipeImages } from './api/recipe.js'
 
 const props = defineProps({
   recipe: {
@@ -127,13 +175,22 @@ const props = defineProps({
 const emit = defineEmits(['close', 'save', 'delete'])
 
 const draft = ref({})
-const ingredientsText = ref('')
-const stepsText = ref('')
+const ingredients = ref([])
+const steps = ref([])
+const imageUploading = ref(false)
+const imageError = ref('')
+let rowId = 0
+
+function nextRowId() {
+  rowId += 1
+  return rowId
+}
 
 function cloneRecipe(recipe) {
   return {
     ...recipe,
     title: recipe.title ?? '',
+    imageId: recipe.imageId ?? '',
     coverImg: recipe.coverImg ?? recipe.imageUrl ?? recipe.detail?.heroImageUrl ?? '',
     description: recipe.description ?? recipe.detail?.description ?? '',
     category: recipe.category ?? 0,
@@ -144,58 +201,104 @@ function cloneRecipe(recipe) {
   }
 }
 
+function emptyIngredient() {
+  return { uid: nextRowId(), name: '', quantity: '', isMain: 0 }
+}
+
+function emptyStep() {
+  return { uid: nextRowId(), description: '', timerMin: 0 }
+}
+
 function formatIngredients(recipe) {
-  return (recipe.ingredients ?? [])
-    .map((item) => [item.name, item.amount].filter(Boolean).join(' '))
-    .filter(Boolean)
-    .join('\n')
+  const rows = (recipe.ingredients ?? []).map((item) => ({
+    uid: nextRowId(),
+    name: typeof item === 'string' ? item : item?.name ?? '',
+    quantity: typeof item === 'string' ? '' : item?.quantity ?? item?.amount ?? '',
+    isMain: Number(typeof item === 'string' ? 0 : item?.isMain ?? 0),
+  }))
+  return rows.length ? rows : [emptyIngredient()]
 }
 
 function formatSteps(recipe) {
   const rawSteps = recipe.rawSteps ?? recipe.steps ?? []
-  return rawSteps
-    .map((step) => {
-      if (typeof step === 'string') return step.replace(/^\d+\.\s*/, '')
-      return step?.description ?? ''
-    })
-    .filter(Boolean)
-    .join('\n')
+  const rows = rawSteps.map((step) => {
+    if (typeof step === 'string') {
+      return { uid: nextRowId(), description: step.replace(/^\d+\.\s*/, ''), timerMin: 0 }
+    }
+
+    return {
+      uid: nextRowId(),
+      description: step?.description ?? '',
+      timerMin: Number(step?.timerMin ?? 0),
+    }
+  })
+  return rows.length ? rows : [emptyStep()]
 }
 
-function parseIngredients(text) {
-  return text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [name, ...amountParts] = line.split(/\s+/)
-      return { name, amount: amountParts.join(' ') }
-    })
+function addIngredientAfter(index) {
+  ingredients.value.splice(index + 1, 0, emptyIngredient())
 }
 
-function parseSteps(text) {
-  return text
-    .split('\n')
-    .map((line) => line.trim().replace(/^\d+\.\s*/, ''))
-    .filter(Boolean)
-    .map((description, index) => ({ stepNum: index + 1, description }))
+function removeIngredient(index) {
+  if (ingredients.value.length > 1) ingredients.value.splice(index, 1)
+}
+
+function addStepAfter(index) {
+  steps.value.splice(index + 1, 0, emptyStep())
+}
+
+function removeStep(index) {
+  if (steps.value.length > 1) steps.value.splice(index, 1)
+}
+
+
+async function handleImageChange(event) {
+  const file = event.target.files?.[0]
+  imageError.value = ''
+  if (!file) return
+
+  imageUploading.value = true
+
+  try {
+    const [imageId] = await uploadRecipeImages([file])
+    draft.value.imageId = imageId
+  } catch (error) {
+    imageError.value = error instanceof Error ? error.message : '图片上传失败'
+    draft.value.imageId = ''
+  } finally {
+    imageUploading.value = false
+    event.target.value = ''
+  }
 }
 
 watch(
   () => props.recipe,
   (next) => {
     draft.value = cloneRecipe(next)
-    ingredientsText.value = formatIngredients(next)
-    stepsText.value = formatSteps(next)
+    ingredients.value = formatIngredients(next)
+    steps.value = formatSteps(next)
+    imageError.value = ''
   },
   { immediate: true },
 )
 
+
 function handleSave() {
   emit('save', {
     ...draft.value,
-    ingredients: parseIngredients(ingredientsText.value),
-    steps: parseSteps(stepsText.value),
+    imageId: String(draft.value.imageId ?? '').trim(),
+    ingredients: ingredients.value.map((item, index) => ({
+      name: item.name,
+      quantity: item.quantity,
+      isMain: Number(item.isMain),
+      sort: index + 1,
+    })),
+    steps: steps.value.map((item, index) => ({
+      stepNumber: index + 1,
+      description: item.description,
+      timerMin: Number(item.timerMin ?? 0),
+      sort: index + 1,
+    })),
   })
 }
 
@@ -240,15 +343,22 @@ function handleDelete() {
 
 .back-button,
 .save-button,
-.delete-button {
+.delete-button,
+.icon-button {
   border: none;
   border-radius: 8px;
-  padding: 12px 16px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   cursor: pointer;
   font-weight: 700;
+}
+
+.back-button,
+.save-button,
+.delete-button {
+  padding: 12px 16px;
 }
 
 .back-button {
@@ -261,7 +371,9 @@ function handleDelete() {
   color: #ffffff;
 }
 
-.save-button:disabled {
+.save-button:disabled,
+.icon-button:disabled,
+.upload-box:has(input:disabled) {
   opacity: 0.65;
   cursor: wait;
 }
@@ -291,8 +403,7 @@ function handleDelete() {
 
 .field input,
 .field select,
-.field textarea,
-.large-textarea {
+.field textarea {
   width: 100%;
   border: 1px solid rgba(220, 193, 185, 0.9);
   border-radius: 8px;
@@ -302,27 +413,46 @@ function handleDelete() {
   padding: 12px 14px;
 }
 
-.field textarea,
-.large-textarea {
+.field textarea {
   resize: vertical;
   line-height: 1.7;
 }
 
-.hero-frame {
-  margin-top: 24px;
-  overflow: hidden;
-  border-radius: 14px;
-  min-height: 360px;
-  background: #e8e1df;
+.upload-box {
+  min-height: 78px;
+  border: 1px dashed rgba(154, 64, 36, 0.55);
+  border-radius: 8px;
+  background: rgba(255, 248, 246, 0.92);
+  color: #7a2f16;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
 }
 
-.hero-image {
-  width: 100%;
-  height: 100%;
-  min-height: 360px;
-  object-fit: cover;
-  display: block;
+.upload-box input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
+
+.image-id,
+.form-error {
+  margin: 0;
+  font-size: 13px;
+}
+
+.image-id {
+  color: #576a4d;
+}
+
+.form-error {
+  color: #b42318;
+}
+
 
 .content-grid {
   display: grid;
@@ -330,10 +460,16 @@ function handleDelete() {
   gap: 24px;
 }
 
+.list-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 18px;
+}
+
 .section-head {
   display: grid;
   gap: 8px;
-  margin-bottom: 18px;
 }
 
 .section-kicker {
@@ -352,10 +488,123 @@ function handleDelete() {
   font-size: 1.6rem;
 }
 
-@media (max-width: 820px) {
-  .form-grid,
+.entry-list {
+  display: grid;
+  width: 100%;
+  gap: 14px;
+}
+
+.ingredient-row,
+.step-row {
+  display: grid;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid rgba(220, 193, 185, 0.6);
+  border-radius: 10px;
+  background: rgba(255, 251, 249, 0.72);
+}
+
+.ingredient-row {
+  grid-template-columns: 34px minmax(112px, 0.9fr) minmax(92px, 0.72fr) minmax(86px, 0.54fr) 84px;
+  padding-inline: 14px;
+}
+
+.ingredient-row .field input,
+.ingredient-row .field select {
+  min-height: 40px;
+  padding: 9px 10px;
+}
+
+.step-row {
+  grid-template-columns: 34px minmax(190px, 1fr) 72px 84px;
+  padding-inline: 14px;
+}
+
+.step-row .field input {
+  min-height: 40px;
+  padding: 9px 10px;
+}
+
+.compact-field {
+  min-width: 0;
+}
+
+
+.step-number,
+.ingredient-index {
+  border-radius: 999px;
+  background: #f3ecea;
+  color: #7a2f16;
+  font-weight: 800;
+}
+
+.step-number,
+.ingredient-index {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.row-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ingredient-row .row-meta,
+.step-row .row-meta {
+  align-self: end;
+}
+
+.row-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 38px);
+  gap: 8px;
+}
+
+.icon-button {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #f6d8d1;
+  color: #7a2f16;
+}
+
+.add-inline-button {
+  background: #eef2e8;
+  color: #576a4d;
+}
+
+.icon-button:disabled {
+  cursor: not-allowed;
+}
+
+@media (max-width: 1180px) {
   .content-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 820px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ingredient-row,
+  .step-row {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .ingredient-row .compact-field,
+  .ingredient-row .row-meta,
+  .step-row .compact-field,
+  .step-row .row-meta {
+    grid-column: 2;
   }
 
   .detail-header,
@@ -363,9 +612,10 @@ function handleDelete() {
     padding: 22px;
   }
 
-  .hero-frame,
-  .hero-image {
-    min-height: 260px;
+  .step-number,
+  .ingredient-index,
+  .row-meta {
+    justify-self: start;
   }
 }
 </style>

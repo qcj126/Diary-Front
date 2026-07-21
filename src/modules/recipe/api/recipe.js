@@ -1,4 +1,4 @@
-import { RECIPE_API } from '../../../api/index.js'
+import { API_BASE, RECIPE_API } from '../../../api/index.js'
 import { getAuthSession } from '../../auth/session.js'
 
 export const CATEGORY_LABELS = ['家常', '西餐', '甜点', '汤粥', '其他']
@@ -14,9 +14,9 @@ export const DIFFICULTY_LABELS = {
   3: '困难',
 }
 
-function authHeaders() {
+function authHeaders(contentType = 'application/json') {
   const session = getAuthSession()
-  const headers = { 'Content-Type': 'application/json' }
+  const headers = contentType ? { 'Content-Type': contentType } : {}
 
   if (session?.accessToken) {
     headers.Authorization = `${session.tokenType || 'Bearer'} ${session.accessToken}`
@@ -49,7 +49,86 @@ function assertApiSuccess(res, data, fallback) {
 
 function responseData(data) {
   if (data && typeof data === 'object' && 'data' in data) return data.data
+  if (data && typeof data === 'object' && 'result' in data) return data.result
   return data
+}
+
+function normalizeImageId(id) {
+  const value = String(id ?? '').trim()
+  return /^\d+$/.test(value) ? value : null
+}
+
+function normalizeImageUrl(url) {
+  const value = String(url ?? '').trim()
+  if (!value) return ''
+  if (/^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
+    return value
+  }
+  return `${API_BASE}${value.startsWith('/') ? '' : '/'}${value}`
+}
+
+function normalizeImageVO(image, fallbackId) {
+  if (typeof image === 'string') {
+    const url = normalizeImageUrl(image)
+    return fallbackId && url ? { id: fallbackId, url } : null
+  }
+
+  if (!image || typeof image !== 'object') return null
+  const id = normalizeImageId(image.id ?? image.imageId ?? fallbackId)
+  const url = normalizeImageUrl(image.url ?? image.imageUrl)
+  if (!id || !url) return null
+  return { id, url }
+}
+
+async function queryRecipeImageUrls(imageIds) {
+  const normalizedIds = [...new Set(imageIds.map(normalizeImageId).filter(Boolean))]
+  if (!normalizedIds.length) return []
+
+  const images = await postJson(RECIPE_API.queryImageUrls, normalizedIds, '图片地址查询失败')
+
+  if (Array.isArray(images)) {
+    return images.map((image, index) => normalizeImageVO(image, normalizedIds[index])).filter(Boolean)
+  }
+
+  if (images && typeof images === 'object') {
+    return Object.entries(images)
+      .map(([id, url]) => normalizeImageVO({ id, url }))
+      .filter(Boolean)
+  }
+
+  return []
+}
+
+async function attachRecipeImageUrls(page) {
+  const imageIds = page.records.map((recipe) => recipe.imageId)
+
+  try {
+    const images = await queryRecipeImageUrls(imageIds)
+    const imageMap = new Map(images.map((image) => [String(image.id), image.url]))
+    if (!imageMap.size) return page
+
+    return {
+      ...page,
+      records: page.records.map((recipe) => {
+        const imageId = normalizeImageId(recipe.imageId)
+        const imageUrl = imageId ? imageMap.get(imageId) : ''
+        if (!imageUrl) return recipe
+
+        return {
+          ...recipe,
+          imageUrl,
+          coverImg: imageUrl,
+          detail: {
+            ...recipe.detail,
+            heroImageUrl: imageUrl,
+          },
+        }
+      }),
+    }
+  } catch (error) {
+    console.error(error)
+    return page
+  }
 }
 
 async function postJson(url, body, fallback) {
@@ -64,59 +143,92 @@ async function postJson(url, body, fallback) {
 }
 
 const toList = (value) => (Array.isArray(value) ? value : [])
+const toNumberOrNull = (value) => {
+  if (value === '' || value === null || value === undefined) return null
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : null
+}
 
-function normalizeIngredient(ingredient) {
-  if (typeof ingredient === 'string') return { name: ingredient, amount: '', checked: false }
+function normalizeIngredient(ingredient, index) {
+  if (typeof ingredient === 'string') {
+    return { name: ingredient, quantity: '', amount: '', isMain: 0, sort: index + 1, checked: false }
+  }
 
+  const quantity = ingredient?.quantity ?? ingredient?.amount ?? ''
   return {
     name: ingredient?.name ?? '',
-    amount: ingredient?.amount ?? '',
+    quantity,
+    amount: quantity,
+    isMain: Number(ingredient?.isMain ?? 0),
+    sort: Number(ingredient?.sort ?? index + 1),
     checked: Boolean(ingredient?.checked),
   }
 }
 
 function ingredientText(ingredient) {
   if (typeof ingredient === 'string') return ingredient
-  return [ingredient?.name, ingredient?.amount].filter(Boolean).join(' ')
+  return [ingredient?.name, ingredient?.quantity ?? ingredient?.amount].filter(Boolean).join(' ')
+}
+
+function normalizeStepObject(step, index) {
+  if (typeof step === 'string') {
+    return {
+      stepNumber: index + 1,
+      stepNum: index + 1,
+      description: step.replace(/^\d+\.\s*/, ''),
+      timerMin: 0,
+      sort: index + 1,
+    }
+  }
+
+  const stepNumber = Number(step?.stepNumber ?? step?.stepNum ?? index + 1)
+  return {
+    ...step,
+    stepNumber,
+    stepNum: stepNumber,
+    description: step?.description ?? '',
+    timerMin: Number(step?.timerMin ?? 0),
+    sort: Number(step?.sort ?? stepNumber),
+  }
 }
 
 function normalizeStep(step, index) {
-  if (typeof step === 'string') return step
-  const stepNum = step?.stepNum ?? index + 1
-  return `${stepNum}. ${step?.description ?? ''}`.trim()
+  const normalized = normalizeStepObject(step, index)
+  return `${normalized.stepNumber}. ${normalized.description}`.trim()
 }
 
 function normalizeInstruction(step, index) {
-  if (typeof step === 'string') {
-    return { title: `步骤 ${index + 1}`, description: step.replace(/^\d+\.\s*/, '') }
-  }
-
+  const normalized = normalizeStepObject(step, index)
   return {
-    title: `步骤 ${step?.stepNum ?? index + 1}`,
-    description: step?.description ?? '',
+    title: `步骤 ${normalized.stepNumber}`,
+    description: normalized.description,
   }
 }
 
 export function normalizeRecipe(raw = {}) {
   const ingredients = toList(raw.ingredients).map(normalizeIngredient)
-  const steps = toList(raw.steps)
+  const rawSteps = toList(raw.rawSteps ?? raw.steps).map(normalizeStepObject)
   const cookingTime = Number(raw.cookingTime ?? 0)
   const difficulty = Number(raw.difficulty ?? 1)
-  const coverImg = raw.coverImg || raw.imageUrl || '/stitch_timeline_glow.png'
+  const coverImg = raw.coverImg || raw.imageUrl || raw.detail?.heroImageUrl || '/stitch_timeline_glow.png'
+  const imageId = raw.imageId ?? raw.imageID ?? raw.coverImg ?? ''
   const description = raw.description || raw.story || ''
 
   return {
     ...raw,
     id: raw.id ?? raw.recipeId,
     recipeId: raw.recipeId ?? raw.id,
+    imageId,
     mealType: MEAL_TYPE_LABELS[raw.mealType] ?? raw.mealType ?? '未分类',
-    mealTypeValue: raw.mealType ?? null,
+    mealTypeValue: raw.mealType ?? raw.mealTypeValue ?? null,
+    difficultyValue: raw.difficultyValue ?? difficulty,
     duration: cookingTime ? `${cookingTime} 分钟` : '未填写',
     title: raw.title ?? '未命名食谱',
     imageUrl: coverImg,
     coverImg,
     ingredients,
-    steps: steps.map(normalizeStep),
+    rawSteps,
+    steps: rawSteps.map(normalizeStep),
     isFavorite: Boolean(raw.isFavorite),
     detail: {
       description,
@@ -127,7 +239,7 @@ export function normalizeRecipe(raw = {}) {
       heroImageUrl: coverImg,
       nutrition: toList(raw.nutrition),
       ingredients: ingredients.map(ingredientText).filter(Boolean),
-      instructions: steps.map(normalizeInstruction),
+      instructions: rawSteps.map(normalizeInstruction),
       category: CATEGORY_LABELS[raw.category] ?? raw.category ?? '未分类',
       story: raw.story ?? '',
     },
@@ -147,36 +259,65 @@ export function normalizeRecipePage(payload = {}) {
 }
 
 export function createRecipeDTO(recipe = {}) {
+  const ingredients = toList(recipe.ingredients).map((item, index) => ({
+    name: typeof item === 'string' ? item : item?.name ?? '',
+    quantity: typeof item === 'string' ? '' : item?.quantity ?? item?.amount ?? '',
+    isMain: Number(typeof item === 'string' ? 0 : item?.isMain ?? 0),
+    sort: index + 1,
+  }))
+
+  const steps = toList(recipe.steps).map((item, index) => ({
+    stepNumber: index + 1,
+    description:
+      typeof item === 'string'
+        ? item.replace(/^\d+\.\s*/, '')
+        : item?.description ?? item?.title ?? '',
+    timerMin: Number(typeof item === 'string' ? 0 : item?.timerMin ?? 0),
+    sort: index + 1,
+  }))
+
   return {
     authorId: recipe.authorId ?? null,
     recipeId: recipe.recipeId ?? null,
     title: recipe.title ?? '',
-    coverImg: recipe.coverImg ?? recipe.imageUrl ?? recipe.detail?.heroImageUrl ?? '',
+    imageId: String(recipe.imageId ?? '').trim(),
     description: recipe.description ?? recipe.detail?.description ?? '',
-    category: recipe.category ?? null,
-    mealType: recipe.mealTypeValue ?? recipe.mealType ?? null,
-    difficulty: recipe.difficultyValue ?? recipe.difficulty ?? null,
-    cookingTime: recipe.cookingTime ?? null,
+    category: toNumberOrNull(recipe.category),
+    mealType: toNumberOrNull(recipe.mealTypeValue ?? recipe.mealType),
+    difficulty: toNumberOrNull(recipe.difficultyValue ?? recipe.difficulty),
+    cookingTime: toNumberOrNull(recipe.cookingTime),
     story: recipe.story ?? recipe.detail?.story ?? '',
-    isAnniversary: recipe.isAnniversary ?? 0,
-    anniversaryDate: recipe.anniversaryDate ?? null,
-    status: recipe.status ?? 1,
-    ingredients: toList(recipe.ingredients).map((item) =>
-      typeof item === 'string'
-        ? { name: item, amount: '' }
-        : {
-            name: item?.name ?? '',
-            amount: item?.amount ?? '',
-          },
-    ),
-    steps: toList(recipe.steps).map((item, index) => ({
-      stepNum: item?.stepNum ?? index + 1,
-      description:
-        typeof item === 'string'
-          ? item.replace(/^\d+\.\s*/, '')
-          : item?.description ?? item?.title ?? '',
-    })),
+    ingredients,
+    steps,
   }
+}
+
+export async function uploadRecipeImages(files) {
+  const formData = new FormData()
+  for (const file of files) {
+    formData.append('files', file)
+  }
+  formData.append('code', '2000')
+
+  const res = await fetch(RECIPE_API.uploadImages, {
+    method: 'POST',
+    headers: authHeaders(null),
+    body: formData,
+  })
+  const data = parseApiPayload(await res.text())
+  assertApiSuccess(res, data, '图片上传失败')
+
+  const result = responseData(data)
+  const ids = Array.isArray(result) ? result : [result]
+  const imageIds = ids
+    .map((item) => String(item?.id ?? item?.imageId ?? item ?? '').trim())
+    .filter(Boolean)
+
+  if (!imageIds.length) {
+    throw new Error('图片上传成功，但没有返回图片ID')
+  }
+
+  return imageIds
 }
 
 export async function queryRecipes(params = {}) {
@@ -193,7 +334,7 @@ export async function queryRecipes(params = {}) {
     },
     '查询食谱失败',
   )
-  return normalizeRecipePage(payload)
+  return attachRecipeImageUrls(normalizeRecipePage(payload))
 }
 
 export function addRecipe(recipe) {
