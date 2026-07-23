@@ -87,11 +87,22 @@
                   <input v-model="selectedIds" type="checkbox" :value="goal.id" :aria-label="`选择${goal.title}`" />
                 </td>
                 <td class="expand-col">
-                  <button type="button" :aria-label="`展开${goal.title}`" @click="toggleExpand(goal.id)">
-                    <span class="material-symbols-outlined">
-                      {{ expandedIds.includes(goal.id) ? 'expand_less' : 'expand_more' }}
-                    </span>
-                  </button>
+                  <div class="goal-row-actions">
+                    <button type="button" :aria-label="`展开${goal.title}`" @click="toggleExpand(goal.id)">
+                      <span class="material-symbols-outlined">
+                        {{ expandedIds.includes(goal.id) ? 'expand_less' : 'expand_more' }}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      class="add-sub-goal-button"
+                      :aria-label="`为${goal.title}添加小目标`"
+                      title="添加小目标"
+                      @click="openSubGoalEditor(goal)"
+                    >
+                      <span class="material-symbols-outlined">add</span>
+                    </button>
+                  </div>
                 </td>
                 <td>{{ goal.creator }}</td>
                 <td><span class="tag">{{ goal.category }}</span></td>
@@ -259,6 +270,71 @@
       </form>
     </div>
 
+    <div v-if="subGoalEditorOpen" class="modal-backdrop" @click.self="closeSubGoalEditor">
+      <form class="sub-goal-modal" @submit.prevent="saveSubGoals">
+        <header>
+          <div>
+            <span class="eyebrow">Sub Goals</span>
+            <h2>添加小目标</h2>
+            <p>阶段目标：{{ subGoalStage?.title }}</p>
+          </div>
+          <button type="button" aria-label="关闭" @click="closeSubGoalEditor">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </header>
+
+        <div class="sub-goal-fields" role="group" aria-label="小目标列表">
+          <div class="sub-goal-field-head" aria-hidden="true">
+            <span>小目标标题</span>
+            <span>小目标学习内容</span>
+            <span>预计用时（小时）</span>
+            <span></span>
+          </div>
+          <div v-for="(subGoal, index) in subGoalDrafts" :key="subGoal.key" class="sub-goal-field-row">
+            <input
+              v-model.trim="subGoal.title"
+              required
+              type="text"
+              :aria-label="`第 ${index + 1} 个小目标标题`"
+              placeholder="小目标标题"
+            />
+            <input
+              v-model.trim="subGoal.content"
+              required
+              type="text"
+              :aria-label="`第 ${index + 1} 个小目标学习内容`"
+              placeholder="小目标学习内容"
+            />
+            <input
+              v-model="subGoal.estimatedHours"
+              required
+              type="number"
+              min="0"
+              step="0.1"
+              :aria-label="`第 ${index + 1} 个小目标预计用时`"
+              placeholder="预计用时"
+            />
+            <button
+              type="button"
+              class="append-sub-goal-button"
+              :aria-label="`在第 ${index + 1} 个小目标后新增一行`"
+              title="继续添加小目标"
+              @click="addSubGoalDraft(index)"
+            >
+              <span class="material-symbols-outlined">add</span>
+            </button>
+          </div>
+        </div>
+
+        <footer>
+          <button type="button" :disabled="subGoalSaving" @click="closeSubGoalEditor">取消</button>
+          <button type="submit" class="primary" :disabled="subGoalSaving">
+            {{ subGoalSaving ? '保存中...' : '保存' }}
+          </button>
+        </footer>
+      </form>
+    </div>
+
     <div v-if="editorOpen" class="modal-backdrop" @click.self="closeEditor">
       <form class="editor-modal" @submit.prevent="saveGoal">
         <header>
@@ -271,7 +347,7 @@
           </button>
         </header>
 
-        <div class="form-grid">
+        <div class="stage-goal-block">
           <label>
             <span>标题</span>
             <input v-model.trim="draft.title" required type="text" />
@@ -282,27 +358,30 @@
               <option v-for="category in categories" :key="category" :value="category">{{ category }}</option>
             </select>
           </label>
-          <label class="wide">
+          <label>
             <span>阶段目标内容</span>
-            <textarea v-model.trim="draft.content" required rows="3" />
+            <input v-model.trim="draft.content" required type="text" />
           </label>
         </div>
 
         <section class="sub-editor">
-          <div class="sub-editor-head">
-            <h3>小分类</h3>
-            <button type="button" @click="addDraftSubcategory">
-              <span class="material-symbols-outlined">add</span>
-              添加小分类
-            </button>
-          </div>
-          <article v-for="(sub, index) in draft.subcategories" :key="index" class="sub-edit-row">
-            <input v-model.trim="sub.name" type="text" placeholder="小分类，如 同步执行" />
-            <input v-model.number="sub.estimatedHours" type="number" min="0" placeholder="预计小时" />
-            <textarea v-model.trim="sub.content" rows="2" placeholder="小分类内容" />
-            <button type="button" aria-label="删除小分类" @click="removeDraftSubcategory(index)">
-              <span class="material-symbols-outlined">delete</span>
-            </button>
+          <button type="button" class="add-inline-sub-goal" @click="addDraftSubcategory">
+            <span class="material-symbols-outlined">add</span>
+            添加小目标
+          </button>
+          <article v-for="(sub, index) in draft.subcategories" :key="index" class="stage-sub-goal-block">
+            <label>
+              <span>标题</span>
+              <input v-model.trim="sub.name" type="text" placeholder="小目标标题" />
+            </label>
+            <label>
+              <span>学习内容</span>
+              <input v-model.trim="sub.content" type="text" placeholder="小目标学习内容" />
+            </label>
+            <label>
+              <span>预计用时</span>
+              <input v-model.number="sub.estimatedHours" type="number" min="0" step="0.1" placeholder="预计用时" />
+            </label>
           </article>
         </section>
 
@@ -317,14 +396,14 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { addGoal, deleteGoal, exportGoals, queryGoals, updateGoal } from './api/goals.js'
+import { addGoal, batchAddSubGoals, deleteGoal, exportGoals, queryGoals, updateGoal } from './api/goals.js'
 
 const categories = ['技术', '学习', '健康', '生活']
 
 const columnWidths = {
   main: {
     select: 42,
-    expand: 42,
+    expand: 80,
     creator: 97,
     category: 97,
     title: 140,
@@ -355,6 +434,10 @@ const editingId = ref(null)
 const confirmDeleteOpen = ref(false)
 const exportOpen = ref(false)
 const exporting = ref(false)
+const subGoalEditorOpen = ref(false)
+const subGoalSaving = ref(false)
+const subGoalStage = ref(null)
+const subGoalDrafts = ref([])
 const loading = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
@@ -362,6 +445,7 @@ const syncingSubKey = ref('')
 const toast = reactive({ visible: false, leaving: false, message: '' })
 let toastTimer = 0
 let toastLeaveTimer = 0
+let subGoalDraftKey = 0
 
 const exportDayOptions = [1, 3, 5, 7, 10, 15, 30]
 const exportSizeOptions = [10, 20, 30, 40, 50, 100]
@@ -382,7 +466,7 @@ const emptyDraft = () => ({
   title: '',
   category: '技术',
   content: '',
-  subcategories: [{ name: '', content: '', learnedHours: 0, estimatedHours: 1 }],
+  subcategories: [],
 })
 
 const draft = reactive(emptyDraft())
@@ -507,6 +591,71 @@ function toggleExpand(id) {
     : [...expandedIds.value, id]
 }
 
+function createSubGoalDraft() {
+  subGoalDraftKey += 1
+  return {
+    key: subGoalDraftKey,
+    title: '',
+    content: '',
+    estimatedHours: '',
+  }
+}
+
+function openSubGoalEditor(goal) {
+  subGoalStage.value = goal
+  subGoalDrafts.value = [createSubGoalDraft()]
+  subGoalEditorOpen.value = true
+}
+
+function closeSubGoalEditor() {
+  if (subGoalSaving.value) return
+  subGoalEditorOpen.value = false
+  subGoalStage.value = null
+  subGoalDrafts.value = []
+}
+
+function addSubGoalDraft(index) {
+  subGoalDrafts.value.splice(index + 1, 0, createSubGoalDraft())
+}
+
+async function saveSubGoals() {
+  const stageId = subGoalStage.value?.id
+  const payload = subGoalDrafts.value.map((subGoal) => ({
+    title: subGoal.title.trim(),
+    content: subGoal.content.trim(),
+    learnedHours: 0,
+    estimatedHours: Number(subGoal.estimatedHours),
+  }))
+  const invalid = !stageId || payload.some(
+    (subGoal) =>
+      !subGoal.title ||
+      !subGoal.content ||
+      !Number.isFinite(subGoal.estimatedHours) ||
+      subGoal.estimatedHours < 0,
+  )
+  if (invalid) {
+    showToast('请完整填写小目标标题、学习内容和预计用时')
+    return
+  }
+
+  subGoalSaving.value = true
+  try {
+    await batchAddSubGoals(stageId, payload)
+    subGoalEditorOpen.value = false
+    subGoalStage.value = null
+    subGoalDrafts.value = []
+    await loadGoals()
+    if (!expandedIds.value.includes(stageId)) {
+      expandedIds.value = [stageId, ...expandedIds.value]
+    }
+    showToast(`已添加 ${payload.length} 个小目标`)
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : '保存小目标失败')
+  } finally {
+    subGoalSaving.value = false
+  }
+}
+
 async function resetFilters() {
   filters.creator = ''
   filters.category = ''
@@ -596,7 +745,7 @@ function closeEditor() {
 }
 
 function addDraftSubcategory() {
-  draft.subcategories.push({ name: '', content: '', learnedHours: 0, estimatedHours: 1 })
+  draft.subcategories.push({ name: '', content: '', learnedHours: 0, estimatedHours: '' })
 }
 
 function removeDraftSubcategory(index) {
@@ -604,6 +753,20 @@ function removeDraftSubcategory(index) {
 }
 
 async function saveGoal() {
+  const invalidSubcategory = draft.subcategories.some((sub) => {
+    const title = sub.name.trim()
+    const content = sub.content.trim()
+    const hasEstimatedHours = sub.estimatedHours !== '' && sub.estimatedHours !== null && sub.estimatedHours !== undefined
+    const hasAnyValue = title || content || hasEstimatedHours
+    const estimatedHours = Number(sub.estimatedHours)
+    return hasAnyValue && (!title || !content || !Number.isFinite(estimatedHours) || estimatedHours < 0)
+  })
+
+  if (invalidSubcategory) {
+    showToast('请完整填写小目标标题、学习内容和预计用时')
+    return
+  }
+
   const now = currentDateTime()
   const existingGoal = editorMode.value === 'edit' ? goals.value.find((item) => item.id === editingId.value) : null
   const subcategories = draft.subcategories
@@ -680,6 +843,8 @@ onMounted(() => {
 .query-panel,
 .editor-modal header,
 .editor-modal footer,
+.sub-goal-modal header,
+.sub-goal-modal footer,
 .sub-editor-head {
   display: flex;
 }
@@ -760,7 +925,8 @@ button:disabled {
 .actions button,
 .query-panel button,
 .editor-modal footer button,
-.sub-editor-head button {
+.sub-goal-modal footer button,
+.add-inline-sub-goal {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -775,7 +941,8 @@ button:disabled {
 
 .actions .primary,
 .editor-modal .primary,
-.sub-editor-head button {
+.sub-goal-modal .primary,
+.add-inline-sub-goal {
   background: #1c1b1b;
   color: #ffffff;
 }
@@ -786,11 +953,9 @@ button:disabled {
 
 .query-panel input,
 .query-panel select,
-.form-grid input,
-.form-grid select,
-.form-grid textarea,
-.sub-edit-row input,
-.sub-edit-row textarea {
+.stage-goal-block input,
+.stage-goal-block select,
+.stage-sub-goal-block input {
   border: 1px solid rgba(196, 199, 199, 0.58);
   border-radius: 12px;
   padding: 10px 12px;
@@ -859,6 +1024,13 @@ tbody tr.selected {
   text-align: center;
 }
 
+.goal-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
 .expand-col button {
   display: grid;
   width: 30px;
@@ -867,6 +1039,11 @@ tbody tr.selected {
   border-radius: 10px;
   background: rgba(224, 227, 229, 0.68);
   color: #1c1b1b;
+}
+
+.expand-col .add-sub-goal-button {
+  background: #1c1b1b;
+  color: #ffffff;
 }
 
 .strong {
@@ -1201,7 +1378,8 @@ tbody tr.selected {
 
 .confirm-modal,
 .export-modal,
-.editor-modal {
+.editor-modal,
+.sub-goal-modal {
   width: min(100%, 760px);
   border: 1px solid rgba(255, 255, 255, 0.65);
   border-radius: 22px;
@@ -1309,8 +1487,84 @@ tbody tr.selected {
   padding: 22px;
 }
 
+.sub-goal-modal {
+  display: grid;
+  width: min(100%, 940px);
+  gap: 20px;
+  padding: 22px;
+}
+
+.sub-goal-modal header,
+.sub-goal-modal footer {
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sub-goal-modal header p {
+  margin-top: 6px;
+  color: #5c5f61;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sub-goal-modal header > button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 12px;
+  background: #f1edec;
+}
+
+.sub-goal-fields {
+  display: grid;
+  gap: 10px;
+  max-height: min(52vh, 440px);
+  overflow-y: auto;
+}
+
+.sub-goal-field-head,
+.sub-goal-field-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) minmax(260px, 1.4fr) 150px 40px;
+  gap: 10px;
+  align-items: center;
+}
+
+.sub-goal-field-head {
+  padding: 0 2px;
+  color: #444748;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.sub-goal-field-row input {
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid rgba(196, 199, 199, 0.58);
+  border-radius: 12px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #1c1b1b;
+  font: 700 13px/1.4 Inter, sans-serif;
+  outline: none;
+}
+
+.append-sub-goal-button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 12px;
+  background: #1c1b1b;
+  color: #ffffff;
+}
+
 .editor-modal header,
 .editor-modal footer,
+.sub-goal-modal header,
+.sub-goal-modal footer,
 .sub-editor-head {
   align-items: center;
   justify-content: space-between;
@@ -1326,22 +1580,22 @@ tbody tr.selected {
   background: #f1edec;
 }
 
-.form-grid {
+.stage-goal-block,
+.stage-sub-goal-block {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(140px, 0.9fr) minmax(130px, 0.7fr) minmax(220px, 1.4fr);
   gap: 12px;
+  align-items: end;
 }
 
-.form-grid label {
+.stage-goal-block label,
+.stage-sub-goal-block label {
   display: grid;
+  min-width: 0;
   gap: 7px;
   color: #444748;
   font-size: 12px;
   font-weight: 900;
-}
-
-.form-grid .wide {
-  grid-column: 1 / -1;
 }
 
 .sub-editor {
@@ -1349,21 +1603,8 @@ tbody tr.selected {
   gap: 12px;
 }
 
-.sub-edit-row {
-  display: grid;
-  grid-template-columns: minmax(120px, 0.8fr) 110px minmax(180px, 1.2fr) 40px;
-  gap: 10px;
-  align-items: start;
-}
-
-.sub-edit-row button {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  place-items: center;
-  border-radius: 12px;
-  background: rgba(186, 26, 26, 0.1);
-  color: #ba1a1a;
+.add-inline-sub-goal {
+  justify-self: center;
 }
 
 @media (max-width: 980px) {
@@ -1378,7 +1619,8 @@ tbody tr.selected {
   }
 
   .detail-card,
-  .form-grid {
+  .stage-goal-block,
+  .stage-sub-goal-block {
     grid-template-columns: 1fr;
   }
 
@@ -1386,8 +1628,28 @@ tbody tr.selected {
     grid-template-columns: 1fr;
   }
 
-  .sub-edit-row {
-    grid-template-columns: 1fr;
+  .sub-goal-field-head {
+    display: none;
+  }
+
+  .sub-goal-field-row {
+    grid-template-columns: 1fr 1fr 120px 40px;
+  }
+
+}
+
+@media (max-width: 680px) {
+  .sub-goal-field-row {
+    grid-template-columns: 1fr 40px;
+  }
+
+  .sub-goal-field-row input {
+    grid-column: 1;
+  }
+
+  .sub-goal-field-row .append-sub-goal-button {
+    grid-column: 2;
+    grid-row: 1 / span 3;
   }
 }
 </style>

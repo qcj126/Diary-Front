@@ -157,6 +157,21 @@ export function addGoal(goal) {
   return postJson(GOAL_API.add, createGoalDTO(goal), '新增阶段目标失败')
 }
 
+export function batchAddSubGoals(stageId, subGoals = []) {
+  const defaults = sessionDefaults()
+  const payload = toList(subGoals).map((sub) =>
+    compactObject({
+      stageId,
+      userId: defaults.userId,
+      title: String(sub.title ?? '').trim(),
+      content: String(sub.content ?? '').trim(),
+      learnedHours: toNumber(sub.learnedHours),
+      estimatedHours: toNumber(sub.estimatedHours),
+    }),
+  )
+  return postJson(GOAL_API.batchAddSubGoal, payload, '批量新增小目标失败')
+}
+
 export function updateGoal(goal) {
   return postJson(GOAL_API.update, createGoalDTO(goal), '修改阶段目标失败')
 }

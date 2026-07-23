@@ -34,6 +34,7 @@ export const TIMELINE_API = {
 
 export const GOAL_API = {
   add: `${API_BASE}/goal/add`,
+  batchAddSubGoal: `${API_BASE}/goal/batch/addSubGoal`,
   delete: `${API_BASE}/goal/delete`,
   update: `${API_BASE}/goal/update`,
   query: `${API_BASE}/goal/query`,
