@@ -64,6 +64,10 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(number) ? number : fallback
 }
 
+function toHours(value, fallback = 0) {
+  return Number(toNumber(value, fallback).toFixed(1))
+}
+
 function compactObject(object) {
   return Object.fromEntries(
     Object.entries(object).filter(([, value]) => value !== '' && value !== null && value !== undefined),
@@ -81,17 +85,17 @@ function sessionDefaults() {
 export function normalizeGoal(raw = {}) {
   const subcategories = toList(raw.subGoals ?? raw.subcategories).map((sub) => ({
     id: sub.id ?? null,
-    stageGoalId: sub.stageGoalId ?? raw.id ?? null,
+    stageId: sub.stageId ?? sub.stageGoalId ?? raw.id ?? null,
     name: sub.title ?? sub.name ?? '',
     content: sub.content ?? '',
-    learnedHours: toNumber(sub.learnedHours),
-    estimatedHours: toNumber(sub.estimatedHours),
+    learnedHours: toHours(sub.learnedHours),
+    estimatedHours: toHours(sub.estimatedHours),
     createdAt: sub.createTime ?? sub.createdAt ?? raw.createTime ?? '',
     updatedAt: sub.updateTime ?? sub.updatedAt ?? raw.updateTime ?? '',
     daysSinceUpdate: toNumber(sub.daysSinceUpdate ?? raw.daysSinceUpdate),
   }))
-  const learnedHours = toNumber(raw.learnedHours, subcategories.reduce((sum, sub) => sum + sub.learnedHours, 0))
-  const estimatedHours = toNumber(raw.estimatedHours, subcategories.reduce((sum, sub) => sum + sub.estimatedHours, 0))
+  const learnedHours = toHours(raw.learnedHours, subcategories.reduce((sum, sub) => sum + sub.learnedHours, 0))
+  const estimatedHours = toHours(raw.estimatedHours, subcategories.reduce((sum, sub) => sum + sub.estimatedHours, 0))
   const progress = toNumber(
     raw.progress,
     estimatedHours ? Math.min(Math.round((learnedHours / estimatedHours) * 100), 100) : 0,
@@ -107,7 +111,7 @@ export function normalizeGoal(raw = {}) {
     content: raw.description ?? raw.content ?? '',
     learnedHours,
     estimatedHours,
-    remainingHours: toNumber(raw.remainingHours, Math.max(estimatedHours - learnedHours, 0)),
+    remainingHours: toHours(raw.remainingHours, Math.max(estimatedHours - learnedHours, 0)),
     progress,
     createdAt: raw.createTime ?? raw.createdAt ?? '',
     updatedAt: raw.updateTime ?? raw.updatedAt ?? '',
@@ -128,11 +132,11 @@ export function createGoalDTO(goal = {}) {
     subGoals: toList(goal.subcategories ?? goal.subGoals).map((sub) =>
       compactObject({
         id: sub.id ?? null,
-        stageGoalId: sub.stageGoalId ?? goal.id ?? null,
+        stageId: sub.stageId ?? sub.stageGoalId ?? goal.id ?? null,
         title: sub.name ?? sub.title ?? '',
         content: sub.content ?? '',
-        learnedHours: toNumber(sub.learnedHours),
-        estimatedHours: toNumber(sub.estimatedHours),
+        learnedHours: toHours(sub.learnedHours),
+        estimatedHours: toHours(sub.estimatedHours),
       }),
     ),
   })
@@ -165,8 +169,8 @@ export function batchAddSubGoals(stageId, subGoals = []) {
       userId: defaults.userId,
       title: String(sub.title ?? '').trim(),
       content: String(sub.content ?? '').trim(),
-      learnedHours: toNumber(sub.learnedHours),
-      estimatedHours: toNumber(sub.estimatedHours),
+      learnedHours: toHours(sub.learnedHours),
+      estimatedHours: toHours(sub.estimatedHours),
     }),
   )
   return postJson(GOAL_API.batchAddSubGoal, payload, '批量新增小目标失败')

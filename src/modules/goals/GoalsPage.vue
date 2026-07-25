@@ -49,7 +49,6 @@
       <div class="table-wrap">
         <table>
           <colgroup>
-            <col :style="{ width: `${columnWidths.main.select}px` }" />
             <col :style="{ width: `${columnWidths.main.expand}px` }" />
             <col :style="{ width: `${columnWidths.main.creator}px` }" />
             <col :style="{ width: `${columnWidths.main.category}px` }" />
@@ -62,11 +61,11 @@
             <col :style="{ width: `${columnWidths.main.date}px` }" />
             <col :style="{ width: `${columnWidths.main.date}px` }" />
             <col :style="{ width: `${columnWidths.main.stale}px` }" />
+            <col :style="{ width: `${columnWidths.main.select}px` }" />
           </colgroup>
           <thead>
             <tr>
-              <th class="select-col"></th>
-              <th class="expand-col"></th>
+              <th class="goal-menu-col"></th>
               <th>创建人</th>
               <th>分类</th>
               <th>标题</th>
@@ -78,17 +77,15 @@
               <th>创建时间</th>
               <th>修改时间</th>
               <th>距上次更新</th>
+              <th class="select-col"></th>
             </tr>
           </thead>
           <tbody>
             <template v-for="goal in filteredGoals" :key="goal.id">
               <tr :class="{ selected: selectedIds.includes(goal.id), expanded: expandedIds.includes(goal.id) }">
-                <td class="select-col">
-                  <input v-model="selectedIds" type="checkbox" :value="goal.id" :aria-label="`选择${goal.title}`" />
-                </td>
-                <td class="expand-col">
+                <td class="goal-menu-col">
                   <div class="goal-row-actions">
-                    <button type="button" :aria-label="`展开${goal.title}`" @click="toggleExpand(goal.id)">
+                    <button type="button" aria-label="toggle stage goal" @click="toggleExpand(goal.id)">
                       <span class="material-symbols-outlined">
                         {{ expandedIds.includes(goal.id) ? 'expand_less' : 'expand_more' }}
                       </span>
@@ -108,21 +105,24 @@
                 <td><span class="tag">{{ goal.category }}</span></td>
                 <td class="strong">{{ goal.title }}</td>
                 <td class="content-cell">{{ goal.content }}</td>
-                <td>{{ goal.learnedHours }}h</td>
-                <td>{{ remainingHours(goal) }}h</td>
+                <td>{{ formatHours(goal.learnedHours) }}h</td>
+                <td>{{ formatHours(remainingHours(goal)) }}h</td>
                 <td>
                   <div class="progress-cell">
                     <span>{{ goal.progress }}%</span>
                     <i><b :style="{ width: `${goal.progress}%` }" /></i>
                   </div>
                 </td>
-                <td>{{ goal.estimatedHours }}h</td>
+                <td>{{ formatHours(goal.estimatedHours) }}h</td>
                 <td><span class="time-stack"><span>{{ datePart(goal.createdAt) }}</span><span>{{ timePart(goal.createdAt) }}</span></span></td>
                 <td><span class="time-stack"><span>{{ datePart(goal.updatedAt) }}</span><span>{{ timePart(goal.updatedAt) }}</span></span></td>
                 <td>
                   <span :class="['stale-pill', { warn: goal.daysSinceUpdate >= 3 }]">
                     {{ goal.daysSinceUpdate }}天
                   </span>
+                </td>
+                <td class="select-col">
+                  <input v-model="selectedIds" type="checkbox" :value="goal.id" aria-label="select stage goal" />
                 </td>
               </tr>
               <tr v-if="expandedIds.includes(goal.id)" class="detail-row">
@@ -134,7 +134,7 @@
                         <div v-for="sub in goal.subcategories" :key="`gap-${sub.name}`" class="sub-gap-row">
                           <div class="sub-gap-meta">
                             <span>{{ sub.name }}</span>
-                            <strong>{{ sub.learnedHours }}/{{ sub.estimatedHours }}h</strong>
+                            <strong>{{ formatHours(sub.learnedHours) }}/{{ formatHours(sub.estimatedHours) }}h</strong>
                           </div>
                           <div class="sub-gap-track">
                             <i class="total" />
@@ -156,6 +156,7 @@
                           <col :style="{ width: `${columnWidths.main.date}px` }" />
                           <col :style="{ width: `${columnWidths.main.date}px` }" />
                           <col :style="{ width: `${columnWidths.main.stale}px` }" />
+                          <col :style="{ width: `${columnWidths.main.select}px` }" />
                         </colgroup>
                         <thead>
                         <tr>
@@ -168,14 +169,15 @@
                           <th>创建时间</th>
                           <th>修改时间</th>
                           <th>距上次更新</th>
+                          <th class="select-col"></th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr v-for="(sub, subIndex) in goal.subcategories" :key="sub.name">
                           <td class="strong">{{ sub.name }}</td>
                           <td class="content-cell">{{ sub.content }}</td>
-                          <td>{{ sub.learnedHours }}h</td>
-                          <td>{{ subRemainingHours(sub) }}h</td>
+                          <td>{{ formatHours(sub.learnedHours) }}h</td>
+                          <td>{{ formatHours(subRemainingHours(sub)) }}h</td>
                           <td>
                             <div class="sub-progress-with-controls">
                               <div class="sub-progress-controls-top" role="group" aria-label="sub progress controls">
@@ -195,13 +197,16 @@
                               </div>
                             </div>
                           </td>
-                          <td>{{ sub.estimatedHours }}h</td>
+                          <td>{{ formatHours(sub.estimatedHours) }}h</td>
                           <td><span class="time-stack"><span>{{ datePart(sub.createdAt) }}</span><span>{{ timePart(sub.createdAt) }}</span></span></td>
                           <td><span class="time-stack"><span>{{ datePart(sub.updatedAt) }}</span><span>{{ timePart(sub.updatedAt) }}</span></span></td>
                           <td>
                               <span :class="['stale-pill', { warn: sub.daysSinceUpdate >= 3 }]">
                                 {{ sub.daysSinceUpdate }}天
                               </span>
+                          </td>
+                          <td class="select-col">
+                            <input v-model="selectedSubGoalKeys" type="checkbox" :value="subKey(goal, sub)" aria-label="select sub goal" />
                           </td>
                         </tr>
                         </tbody>
@@ -363,9 +368,8 @@
             <input v-model.trim="draft.content" required type="text" />
           </label>
         </div>
-
         <section class="sub-editor">
-          <button type="button" class="add-inline-sub-goal" @click="addDraftSubcategory">
+          <button v-if="editorMode === 'create'" type="button" class="add-inline-sub-goal" @click="addDraftSubcategory">
             <span class="material-symbols-outlined">add</span>
             添加小目标
           </button>
@@ -375,16 +379,15 @@
               <input v-model.trim="sub.name" type="text" placeholder="小目标标题" />
             </label>
             <label>
-              <span>学习内容</span>
-              <input v-model.trim="sub.content" type="text" placeholder="小目标学习内容" />
-            </label>
-            <label>
               <span>预计用时</span>
               <input v-model.number="sub.estimatedHours" type="number" min="0" step="0.1" placeholder="预计用时" />
             </label>
+            <label>
+              <span>学习内容</span>
+              <input v-model.trim="sub.content" type="text" placeholder="小目标学习内容" />
+            </label>
           </article>
         </section>
-
         <footer>
           <button type="button" @click="closeEditor">取消</button>
           <button type="submit" class="primary" :disabled="saving">{{ saving ? '保存中' : '保存' }}</button>
@@ -427,6 +430,7 @@ const columnWidths = {
 
 const expandedIds = ref([])
 const selectedIds = ref([])
+const selectedSubGoalKeys = ref([])
 const queryPanelOpen = ref(false)
 const editorOpen = ref(false)
 const editorMode = ref('create')
@@ -472,6 +476,15 @@ const emptyDraft = () => ({
 const draft = reactive(emptyDraft())
 const goals = ref([])
 
+function roundHours(value) {
+  const number = Number(value)
+  return Number.isFinite(number) ? Number(number.toFixed(1)) : 0
+}
+
+function formatHours(value) {
+  return String(roundHours(value))
+}
+
 const filteredGoals = computed(() =>
   goals.value.filter((goal) => {
     const creatorHit = !filters.creator || goal.creator.includes(filters.creator)
@@ -483,11 +496,11 @@ const filteredGoals = computed(() =>
 )
 
 function remainingHours(goal) {
-  return Math.max((Number(goal.estimatedHours) || 0) - (Number(goal.learnedHours) || 0), 0)
+  return roundHours(Math.max((Number(goal.estimatedHours) || 0) - (Number(goal.learnedHours) || 0), 0))
 }
 
 function subRemainingHours(sub) {
-  return Math.max((Number(sub.estimatedHours) || 0) - (Number(sub.learnedHours) || 0), 0)
+  return roundHours(Math.max((Number(sub.estimatedHours) || 0) - (Number(sub.learnedHours) || 0), 0))
 }
 
 function subProgress(sub) {
@@ -530,6 +543,8 @@ async function loadGoals(showSuccess = false) {
     const ids = nextGoals.map((goal) => goal.id)
     selectedIds.value = selectedIds.value.filter((id) => ids.includes(id))
     expandedIds.value = expandedIds.value.filter((id) => ids.includes(id))
+    const subKeys = nextGoals.flatMap((goal) => goal.subcategories.map((sub) => subKey(goal, sub)))
+    selectedSubGoalKeys.value = selectedSubGoalKeys.value.filter((key) => subKeys.includes(key))
     if (showSuccess) showToast('查询完成')
   } catch (error) {
     showToast(error instanceof Error ? error.message : '查询阶段目标失败')
@@ -553,7 +568,7 @@ async function changeSubHours(goal, subIndex, delta) {
     subDaysSinceUpdate: sub.daysSinceUpdate,
   }
   const nextHours = Math.min(Math.max((Number(sub.learnedHours) || 0) + delta, 0), Number(sub.estimatedHours) || 0)
-  sub.learnedHours = nextHours
+  sub.learnedHours = roundHours(nextHours)
   sub.updatedAt = currentDateTime()
   sub.daysSinceUpdate = 0
   recalculateGoal(goal)
@@ -578,8 +593,8 @@ async function changeSubHours(goal, subIndex, delta) {
 }
 
 function recalculateGoal(goal) {
-  goal.learnedHours = goal.subcategories.reduce((sum, sub) => sum + (Number(sub.learnedHours) || 0), 0)
-  goal.estimatedHours = goal.subcategories.reduce((sum, sub) => sum + (Number(sub.estimatedHours) || 0), 0)
+  goal.learnedHours = roundHours(goal.subcategories.reduce((sum, sub) => sum + (Number(sub.learnedHours) || 0), 0))
+  goal.estimatedHours = roundHours(goal.subcategories.reduce((sum, sub) => sum + (Number(sub.estimatedHours) || 0), 0))
   goal.progress = goal.estimatedHours ? Math.min(Math.round((goal.learnedHours / goal.estimatedHours) * 100), 100) : 0
   goal.updatedAt = currentDateTime()
   goal.daysSinceUpdate = 0
@@ -624,7 +639,7 @@ async function saveSubGoals() {
     title: subGoal.title.trim(),
     content: subGoal.content.trim(),
     learnedHours: 0,
-    estimatedHours: Number(subGoal.estimatedHours),
+    estimatedHours: roundHours(subGoal.estimatedHours),
   }))
   const invalid = !stageId || payload.some(
     (subGoal) =>
@@ -693,6 +708,7 @@ async function confirmDelete() {
     goals.value = goals.value.filter((goal) => !selectedIds.value.includes(goal.id))
     expandedIds.value = expandedIds.value.filter((id) => !selectedIds.value.includes(id))
     selectedIds.value = []
+    selectedSubGoalKeys.value = selectedSubGoalKeys.value.filter((key) => goals.value.some((goal) => goal.subcategories.some((sub) => subKey(goal, sub) === key)))
     confirmDeleteOpen.value = false
     showToast('删除成功')
   } catch (error) {
@@ -748,9 +764,6 @@ function addDraftSubcategory() {
   draft.subcategories.push({ name: '', content: '', learnedHours: 0, estimatedHours: '' })
 }
 
-function removeDraftSubcategory(index) {
-  draft.subcategories.splice(index, 1)
-}
 
 async function saveGoal() {
   const invalidSubcategory = draft.subcategories.some((sub) => {
@@ -775,18 +788,18 @@ async function saveGoal() {
       const previous = existingGoal?.subcategories.find((item) => item.id === sub.id || item.name === sub.name)
       return {
         id: sub.id ?? previous?.id ?? null,
-        stageGoalId: sub.stageGoalId ?? previous?.stageGoalId ?? existingGoal?.id ?? null,
+        stageId: sub.stageId ?? sub.stageGoalId ?? previous?.stageId ?? previous?.stageGoalId ?? existingGoal?.id ?? null,
         name: sub.name,
         content: sub.content,
-        learnedHours: Number(sub.learnedHours) || 0,
-        estimatedHours: Number(sub.estimatedHours) || 0,
+        learnedHours: roundHours(sub.learnedHours),
+        estimatedHours: roundHours(sub.estimatedHours),
         createdAt: sub.createdAt || previous?.createdAt || now,
         updatedAt: now,
         daysSinceUpdate: 0,
       }
     })
-  const estimatedHours = subcategories.reduce((sum, sub) => sum + sub.estimatedHours, 0)
-  const learnedHours = subcategories.reduce((sum, sub) => sum + sub.learnedHours, 0)
+  const estimatedHours = roundHours(subcategories.reduce((sum, sub) => sum + sub.estimatedHours, 0))
+  const learnedHours = roundHours(subcategories.reduce((sum, sub) => sum + sub.learnedHours, 0))
   const progress = estimatedHours ? Math.min(Math.round((learnedHours / estimatedHours) * 100), 100) : 0
   const payload = {
     ...existingGoal,
@@ -844,8 +857,7 @@ onMounted(() => {
 .editor-modal header,
 .editor-modal footer,
 .sub-goal-modal header,
-.sub-goal-modal footer,
-.sub-editor-head {
+.sub-goal-modal footer {
   display: flex;
 }
 
@@ -1019,29 +1031,46 @@ tbody tr.selected {
   background: rgba(76, 175, 80, 0.09);
 }
 
-.select-col,
-.expand-col {
+.goal-menu-col {
+  text-align: left;
+}
+
+.select-col {
   text-align: center;
+}
+
+.select-col input[type="checkbox"] {
+  margin: 0;
 }
 
 .goal-row-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
+  justify-content: flex-start;
+  gap: 8px;
 }
 
-.expand-col button {
-  display: grid;
+
+.goal-row-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 30px;
   width: 30px;
   height: 30px;
-  place-items: center;
+  padding: 0;
   border-radius: 10px;
   background: rgba(224, 227, 229, 0.68);
   color: #1c1b1b;
 }
 
-.expand-col .add-sub-goal-button {
+.goal-row-actions button .material-symbols-outlined {
+  display: block;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.goal-row-actions .add-sub-goal-button {
   background: #1c1b1b;
   color: #ffffff;
 }
@@ -1287,10 +1316,12 @@ tbody tr.selected {
 }
 
 .sub-btn {
-  display: grid;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 34px;
   height: 34px;
-  place-items: center;
+  padding: 0;
   border-radius: 50%;
   background: #ffffff;
   color: #9a5a00;
@@ -1305,6 +1336,12 @@ tbody tr.selected {
 
 .sub-btn.plus {
   justify-self: end;
+}
+
+.sub-btn .material-symbols-outlined {
+  display: block;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .sub-btn:hover {
@@ -1564,8 +1601,7 @@ tbody tr.selected {
 .editor-modal header,
 .editor-modal footer,
 .sub-goal-modal header,
-.sub-goal-modal footer,
-.sub-editor-head {
+.sub-goal-modal footer {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -1583,7 +1619,7 @@ tbody tr.selected {
 .stage-goal-block,
 .stage-sub-goal-block {
   display: grid;
-  grid-template-columns: minmax(140px, 0.9fr) minmax(130px, 0.7fr) minmax(220px, 1.4fr);
+  grid-template-columns: minmax(150px, 0.9fr) minmax(96px, 0.45fr) minmax(300px, 1.8fr);
   gap: 12px;
   align-items: end;
 }
@@ -1598,9 +1634,18 @@ tbody tr.selected {
   font-weight: 900;
 }
 
+.stage-goal-block input,
+.stage-goal-block select,
+.stage-sub-goal-block input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+
 .sub-editor {
   display: grid;
   gap: 12px;
+  width: 100%;
 }
 
 .add-inline-sub-goal {
