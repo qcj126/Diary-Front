@@ -62,7 +62,13 @@
         >
           <div class="card-top">
             <span class="mood-pill">{{ moodIcon(thought.mood) }} {{ thought.mood }}</span>
-            <button type="button" :aria-label="thought.favorite ? '取消收藏' : '收藏'" @click.stop="toggleFavorite(thought)">
+            <button
+              type="button"
+              class="favorite-toggle"
+              :class="{ active: thought.favorite }"
+              :aria-label="thought.favorite ? '取消收藏' : '收藏'"
+              @click.stop="toggleFavorite(thought)"
+            >
               <span class="material-symbols-outlined">{{ thought.favorite ? 'star' : 'star_border' }}</span>
             </button>
           </div>
@@ -783,6 +789,15 @@ select {
   min-height: 34px;
   padding: 0;
   border-radius: 999px;
+}
+.card-top .favorite-toggle.active {
+  border-color: rgba(245, 158, 11, 0.34);
+  background: rgba(245, 158, 11, 0.14);
+  color: #f59e0b;
+}
+.card-top .favorite-toggle.active .material-symbols-outlined {
+  color: #f59e0b;
+  font-variation-settings: 'FILL' 1;
 }
 .mood-pill {
   padding: 6px 10px;

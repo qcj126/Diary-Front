@@ -249,7 +249,14 @@ export function useTimelineEvents() {
     return categories.value.find((category) => category.key === categoryKey)?.id ?? null
   }
 
-  async function refreshCards({ categoryKey = selectedCategory.value, nextPageIndex = 1, append = false } = {}) {
+  async function refreshCards({
+    categoryKey = selectedCategory.value,
+    nextPageIndex = 1,
+    nextPageSize = pageSize,
+    daysAgo = null,
+    exactDate = '',
+    append = false,
+  } = {}) {
     const token = cardQueryToken + 1
     cardQueryToken = token
     const categoryId = getCategoryIdByKey(categoryKey)
@@ -258,7 +265,9 @@ export function useTimelineEvents() {
       categoryId,
       deleted: 0,
       pageIndex: nextPageIndex,
-      pageSize,
+      pageSize: nextPageSize,
+      daysAgo,
+      exactDate,
     })
     if (token !== cardQueryToken) return
 
@@ -269,7 +278,7 @@ export function useTimelineEvents() {
     if (token !== cardQueryToken) return
 
     pageIndex.value = nextPageIndex
-    hasMoreCards.value = mappedEvents.length >= pageSize
+    hasMoreCards.value = mappedEvents.length >= nextPageSize
     events.value = append ? [...events.value, ...nextEvents] : nextEvents
   }
 
@@ -401,5 +410,6 @@ export function useTimelineEvents() {
     createEvent,
     updateEvent,
     removeEvent,
+    refreshCards,
   }
 }

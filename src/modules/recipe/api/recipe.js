@@ -143,10 +143,52 @@ async function postJson(url, body, fallback) {
 }
 
 const toList = (value) => (Array.isArray(value) ? value : [])
+const toPayloadList = (value) => {
+  if (Array.isArray(value)) return value
+  if (Array.isArray(value?.records)) return value.records
+  if (Array.isArray(value?.list)) return value.list
+  if (Array.isArray(value?.rows)) return value.rows
+  return value ? [value] : []
+}
 const toNumberOrNull = (value) => {
   if (value === '' || value === null || value === undefined) return null
   const numberValue = Number(value)
   return Number.isFinite(numberValue) ? numberValue : null
+}
+
+function normalizeRecipeCategory(raw = {}, index = 0) {
+  const id = raw.id ?? raw.categoryId ?? raw.value
+  const label = raw.categoryName ?? raw.label ?? raw.name ?? '未命名分类'
+  const iconId = raw.iconId ?? raw.iconID ?? raw.icon?.id ?? null
+  const iconUrl = raw.iconUrl ?? raw.iconURL ?? raw.iconPath ?? raw.icon?.url ?? raw.icon?.iconUrl ?? ''
+  const icon = iconUrl || (raw.categoryIcon ?? raw.icon ?? 'restaurant')
+
+  return {
+    ...raw,
+    id,
+    key: String(id ?? raw.key ?? `category_${index}`),
+    label,
+    icon,
+    iconId,
+    iconUrl,
+    value: id,
+    sort: Number(raw.sort ?? index + 1),
+  }
+}
+
+function normalizeRecipeIcon(raw = {}, index = 0) {
+  const id = raw.id ?? raw.iconId ?? raw.iconID ?? raw.value
+  const iconUrl = raw.iconUrl ?? raw.iconURL ?? raw.url ?? raw.path ?? raw.iconPath ?? ''
+  const label = raw.iconName ?? raw.name ?? raw.label ?? raw.manuName ?? `图标 ${index + 1}`
+
+  return {
+    ...raw,
+    id,
+    iconId: id,
+    label,
+    iconUrl,
+    icon: iconUrl || (raw.icon ?? raw.code ?? 'category'),
+  }
 }
 
 function normalizeIngredient(ingredient, index) {
@@ -338,6 +380,29 @@ export async function queryRecipes(params = {}) {
   return attachRecipeImageUrls(normalizeRecipePage(payload))
 }
 
+export async function queryRecipeCategories() {
+  const payload = await postJson(RECIPE_API.queryCategory, {}, '查询分类失败')
+  return toPayloadList(payload)
+    .map(normalizeRecipeCategory)
+    .sort((a, b) => a.sort - b.sort)
+}
+
+export function addRecipeCategory(category) {
+  return postJson(
+    RECIPE_API.addCategory,
+    {
+      categoryName: category.categoryName,
+      iconId: category.iconId,
+    },
+    '新增分类失败',
+  )
+}
+
+export async function queryRecipeIcons(manuName) {
+  const payload = await postJson(RECIPE_API.queryIcons, { manuName }, '查询图标失败')
+  return toPayloadList(payload).map(normalizeRecipeIcon)
+}
+
 export function addRecipe(recipe) {
   return postJson(RECIPE_API.add, createRecipeDTO(recipe), '新增食谱失败')
 }
@@ -348,4 +413,8 @@ export function updateRecipe(recipe) {
 
 export function deleteRecipe(recipeId) {
   return postJson(RECIPE_API.delete, { recipeId }, '删除食谱失败')
+}
+
+export function deleteRecipeCategories(ids) {
+  return postJson(RECIPE_API.deleteCategory, { ids }, '删除分类失败')
 }

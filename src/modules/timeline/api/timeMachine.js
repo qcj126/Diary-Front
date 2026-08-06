@@ -60,6 +60,8 @@ export function createCardDTO(card = {}) {
     deleted: card.deleted ?? 0,
     pageIndex: card.pageIndex ?? 1,
     pageSize: card.pageSize ?? 25,
+    daysAgo: card.daysAgo ?? null,
+    exactDate: card.exactDate ?? '',
   }
 }
 

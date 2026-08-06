@@ -46,8 +46,12 @@ export const RECIPE_API = {
   query: `${API_BASE}/recipe/query`,
   update: `${API_BASE}/recipe/update`,
   delete: `${API_BASE}/recipe/delete`,
+  addCategory: `${API_BASE}/recipe/add/category`,
+  queryCategory: `${API_BASE}/recipe/query/category`,
+  deleteCategory: `${API_BASE}/recipe/delete/category`,
   uploadImages: `${API_BASE}/file/upload/images`,
   queryImageUrls: `${API_BASE}/file/query/images/urls`,
+  queryIcons: `${API_BASE}/icon/query`,
 }
 
 export const API_ENDPOINTS = {

@@ -83,7 +83,7 @@
           :hasMore="hasMore"
           :totalEventsCount="filteredEventsCount"
           :selected-event-ids="selectedEventIds"
-          @load-more="loadMore"
+          @load-more="handleLoadMore"
           @select-event="selectEvent"
           @toggle-event-selection="toggleEventSelection"
         />
@@ -220,6 +220,7 @@ const {
   createEvent,
   updateEvent,
   removeEvent,
+  refreshCards,
 } = useTimelineEvents()
 
 const selectedEvent = computed(() => {
@@ -250,8 +251,7 @@ const selectedQueryPage = computed(() => {
 })
 
 const currentPageEvents = computed(() => {
-  const start = (selectedQueryPage.value - 1) * selectedPageSize.value
-  return filteredEvents.value.slice(start, start + selectedPageSize.value)
+  return filteredEvents.value.slice(0, selectedPageSize.value)
 })
 
 const filteredEventsCount = computed(() => filteredEvents.value.length)
@@ -479,16 +479,40 @@ function normalizeQueryPage() {
   queryFilters.page = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1
 }
 
-function applyQueryFilters() {
-  normalizeQueryPage()
+function buildCardQueryParams({ append = false, nextPageIndex = selectedQueryPage.value } = {}) {
+  return {
+    categoryKey: queryFilters.categoryKey,
+    nextPageIndex,
+    nextPageSize: selectedPageSize.value,
+    daysAgo: queryFilters.daysAgo === '' ? null : queryFilters.daysAgo,
+    exactDate: queryFilters.exactDate,
+    append,
+  }
 }
 
-function resetQueryFilters() {
+async function applyQueryFilters() {
+  normalizeQueryPage()
+  await refreshCards(buildCardQueryParams())
+}
+
+async function handleLoadMore() {
+  if (!queryPanelOpen.value) {
+    await loadMore()
+    return
+  }
+  if (!hasMore.value) return
+  const nextPageIndex = selectedQueryPage.value + 1
+  queryFilters.page = nextPageIndex
+  await refreshCards(buildCardQueryParams({ append: true, nextPageIndex }))
+}
+
+async function resetQueryFilters() {
   queryFilters.daysAgo = null
   queryFilters.exactDate = ''
   queryFilters.categoryKey = selectedCategory.value === 'all' ? 'all' : selectedCategory.value
   queryFilters.pageSize = 30
   queryFilters.page = 1
+  await refreshCards(buildCardQueryParams())
 }
 
 function openExactDatePicker() {
