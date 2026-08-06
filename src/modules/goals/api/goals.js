@@ -91,6 +91,7 @@ export function normalizeGoal(raw = {}) {
     learnedHours: toHours(sub.learnedHours),
     estimatedHours: toHours(sub.estimatedHours),
     createdAt: sub.createTime ?? sub.createdAt ?? raw.createTime ?? '',
+    ddl: sub.ddl ?? '',
     updatedAt: sub.updateTime ?? sub.updatedAt ?? raw.updateTime ?? '',
     daysSinceUpdate: toNumber(sub.daysSinceUpdate ?? raw.daysSinceUpdate),
   }))
@@ -114,6 +115,7 @@ export function normalizeGoal(raw = {}) {
     remainingHours: toHours(raw.remainingHours, Math.max(estimatedHours - learnedHours, 0)),
     progress,
     createdAt: raw.createTime ?? raw.createdAt ?? '',
+    ddl: raw.ddl ?? '',
     updatedAt: raw.updateTime ?? raw.updatedAt ?? '',
     daysSinceUpdate: toNumber(raw.daysSinceUpdate),
     subcategories,

@@ -40,6 +40,11 @@
         </select>
         <input v-model.trim="filters.title" type="text" placeholder="标题" />
         <input v-model.number="filters.recentDays" type="number" min="0" placeholder="最近X天" />
+        <select v-model="filters.ddlStatus">
+          <option value="">全部DDL</option>
+          <option value="expired">已到期</option>
+          <option value="dueSoon">即将到期</option>
+        </select>
         <button type="submit" :disabled="loading">{{ loading ? '查询中' : '查询' }}</button>
         <button type="button" :disabled="loading" @click="resetFilters">重置</button>
       </form>
@@ -59,6 +64,7 @@
             <col :style="{ width: `${columnWidths.main.progress}px` }" />
             <col :style="{ width: `${columnWidths.main.estimated}px` }" />
             <col :style="{ width: `${columnWidths.main.date}px` }" />
+            <col :style="{ width: `${columnWidths.main.ddl}px` }" />
             <col :style="{ width: `${columnWidths.main.date}px` }" />
             <col :style="{ width: `${columnWidths.main.stale}px` }" />
             <col :style="{ width: `${columnWidths.main.select}px` }" />
@@ -75,6 +81,7 @@
               <th>进度</th>
               <th>预计用时</th>
               <th>创建时间</th>
+              <th>DDL</th>
               <th>修改时间</th>
               <th>距上次更新</th>
               <th class="select-col"></th>
@@ -115,6 +122,7 @@
                 </td>
                 <td>{{ formatHours(goal.estimatedHours) }}h</td>
                 <td><span class="time-stack"><span>{{ datePart(goal.createdAt) }}</span><span>{{ timePart(goal.createdAt) }}</span></span></td>
+                <td>{{ formatDateTime(goal.ddl) }}</td>
                 <td><span class="time-stack"><span>{{ datePart(goal.updatedAt) }}</span><span>{{ timePart(goal.updatedAt) }}</span></span></td>
                 <td>
                   <span :class="['stale-pill', { warn: goal.daysSinceUpdate >= 3 }]">
@@ -126,7 +134,7 @@
                 </td>
               </tr>
               <tr v-if="expandedIds.includes(goal.id)" class="detail-row">
-                <td colspan="13">
+                <td colspan="14">
                   <div class="detail-card">
                     <aside class="sub-gap-panel">
                       <h3>小分类学时差距</h3>
@@ -154,6 +162,7 @@
                           <col :style="{ width: `${columnWidths.main.progress}px` }" />
                           <col :style="{ width: `${columnWidths.main.estimated}px` }" />
                           <col :style="{ width: `${columnWidths.main.date}px` }" />
+                          <col :style="{ width: `${columnWidths.main.ddl}px` }" />
                           <col :style="{ width: `${columnWidths.main.date}px` }" />
                           <col :style="{ width: `${columnWidths.main.stale}px` }" />
                           <col :style="{ width: `${columnWidths.main.select}px` }" />
@@ -167,6 +176,7 @@
                           <th>进度</th>
                           <th>预计用时</th>
                           <th>创建时间</th>
+                          <th>DDL</th>
                           <th>修改时间</th>
                           <th>距上次更新</th>
                           <th class="select-col"></th>
@@ -199,6 +209,7 @@
                           </td>
                           <td>{{ formatHours(sub.estimatedHours) }}h</td>
                           <td><span class="time-stack"><span>{{ datePart(sub.createdAt) }}</span><span>{{ timePart(sub.createdAt) }}</span></span></td>
+                          <td>{{ formatDateTime(sub.ddl) }}</td>
                           <td><span class="time-stack"><span>{{ datePart(sub.updatedAt) }}</span><span>{{ timePart(sub.updatedAt) }}</span></span></td>
                           <td>
                               <span :class="['stale-pill', { warn: sub.daysSinceUpdate >= 3 }]">
@@ -217,10 +228,10 @@
               </tr>
             </template>
             <tr v-if="!loading && !filteredGoals.length">
-              <td colspan="13" class="empty-cell">暂无阶段目标</td>
+              <td colspan="14" class="empty-cell">暂无阶段目标</td>
             </tr>
             <tr v-if="loading">
-              <td colspan="13" class="empty-cell">加载中...</td>
+              <td colspan="14" class="empty-cell">加载中...</td>
             </tr>
           </tbody>
         </table>
@@ -415,6 +426,7 @@ const columnWidths = {
     progress: 140,
     estimated: 110,
     date: 120,
+    ddl: 120,
     stale: 120,
   },
   sub: {
@@ -464,6 +476,7 @@ const filters = reactive({
   category: '',
   title: '',
   recentDays: null,
+  ddlStatus: '',
 })
 
 const emptyDraft = () => ({
@@ -491,9 +504,20 @@ const filteredGoals = computed(() =>
     const categoryHit = !filters.category || goal.category === filters.category
     const titleHit = !filters.title || goal.title.includes(filters.title)
     const recentHit = !Number(filters.recentDays) || goal.daysSinceUpdate <= Number(filters.recentDays)
-    return creatorHit && categoryHit && titleHit && recentHit
+    const ddlHit = matchesDdlStatus(goal.ddl, filters.ddlStatus)
+    return creatorHit && categoryHit && titleHit && recentHit && ddlHit
   }),
 )
+
+function matchesDdlStatus(value, status) {
+  if (!status) return true
+  const ddlTime = new Date(value).getTime()
+  if (!Number.isFinite(ddlTime)) return false
+  const remainingMs = ddlTime - Date.now()
+  if (status === 'expired') return remainingMs <= 0
+  if (status === 'dueSoon') return remainingMs > 0 && remainingMs < 5 * 60 * 60 * 1000
+  return true
+}
 
 function remainingHours(goal) {
   return roundHours(Math.max((Number(goal.estimatedHours) || 0) - (Number(goal.learnedHours) || 0), 0))
@@ -505,6 +529,11 @@ function subRemainingHours(sub) {
 
 function subProgress(sub) {
   return sub.estimatedHours ? Math.min(Math.round((sub.learnedHours / sub.estimatedHours) * 100), 100) : 0
+}
+
+function formatDateTime(value) {
+  const { date, time } = normalizeDateTime(value)
+  return date ? `${date} ${time}` : ''
 }
 
 function datePart(value) {
@@ -676,6 +705,7 @@ async function resetFilters() {
   filters.category = ''
   filters.title = ''
   filters.recentDays = null
+  filters.ddlStatus = ''
   await loadGoals(true)
 }
 
