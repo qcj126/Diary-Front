@@ -2,22 +2,7 @@
   <div class="diet-dashboard">
     <section class="hero-card">
       <div class="hero-copy">
-        <p class="eyebrow">Diet Journal</p>
-        <h1 class="page-title">饮食记录仪表盘</h1>
-        <p class="page-subtitle">
-          用更温暖、更有食欲的方式记录今天吃过的每一餐，把热量、营养和状态放进同一条时间轴里。
-        </p>
-      </div>
-
-      <div class="hero-meta">
-        <div class="meta-chip">
-          <span class="meta-label">今日摄入</span>
-          <strong>{{ totalKcal }} kcal</strong>
-        </div>
-        <div class="meta-chip">
-          <span class="meta-label">记录餐次</span>
-          <strong>{{ filteredMeals.length }} 餐</strong>
-        </div>
+        <h1 class="page-title">饮食记录</h1>
       </div>
     </section>
 
@@ -154,7 +139,6 @@ const filteredMeals = computed(() => {
   )
 })
 
-const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum + (meal.kcal || 0), 0))
 </script>
 
 <style scoped>
@@ -164,7 +148,7 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
   display: flex;
   flex-direction: column;
   gap: clamp(16px, 2vw, 24px);
-  padding: clamp(14px, 2.4vw, 28px);
+  padding: 1rem;
   background:
     radial-gradient(circle at top left, rgba(212, 233, 197, 0.55), transparent 28%),
     radial-gradient(circle at top right, rgba(255, 219, 209, 0.65), transparent 32%),
@@ -181,15 +165,13 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 
 .hero-card {
   display: flex;
-  justify-content: space-between;
-  gap: clamp(18px, 2.4vw, 32px);
-  padding: clamp(24px, 3vw, 40px);
-  border-radius: 28px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(249, 242, 240, 0.98)),
-    #fff8f6;
-  border: 1px solid rgba(220, 193, 185, 0.9);
-  box-shadow: 0 20px 40px rgba(50, 47, 46, 0.08);
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 56px;
+  padding: 0 1.5rem;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .hero-copy {
@@ -210,39 +192,9 @@ const totalKcal = computed(() => filteredMeals.value.reduce((sum, meal) => sum +
 
 .page-title {
   margin: 0;
-  font-family: 'Playfair Display', 'Times New Roman', serif;
-  font-size: clamp(30px, 4vw, 54px);
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  color: #9a4024;
-}
-
-.page-subtitle {
-  margin: 16px 0 0;
-  max-width: 680px;
-  font-size: clamp(15px, 1.2vw, 17px);
-  line-height: 1.65;
-  color: #56423d;
-}
-
-.hero-meta {
-  display: grid;
-  gap: 12px;
-  min-width: min(220px, 100%);
-  align-content: start;
-}
-
-.meta-chip {
-  padding: 18px 20px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(220, 193, 185, 0.85);
-}
-
-.meta-chip strong {
-  display: block;
-  font-size: 28px;
-  line-height: 1.1;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  letter-spacing: 0;
   color: #1d1b1a;
 }
 

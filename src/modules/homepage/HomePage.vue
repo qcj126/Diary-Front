@@ -1,17 +1,7 @@
 <template>
   <section class="home-page">
     <header class="home-header">
-      <div>
-        <h1>{{ todayLabel }}</h1>
-        <p>保持热爱，奔赴山海</p>
-      </div>
-
-      <div class="daily-status" aria-label="今日状态">
-        <span class="material-symbols-outlined sunny">wb_sunny</span>
-        <strong>24°C</strong>
-        <span class="divider" aria-hidden="true" />
-        <span>今日心情不错 ☀</span>
-      </div>
+      <h1>主页</h1>
     </header>
 
     <form class="quick-entry" @submit.prevent="addQuickEntry">
@@ -384,16 +374,6 @@ const thoughts = ref([
   { id: 4, createdAt: setTime(addDays(now, -7), 20, 8).toISOString(), text: '上周散步时路过花店，顺手买了一束小雏菊。' },
 ])
 
-const todayLabel = computed(() => {
-  const formatter = new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  })
-  return formatter.format(new Date())
-})
-
 function addQuickEntry() {
   const text = quickText.value.trim()
   if (!text) return
@@ -531,7 +511,7 @@ onMounted(() => {
   width: 100%;
   max-width: 1680px;
   margin: 0 auto;
-  padding: clamp(24px, 3vw, 44px) clamp(18px, 4vw, 64px);
+  padding: 1rem;
   color: #1c1b1b;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   min-height: 100vh;
@@ -541,22 +521,17 @@ onMounted(() => {
 .home-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: clamp(16px, 2vw, 24px);
+  justify-content: flex-start;
+  min-height: 56px;
+  padding: 0 1.5rem;
   margin-bottom: clamp(24px, 3vw, 40px);
 }
 
 .home-header h1 {
   margin: 0;
-  font-size: clamp(24px, 2vw, 34px);
+  font-size: 1.75rem;
   line-height: 1.2;
   font-weight: 600;
-}
-
-.home-header p {
-  margin: 4px 0 0;
-  color: #444748;
-  font-size: 14px;
 }
 
 .daily-status {
@@ -1339,18 +1314,18 @@ onMounted(() => {
 
 @media (max-width: 720px) {
   .home-page {
-    padding: 20px 14px 88px;
+    padding: 1rem 1rem 88px;
   }
 
   .home-header {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
     margin-bottom: 28px;
   }
 
   .home-header h1 {
-    font-size: 24px;
-    line-height: 32px;
+    font-size: 1.75rem;
+    line-height: 1.2;
   }
 
   .daily-status {

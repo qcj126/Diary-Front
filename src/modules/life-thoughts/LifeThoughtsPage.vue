@@ -2,17 +2,7 @@
   <section class="thoughts-page">
     <header class="thoughts-hero">
       <div class="hero-copy">
-        <span class="eyebrow">Life Notes</span>
         <h1>生活随想</h1>
-        <p>把路上的风、晚饭后的闲聊、突然冒出的念头，都收进一个可以翻看的小宇宙。</p>
-      </div>
-      <div class="hero-card">
-        <span>本月随想</span>
-        <strong>{{ monthCount }}</strong>
-        <small>{{ favoriteCount }} 条已收藏 · {{ photoCount }} 张照片</small>
-        <div class="mood-orbit" aria-hidden="true">
-          <i v-for="mood in moodStats" :key="mood.name" :style="{ '--level': mood.percent }">{{ mood.icon }}</i>
-        </div>
       </div>
     </header>
 
@@ -251,16 +241,6 @@ const filteredThoughts = computed(() => {
 })
 const selectedThought = computed(() => filteredThoughts.value.find((item) => item.id === activeId.value) ?? filteredThoughts.value[0] ?? null)
 const allTags = computed(() => [...new Set(thoughts.value.flatMap((thought) => thought.tags))])
-const favoriteCount = computed(() => thoughts.value.filter((thought) => thought.favorite).length)
-const photoCount = computed(() => thoughts.value.reduce((sum, thought) => sum + thought.photos.length, 0))
-const monthCount = computed(() => {
-  const month = today().slice(0, 7)
-  return thoughts.value.filter((thought) => thought.date.startsWith(month)).length
-})
-const moodStats = computed(() => moods.map((mood) => {
-  const count = thoughts.value.filter((thought) => thought.mood === mood.name).length
-  return { ...mood, percent: `${Math.max(18, count * 20)}%` }
-}))
 
 watch(thoughts, (value) => {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
@@ -408,7 +388,7 @@ function showToast(message) {
 <style scoped>
 .thoughts-page {
   min-height: 100vh;
-  padding: 32px;
+  padding: 1rem;
   background:
     radial-gradient(circle at 12% 10%, rgba(246, 200, 95, 0.18), transparent 26rem),
     radial-gradient(circle at 86% 18%, rgba(77, 147, 138, 0.16), transparent 24rem),
@@ -416,10 +396,10 @@ function showToast(message) {
   color: var(--dashboard-text, #1c1b1b);
 }
 .thoughts-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 24px;
-  align-items: stretch;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 1.5rem;
   margin-bottom: 24px;
 }
 .hero-copy,
@@ -436,21 +416,11 @@ function showToast(message) {
 .hero-copy {
   position: relative;
   overflow: hidden;
-  min-height: 220px;
-  padding: 34px;
-  border-radius: 8px;
-}
-.hero-copy::after {
-  position: absolute;
-  right: 34px;
-  bottom: 28px;
-  width: 190px;
-  height: 110px;
-  border: 1px solid rgba(77, 147, 138, 0.32);
-  border-radius: 48% 52% 45% 55%;
-  background: linear-gradient(135deg, rgba(246, 200, 95, 0.22), rgba(77, 147, 138, 0.14));
-  content: '';
-  transform: rotate(-8deg);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 .eyebrow {
   color: var(--dashboard-text-muted, #5c5f61);
@@ -462,38 +432,10 @@ function showToast(message) {
 .hero-copy h1 {
   position: relative;
   z-index: 1;
-  margin: 18px 0 12px;
-  color: var(--dashboard-text-strong, #000000);
-  font-size: 52px;
-  line-height: 1.05;
-}
-.hero-copy p {
-  position: relative;
-  z-index: 1;
-  max-width: 620px;
   margin: 0;
-  color: var(--dashboard-text-muted, #5c5f61);
-  font-size: 16px;
-  line-height: 1.8;
-}
-.hero-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 220px;
-  padding: 28px;
-  border-radius: 8px;
-  background: linear-gradient(145deg, rgba(28, 27, 26, 0.92), rgba(77, 147, 138, 0.88)), var(--dashboard-accent, #1c1b1a);
-  color: #ffffff;
-}
-.hero-card span,
-.hero-card small {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 13px;
-}
-.hero-card strong {
-  font-size: 64px;
-  line-height: 1;
+  color: var(--dashboard-text-strong, #000000);
+  font-size: 1.75rem;
+  line-height: 1.2;
 }
 .mood-orbit {
   display: grid;
@@ -942,7 +884,7 @@ select {
     padding: 18px;
   }
   .hero-copy h1 {
-    font-size: 40px;
+    font-size: 1.75rem;
   }
   .form-grid,
   .detail-grid {

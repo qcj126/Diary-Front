@@ -1,11 +1,7 @@
 <template>
   <section class="goals-page">
     <header class="goals-header">
-      <div>
-        <span class="eyebrow">Milestone Control</span>
-        <h1>阶段目标</h1>
-      </div>
-      <p>用表格管理阶段目标，展开查看执行细节，用图表追踪分类与小分类的学时差距。</p>
+      <h1>阶段目标</h1>
     </header>
 
     <section class="toolbar">
@@ -902,7 +898,7 @@ onMounted(() => {
 <style scoped>
 .goals-page {
   min-height: 100vh;
-  padding: clamp(24px, 3vw, 44px) clamp(18px, 4vw, 64px);
+  padding: 1rem;
   background:
     radial-gradient(circle at 14% 10%, rgba(255, 152, 0, 0.11), transparent 28%),
     linear-gradient(135deg, #fdf8f8 0%, #f7f9fb 100%);
@@ -922,9 +918,10 @@ onMounted(() => {
 }
 
 .goals-header {
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 56px;
+  padding: 0 1.5rem;
   margin-bottom: 24px;
 }
 
@@ -944,15 +941,9 @@ p {
 }
 
 .goals-header h1 {
-  margin-top: 6px;
-  font-size: clamp(28px, 3vw, 42px);
-  line-height: 1.08;
-}
-
-.goals-header p {
-  max-width: 520px;
-  color: #5c5f61;
-  line-height: 1.7;
+  margin-top: 0;
+  font-size: 1.75rem;
+  line-height: 1.2;
 }
 
 .toolbar,

@@ -78,7 +78,7 @@ const milestone = computed(() => milestoneInfo(props.startDate, 100))
 
 .name {
   margin: 0;
-  font-size: clamp(1.35rem, 3vw, 1.9rem);
+  font-size: 1.75rem;
   color: #0f172a;
 }
 

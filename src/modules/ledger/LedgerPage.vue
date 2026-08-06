@@ -2,17 +2,7 @@
   <div class="ledger-page">
     <section class="ledger-hero">
       <div class="hero-copy">
-        <span class="eyebrow">生活账本</span>
-        <h1>把每一笔烟火气，都放进可回看的秩序里</h1>
-        <p>覆盖日常消费、固定账单、共同账户、储蓄目标与生活预算，适合两个人一起复盘本月的花钱节奏。</p>
-      </div>
-      <div class="hero-panel">
-        <span>本月结余</span>
-        <strong>{{ formatMoney(balance) }}</strong>
-        <div class="hero-meter">
-          <i :style="{ width: `${savingRate}%` }"></i>
-        </div>
-        <small>储蓄率 {{ savingRate }}% · 比上月多攒 {{ formatMoney(1260) }}</small>
+        <h1>账目</h1>
       </div>
     </section>
 
@@ -216,8 +206,6 @@ const savingGoals = [
 const totalIncome = computed(() => records.filter((item) => item.type === 'income').reduce((sum, item) => sum + item.amount, 0))
 const totalExpense = computed(() => categories.reduce((sum, item) => sum + item.spent, 0))
 const totalBudget = computed(() => categories.reduce((sum, item) => sum + item.budget, 0))
-const balance = computed(() => totalIncome.value - totalExpense.value)
-const savingRate = computed(() => Math.max(Math.round((balance.value / totalIncome.value) * 100), 0))
 const budgetUsage = computed(() => Math.round((totalExpense.value / totalBudget.value) * 100))
 
 const metrics = computed(() => [
@@ -249,7 +237,7 @@ function formatMoney(value) {
 <style scoped>
 .ledger-page {
   min-height: 100vh;
-  padding: 28px;
+  padding: 1rem;
   color: #3d2f35;
   background:
     radial-gradient(circle at 16% 8%, rgba(255, 214, 224, 0.7), transparent 28%),
@@ -257,10 +245,10 @@ function formatMoney(value) {
 }
 
 .ledger-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 20px;
-  align-items: stretch;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 1.5rem;
   margin-bottom: 18px;
 }
 
@@ -276,9 +264,11 @@ function formatMoney(value) {
 }
 
 .hero-copy {
-  min-height: 220px;
-  padding: 34px;
-  border-radius: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .eyebrow {
@@ -292,26 +282,10 @@ function formatMoney(value) {
 }
 
 .hero-copy h1 {
-  max-width: 760px;
-  margin: 18px 0 12px;
-  font-size: 36px;
-  line-height: 1.18;
-  letter-spacing: 0;
-}
-
-.hero-copy p {
-  max-width: 660px;
   margin: 0;
-  color: #7b6870;
-  line-height: 1.8;
-}
-
-.hero-panel {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 28px;
-  border-radius: 24px;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  letter-spacing: 0;
 }
 
 .hero-panel span,
@@ -632,7 +606,7 @@ button {
   }
 
   .hero-copy h1 {
-    font-size: 28px;
+    font-size: 1.75rem;
   }
 
   .toolbar,

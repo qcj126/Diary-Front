@@ -1,5 +1,9 @@
 <template>
   <div class="recipe-page">
+    <header class="recipe-main-header" v-if="currentView === 'timeline'">
+      <h1 class="page-title">厨房创食记</h1>
+    </header>
+
     <div class="main-layout">
       <aside class="category-sidebar">
         <div class="sidebar-header">
@@ -47,8 +51,6 @@
       <main class="content-area">
         <div class="content-wrapper" :class="{ 'content-wrapper-wide': isWideView }">
           <header class="page-header" v-if="currentView === 'timeline'">
-            <h1 class="page-title">食谱时间线</h1>
-            <p class="page-subtitle">连接后端食谱服务，记录每一道值得复刻的味道。</p>
             <form class="search-row" @submit.prevent="loadRecipes">
               <input v-model.trim="keyword" type="search" placeholder="搜索标题关键词" />
               <button type="submit">搜索</button>
@@ -297,6 +299,14 @@ onMounted(loadRecipes)
   -webkit-font-smoothing: antialiased;
 }
 
+.recipe-main-header {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  margin: 1rem 1rem 0;
+  padding: 0 1.5rem;
+}
+
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -421,7 +431,7 @@ onMounted(loadRecipes)
 .content-area {
   flex: 1;
   min-width: 0;
-  padding: 24px 40px 24px 24px;
+  padding: 1rem;
   overflow-y: auto;
   height: calc(100vh - 64px);
 }
@@ -435,23 +445,16 @@ onMounted(loadRecipes)
 }
 
 .page-header {
+  padding: 0;
   margin-bottom: 32px;
 }
 
 .page-title {
-  margin: 0 0 8px;
-  font-family: 'Playfair Display', serif;
-  font-size: 48px;
-  line-height: 56px;
+  margin: 0;
+  font-size: 1.75rem;
+  line-height: 1.2;
   font-weight: 700;
-  color: #9a4024;
-}
-
-.page-subtitle {
-  margin: 0 0 18px;
-  font-size: 18px;
-  line-height: 28px;
-  color: #56423d;
+  color: #1d1b1a;
 }
 
 .search-row {
@@ -582,12 +585,12 @@ onMounted(loadRecipes)
   }
 
   .content-area {
-    padding: 24px 20px;
+    padding: 1rem;
   }
 
   .page-title {
-    font-size: 32px;
-    line-height: 40px;
+    font-size: 1.75rem;
+    line-height: 1.2;
   }
 
   .timeline-entry,
