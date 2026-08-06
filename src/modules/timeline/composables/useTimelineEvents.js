@@ -73,6 +73,8 @@ function mapCategoryToDTO(category) {
     id: category?.id ?? null,
     userId: category?.userId ?? readUserId(),
     categoryName: category?.categoryName ?? category?.label ?? '',
+    icon: category?.icon ?? '',
+    color: category?.color ?? '',
     deleted: category?.deleted ?? 0,
     sort: category?.sort ?? 0,
   }

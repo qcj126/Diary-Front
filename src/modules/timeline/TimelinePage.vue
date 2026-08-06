@@ -1,19 +1,53 @@
 <template>
   <div class="timeline-page" ref="timelinePageRef">
     <header class="timeline-header">
-      <h1>恋爱时光机</h1>
+      <h1>时光机</h1>
     </header>
-
-    <section class="hero-copy">
-      <h2>岁月如歌，瞬间永恒</h2>
-      <p>
-        沿着记忆的轨迹，回望我们一起发光的节点。时间不再只是数字，而是被照片、心动和陪伴点亮的故事。
-      </p>
-    </section>
 
     <div class="carousel-section">
       <TimelineCarousel :events="recentEvents" />
     </div>
+
+    <section class="timeline-toolbar">
+      <div class="timeline-actions">
+        <button type="button" class="primary" @click="openCreateCategory">
+          <span class="material-symbols-outlined">add</span>
+          增
+        </button>
+        <button type="button" @click="requestDeleteSelected">
+          <span class="material-symbols-outlined">delete</span>
+          删
+        </button>
+        <button type="button" @click="openEditSelected">
+          <span class="material-symbols-outlined">edit</span>
+          改
+        </button>
+        <button type="button" @click="toggleQueryPanel">
+          <span class="material-symbols-outlined">search</span>
+          查
+        </button>
+      </div>
+
+      <form v-if="queryPanelOpen" class="query-panel" @submit.prevent>
+        <label>
+          <span>距今时长</span>
+          <input v-model.number="queryFilters.daysAgo" type="number" min="0" placeholder="天" />
+        </label>
+        <label>
+          <span>精确时间</span>
+          <input v-model="queryFilters.exactDate" type="date" />
+        </label>
+        <label>
+          <span>分类</span>
+          <select v-model="queryFilters.categoryKey" :disabled="selectedCategory !== 'all'">
+            <option value="all">全部</option>
+            <option v-for="category in categories" :key="category.key" :value="category.key">
+              {{ category.icon }} {{ category.label }}
+            </option>
+          </select>
+        </label>
+      </form>
+    </section>
 
     <div class="events-section">
       <div class="category-nav-area">
@@ -33,35 +67,70 @@
           :currentPage="currentPage"
           :totalPages="totalPages"
           :hasMore="hasMore"
-          :totalEventsCount="totalEventsCount"
+          :totalEventsCount="filteredEventsCount"
+          :selected-event-ids="selectedEventIds"
           @load-more="loadMore"
           @select-event="selectEvent"
+          @toggle-event-selection="toggleEventSelection"
         />
       </div>
+    </div>
 
+    <div v-if="isAddingEvent || isEditingEvent" class="timeline-modal-backdrop" @click.self="closeEventModal">
       <TimelineEventDetail
-        v-if="!isAddingEvent"
-        class="event-detail-area"
-        :event="selectedEvent"
-        @save="saveEvent"
-        @close="clearSelectedEvent"
+        class="timeline-modal"
+        :event="isEditingEvent ? selectedEvent : null"
+        :category="isAddingEvent ? addingCategory : null"
+        :categories="categories"
+        :start-in-edit="isEditingEvent"
+        @save="isEditingEvent ? saveEvent($event) : handleSaveNewEventWithApi($event)"
+        @close="closeEventModal"
         @delete="handleDeleteEventWithApi"
       />
-      
-      <TimelineEventDetail
-        v-else
-        class="event-detail-area"
-        :event="null"
-        :category="addingCategory"
-        @save="handleSaveNewEventWithApi"
-        @close="cancelAddEvent"
-      />
     </div>
+
+    <div v-if="showDeleteConfirm" class="timeline-modal-backdrop" @click.self="showDeleteConfirm = false">
+      <section class="confirm-modal">
+        <h2>确定删除吗？</h2>
+        <p>将删除已勾选的 {{ selectedEventIds.length }} 张记录卡片。</p>
+        <div>
+          <button type="button" @click="showDeleteConfirm = false">取消</button>
+          <button type="button" class="danger" @click="confirmDeleteSelected">确定删除</button>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="categoryEditorOpen" class="timeline-modal-backdrop" @click.self="closeCategoryEditor">
+      <form class="category-modal" @submit.prevent="saveCategory">
+        <header>
+          <h2>新增子菜单</h2>
+          <button type="button" aria-label="关闭" @click="closeCategoryEditor">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </header>
+
+        <label>
+          <span>子菜单名称</span>
+          <input v-model.trim="categoryDraft.label" required type="text" placeholder="例如：旅行" />
+        </label>
+        <label>
+          <span>子菜单图标</span>
+          <input v-model.trim="categoryDraft.icon" required type="text" placeholder="例如：✈️" />
+        </label>
+
+        <footer>
+          <button type="button" @click="closeCategoryEditor">取消</button>
+          <button type="submit" class="primary">保存</button>
+        </footer>
+      </form>
+    </div>
+
+    <div v-if="toast.visible" class="timeline-toast">{{ toast.message }}</div>
   </div>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import TimelineCarousel from './components/TimelineCarousel.vue'
 import TimelineCategoryNav from './components/TimelineCategoryNav.vue'
 import TimelineEventDetail from './components/TimelineEventDetail.vue'
@@ -89,8 +158,30 @@ function handleWheel(e) {
 }
 
 const selectedEventId = ref(null)
+const selectedEventIds = ref([])
 const isAddingEvent = ref(false)
+const isEditingEvent = ref(false)
 const addingCategory = ref(null)
+const showDeleteConfirm = ref(false)
+const categoryEditorOpen = ref(false)
+const queryPanelOpen = ref(false)
+let toastTimer = 0
+
+const categoryDraft = reactive({
+  label: '',
+  icon: '',
+})
+
+const queryFilters = reactive({
+  daysAgo: null,
+  exactDate: '',
+  categoryKey: 'all',
+})
+
+const toast = reactive({
+  visible: false,
+  message: '',
+})
 
 const {
   categories,
@@ -99,14 +190,15 @@ const {
   selectedSubcategory,
   currentPage,
   recentEvents,
-  currentPageEvents,
+  currentPageEvents: sourcePageEvents,
   totalPages,
   hasMore,
   loadMore,
   selectCategory: selectTimelineCategory,
   selectSubcategory,
-  totalEventsCount,
   refreshTimeline,
+  createCategory,
+  updateCategory,
   createEvent,
   updateEvent,
   removeEvent,
@@ -117,10 +209,31 @@ const selectedEvent = computed(() => {
   return allEvents.value.find((event) => String(event.id) === String(selectedEventId.value)) || null
 })
 
+const currentPageEvents = computed(() => {
+  return sourcePageEvents.value.filter((event) => {
+    if (queryFilters.categoryKey !== 'all' && event.categoryKey !== queryFilters.categoryKey) return false
+    if (queryFilters.exactDate && event.date !== queryFilters.exactDate) return false
+    if (queryFilters.daysAgo !== null && queryFilters.daysAgo !== '' && Number.isFinite(Number(queryFilters.daysAgo))) {
+      return daysBetweenToday(event.date) === Number(queryFilters.daysAgo)
+    }
+    return true
+  })
+})
+
+const filteredEventsCount = computed(() => currentPageEvents.value.length)
+
 function selectEvent(event) {
   selectedEventId.value = String(event.id)
   isAddingEvent.value = false
+  isEditingEvent.value = true
   addingCategory.value = null
+}
+
+function toggleEventSelection(eventId) {
+  const id = String(eventId)
+  selectedEventIds.value = selectedEventIds.value.includes(id)
+    ? selectedEventIds.value.filter((item) => item !== id)
+    : [...selectedEventIds.value, id]
 }
 
 async function selectCategory(categoryKey) {
@@ -135,15 +248,23 @@ function clearSelectedEvent() {
 
 async function saveEvent(event) {
   try {
+    await saveEventCategoryChanges(event)
     await updateEvent(event)
     clearSelectedEvent()
+    selectedEventIds.value = selectedEventIds.value.filter((id) => id !== String(event.id))
+    isEditingEvent.value = false
   } catch (error) {
     console.error(error)
   }
 }
 
 function handleAddCategory(category) {
+  openAddCard(category)
+}
+
+function openAddCard(category) {
   isAddingEvent.value = true
+  isEditingEvent.value = false
   addingCategory.value = category
   selectedEventId.value = null
 }
@@ -151,6 +272,56 @@ function handleAddCategory(category) {
 function cancelAddEvent() {
   isAddingEvent.value = false
   addingCategory.value = null
+}
+
+function closeEventModal() {
+  isAddingEvent.value = false
+  isEditingEvent.value = false
+  addingCategory.value = null
+  clearSelectedEvent()
+}
+
+function openCreateEvent() {
+  const category = selectedCategory.value === 'all'
+    ? categories.value[0]
+    : categories.value.find((item) => item.key === selectedCategory.value)
+  if (!category) return
+  openAddCard(category)
+}
+
+function openCreateCategory() {
+  const category = selectedCategory.value === 'all'
+    ? categories.value[0]
+    : categories.value.find((item) => item.key === selectedCategory.value)
+  categoryDraft.label = ''
+  categoryDraft.icon = category?.icon || '📝'
+  categoryEditorOpen.value = true
+}
+
+function openEditSelected() {
+  if (!selectedEventIds.value.length) {
+    showToast('请选择卡片')
+    return
+  }
+  const event = allEvents.value.find((item) => String(item.id) === String(selectedEventIds.value[0]))
+  if (!event) return
+  selectedEventId.value = String(event.id)
+  isAddingEvent.value = false
+  isEditingEvent.value = true
+  addingCategory.value = null
+}
+
+function requestDeleteSelected() {
+  if (!selectedEventIds.value.length) {
+    showToast('请选择卡片')
+    return
+  }
+  showDeleteConfirm.value = true
+}
+
+function toggleQueryPanel() {
+  queryPanelOpen.value = !queryPanelOpen.value
+  syncQueryCategory()
 }
 
 function handleSaveNewEvent(event) {
@@ -165,6 +336,7 @@ function handleSaveNewEvent(event) {
 
 async function handleSaveNewEventWithApi(event) {
   try {
+    await saveEventCategoryChanges(event)
     const savedEvent = await createEvent(event)
     isAddingEvent.value = false
     addingCategory.value = null
@@ -200,10 +372,82 @@ async function handleDeleteEventWithApi(eventId) {
   try {
     await removeEvent(eventId)
     clearSelectedEvent()
+    selectedEventIds.value = selectedEventIds.value.filter((id) => id !== String(eventId))
+    isEditingEvent.value = false
   } catch (error) {
     console.error(error)
   }
 }
+
+function closeCategoryEditor() {
+  categoryEditorOpen.value = false
+}
+
+async function saveCategory() {
+  try {
+    await createCategory({
+      label: categoryDraft.label,
+      icon: categoryDraft.icon,
+      sort: categories.value.length,
+    })
+    closeCategoryEditor()
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+async function saveEventCategoryChanges(event) {
+  const category = categories.value.find((item) => String(item.id) === String(event.categoryId))
+  if (!category) return
+  const nextLabel = String(event.categoryName || '').trim()
+  const nextIcon = String(event.categoryIcon || '').trim()
+  if (nextLabel && (nextLabel !== category.label || nextIcon !== category.icon)) {
+    await updateCategory({
+      ...category,
+      label: nextLabel,
+      icon: nextIcon || category.icon,
+    })
+  }
+}
+
+async function confirmDeleteSelected() {
+  const ids = [...selectedEventIds.value]
+  showDeleteConfirm.value = false
+  try {
+    await Promise.all(ids.map((id) => removeEvent(id)))
+    selectedEventIds.value = []
+    clearSelectedEvent()
+    isEditingEvent.value = false
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+function daysBetweenToday(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  const today = new Date()
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  return Math.floor((todayStart - dateStart) / 86400000)
+}
+
+function syncQueryCategory() {
+  queryFilters.categoryKey = selectedCategory.value === 'all' ? queryFilters.categoryKey : selectedCategory.value
+}
+
+function showToast(message) {
+  window.clearTimeout(toastTimer)
+  toast.message = message
+  toast.visible = true
+  toastTimer = window.setTimeout(() => {
+    toast.visible = false
+  }, 1800)
+}
+
+watch(selectedCategory, () => {
+  syncQueryCategory()
+})
 
 </script>
 
@@ -212,7 +456,7 @@ async function handleDeleteEventWithApi(eventId) {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.55rem;
   padding: 1rem;
   color: #e5e1e4;
   background:
@@ -265,46 +509,113 @@ async function handleDeleteEventWithApi(eventId) {
   text-shadow: 0 0 18px rgba(0, 240, 255, 0.32);
 }
 
-.hero-copy {
-  padding: 0.25rem 1rem 0;
-  margin-top: -8px;
-}
-
-.hero-copy h2 {
-  margin: 0 0 0.35rem;
-  color: #e5e1e4;
-  font-family: Manrope, Inter, sans-serif;
-  font-size: clamp(1.6rem, 3vw, 2.45rem);
-  line-height: 1.1;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-
-.hero-copy p {
-  margin: 0;
-  max-width: 48rem;
-  color: #b9cacb;
-  font-size: 0.9rem;
-  line-height: 1.45;
-}
-
 .carousel-section {
   height: 252px;
   margin-inline: -1rem;
+  margin-top: -0.35rem;
   overflow: hidden;
+}
+
+.timeline-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem;
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 1rem;
+  background: rgba(18, 18, 24, 0.72);
+  backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.timeline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.timeline-actions button,
+.confirm-modal button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 38px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 0.9rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e5e1e4;
+  cursor: pointer;
+  font-weight: 800;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.timeline-actions button:hover,
+.confirm-modal button:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.timeline-actions .primary {
+  background: linear-gradient(135deg, #00f0ff, #d1bcff);
+  color: #101014;
+}
+
+.timeline-actions .material-symbols-outlined {
+  font-size: 19px;
+}
+
+.query-panel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.query-panel label,
+.category-modal label {
+  display: grid;
+  gap: 0.35rem;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.query-panel input,
+.query-panel select,
+.category-modal input {
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  padding: 0 0.7rem;
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+  font: 700 0.86rem/1.2 Inter, sans-serif;
+  outline: none;
+}
+
+.query-panel input,
+.query-panel select {
+  width: 128px;
+}
+
+.query-panel select:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
 }
 
 .events-section {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) 360px;
+  grid-template-columns: 180px minmax(0, 1fr);
   gap: 1rem;
   flex: 1;
   min-height: 0;
-  margin-top: -2.15rem;
 }
 
 .category-nav-area {
-  height: calc(100vh - 410px);
+  height: calc(100vh - 448px);
   overflow-y: auto;
   padding: 0.75rem;
   border: 0.5px solid rgba(255, 255, 255, 0.1);
@@ -314,80 +625,128 @@ async function handleDeleteEventWithApi(eventId) {
 }
 
 .event-list-area {
-  height: calc(100vh - 410px);
+  height: calc(100vh - 448px);
   overflow-y: auto;
   border-radius: 1rem;
-}
-
-.event-detail-area {
-  height: calc(100vh - 410px);
-  overflow-y: auto;
-}
-
-.add-event-panel {
-  padding: 1.5rem;
-  background: rgba(32, 31, 33, 0.6);
-  backdrop-filter: blur(12px);
-  border: 0.5px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  color: #e5e1e4;
-}
-
-.add-event-panel h3 {
-  margin: 0;
-  color: #dbfcff;
-  font-size: 1.25rem;
-  font-weight: 600;
-  text-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
-}
-
-.add-event-panel p {
-  margin: 0;
-  color: #b9cacb;
-  font-size: 0.9rem;
-}
-
-.cancel-btn {
-  padding: 0.75rem 1.5rem;
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  border-radius: 10px;
-  background: rgba(0, 240, 255, 0.1);
-  color: #7df4ff;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  align-self: flex-start;
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.1);
-}
-
-.cancel-btn:hover {
-  background: rgba(0, 240, 255, 0.2);
-  border-color: rgba(0, 240, 255, 0.5);
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
 }
 
 .event-list-area::-webkit-scrollbar,
-.event-detail-area::-webkit-scrollbar,
 .category-nav-area::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 
 .event-list-area::-webkit-scrollbar-track,
-.event-detail-area::-webkit-scrollbar-track,
 .category-nav-area::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .event-list-area::-webkit-scrollbar-thumb,
-.event-detail-area::-webkit-scrollbar-thumb,
 .category-nav-area::-webkit-scrollbar-thumb {
   background: rgba(0, 240, 255, 0.3);
   border-radius: 2px;
+}
+
+.timeline-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(8px);
+}
+
+.timeline-modal {
+  width: min(100%, 560px);
+  max-height: min(86vh, 680px);
+  overflow-y: auto;
+}
+
+.confirm-modal,
+.category-modal {
+  width: min(100%, 420px);
+  padding: 1.5rem;
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 1rem;
+  background: rgba(18, 18, 24, 0.94);
+  color: #e5e1e4;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+}
+
+.category-modal {
+  display: grid;
+  gap: 1rem;
+}
+
+.category-modal header,
+.category-modal footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.category-modal header h2 {
+  margin: 0;
+}
+
+.category-modal header button,
+.category-modal footer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 0.9rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e5e1e4;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.category-modal footer .primary {
+  background: linear-gradient(135deg, #00f0ff, #d1bcff);
+  color: #101014;
+}
+
+.confirm-modal h2,
+.confirm-modal p {
+  margin: 0;
+}
+
+.confirm-modal p {
+  margin-top: 0.65rem;
+  color: #b9cacb;
+  line-height: 1.6;
+}
+
+.confirm-modal div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.confirm-modal .danger {
+  background: rgba(239, 68, 68, 0.92);
+  color: #fff;
+}
+
+.timeline-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 1200;
+  padding: 0.9rem 1.3rem;
+  border-radius: 14px;
+  background: rgba(18, 18, 24, 0.94);
+  color: #fff;
+  font-weight: 900;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
+  transform: translate(-50%, -50%);
 }
 
 @media (max-width: 900px) {
@@ -404,8 +763,7 @@ async function handleDeleteEventWithApi(eventId) {
   }
 
   .category-nav-area,
-  .event-list-area,
-  .event-detail-area {
+  .event-list-area {
     height: auto;
     max-height: none;
   }

@@ -30,7 +30,7 @@
         <button 
           class="add-btn"
           @click.stop="handleAddCategory(category)"
-          title="添加新事件"
+          title="新增卡片"
         >
           <span class="material-symbols-outlined">add</span>
         </button>

@@ -8,7 +8,9 @@
         :event="event"
         :category-label="getCategoryLabel(event)"
         :event-icon="getEventIcon(event)"
+        :selected="selectedEventIds.includes(String(event.id))"
         @select="handleSelectEvent"
+        @toggle-selection="handleToggleSelection"
       />
       
       <!-- 空状态 -->
@@ -56,10 +58,14 @@ const props = defineProps({
   totalEventsCount: {
     type: Number,
     default: 0
+  },
+  selectedEventIds: {
+    type: Array,
+    default: () => []
   }
 })
 
-const emit = defineEmits(['load-more', 'select-event'])
+const emit = defineEmits(['load-more', 'select-event', 'toggle-event-selection'])
 const eventListRef = ref(null)
 
 function handleLoadMore() {
@@ -68,6 +74,10 @@ function handleLoadMore() {
 
 function handleSelectEvent(event) {
   emit('select-event', event)
+}
+
+function handleToggleSelection(eventId) {
+  emit('toggle-event-selection', eventId)
 }
 
 function getCategoryLabel(event) {
@@ -96,7 +106,7 @@ function getEventIcon(event) {
 
 .event-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-auto-rows: 200px;
   gap: 0.75rem;
   height: 100%;
@@ -182,6 +192,12 @@ function getEventIcon(event) {
 @media (max-width: 720px) {
   .event-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1120px) {
+  .event-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

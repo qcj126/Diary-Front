@@ -11,7 +11,7 @@
         </button>
       </header>
 
-      <div class="photo-frame" :class="{ 'is-uploading': isUploadingImage }">
+      <div class="photo-frame" :class="{ 'is-uploading': isUploadingImage, 'is-form-photo': isEditing || category }">
         <img v-if="draft.imageUrl" :src="draft.imageUrl" :alt="draft.title || '记录照片'" />
         <div v-else class="photo-empty">上传照片</div>
         <div v-if="isUploadingImage" class="photo-uploading" aria-live="polite">
@@ -36,30 +36,54 @@
       </div>
 
       <form v-else class="detail-form" @submit.prevent="handleSave">
-        <label>
-          <span>标题</span>
-          <input
-            v-model.trim="draft.title"
-            type="text"
-            placeholder="写一个标题"
-            :required="isCreating"
-            :aria-invalid="Boolean(validationErrors.title)"
-            @input="clearValidationError('title')"
-          />
-          <p v-if="validationErrors.title" class="field-error">{{ validationErrors.title }}</p>
-        </label>
+        <div class="primary-fields">
+          <label>
+            <span>标题</span>
+            <input
+              v-model.trim="draft.title"
+              type="text"
+              placeholder="写一个标题"
+              :required="isCreating"
+              :aria-invalid="Boolean(validationErrors.title)"
+              @input="clearValidationError('title')"
+            />
+            <p v-if="validationErrors.title" class="field-error">{{ validationErrors.title }}</p>
+          </label>
 
-        <label>
-          <span>日期</span>
-          <input
-            v-model="draft.date"
-            type="date"
-            :required="isCreating"
-            :aria-invalid="Boolean(validationErrors.date)"
-            @input="clearValidationError('date')"
-          />
-          <p v-if="validationErrors.date" class="field-error">{{ validationErrors.date }}</p>
-        </label>
+          <label>
+            <span>日期</span>
+            <input
+              v-model="draft.date"
+              type="text"
+              inputmode="numeric"
+              pattern="\d{4}-\d{2}-\d{2}"
+              placeholder="YYYY-MM-DD"
+              :required="isCreating"
+              :aria-invalid="Boolean(validationErrors.date)"
+              @input="clearValidationError('date')"
+            />
+            <p v-if="validationErrors.date" class="field-error">{{ validationErrors.date }}</p>
+          </label>
+        </div>
+
+        <div class="category-fields">
+          <label>
+            <span>所属分类</span>
+            <select v-model="draft.categoryId" :required="isCreating" @change="syncSelectedCategory">
+              <option v-for="item in categories" :key="item.id" :value="String(item.id)">
+                {{ item.icon }} {{ item.label }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>分类名称</span>
+            <input v-model.trim="draft.categoryName" type="text" placeholder="分类名称" />
+          </label>
+          <label>
+            <span>分类图标</span>
+            <input v-model.trim="draft.categoryIcon" type="text" placeholder="图标" />
+          </label>
+        </div>
 
         <label>
           <span>内容</span>
@@ -142,6 +166,14 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  startInEdit: {
+    type: Boolean,
+    default: false,
+  },
+  categories: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['save', 'close', 'delete'])
@@ -182,6 +214,8 @@ const draft = reactive({
   imageUrl: '',
   imageId: null,
   categoryKey: '',
+  categoryName: '',
+  categoryIcon: '',
 })
 
 function wait(ms) {
@@ -200,6 +234,26 @@ function getUploadImageCode() {
 
 function toKey(value) {
   return String(value ?? '').trim()
+}
+
+function getCategoryById(categoryId) {
+  const id = toKey(categoryId)
+  if (!id) return null
+  return props.categories.find((category) => toKey(category.id) === id) || null
+}
+
+function getCategoryByKey(categoryKey) {
+  const key = toKey(categoryKey)
+  if (!key) return null
+  return props.categories.find((category) => toKey(category.key) === key) || null
+}
+
+function syncSelectedCategory() {
+  const category = getCategoryById(draft.categoryId)
+  if (!category) return
+  draft.categoryKey = category.key
+  draft.categoryName = category.label || ''
+  draft.categoryIcon = category.icon || ''
 }
 
 function clearValidationError(field) {
@@ -246,16 +300,19 @@ async function pollImageUrl(imageIds, token) {
 }
 
 function syncDraft(event) {
+  const category = getCategoryById(event?.categoryId) || getCategoryByKey(event?.categoryKey) || props.category
   draft.id = toKey(event?.id)
   draft.rawId = event?.rawId == null ? null : toKey(event.rawId)
   draft.userId = event?.userId || null
-  draft.categoryId = event?.categoryId || props.category?.id ? toKey(event?.categoryId || props.category?.id) : null
+  draft.categoryId = event?.categoryId || props.category?.id || category?.id ? toKey(event?.categoryId || props.category?.id || category?.id) : null
   draft.title = event?.title || ''
   draft.date = event?.date || ''
   draft.content = event?.content || ''
   draft.imageUrl = event?.imageUrl || ''
   draft.imageId = event?.imageId == null ? null : toKey(event.imageId)
-  draft.categoryKey = event?.categoryKey || props.category?.key || ''
+  draft.categoryKey = event?.categoryKey || props.category?.key || category?.key || ''
+  draft.categoryName = category?.label || ''
+  draft.categoryIcon = category?.icon || ''
 }
 
 function resetDraft() {
@@ -270,6 +327,8 @@ function resetDraft() {
     draft.imageUrl = ''
     draft.imageId = null
     draft.categoryKey = props.category.key
+    draft.categoryName = props.category.label || ''
+    draft.categoryIcon = props.category.icon || ''
   } else {
     syncDraft(props.event)
   }
@@ -360,7 +419,7 @@ watch(
     isUploadingImage.value = false
     imageUploadError.value = ''
     clearValidationErrors()
-    isEditing.value = false
+    isEditing.value = props.startInEdit
 
     if (category && !event) {
       draft.id = ''
@@ -373,6 +432,8 @@ watch(
       draft.imageUrl = ''
       draft.imageId = null
       draft.categoryKey = category.key
+      draft.categoryName = category.label || ''
+      draft.categoryIcon = category.icon || ''
     } else {
       syncDraft(event)
     }
@@ -435,10 +496,15 @@ onBeforeUnmount(() => {
 
 .photo-frame {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 0.8rem;
   overflow: hidden;
   border-radius: 0.8rem;
   background: rgba(255, 255, 255, 0.08);
+}
+
+.photo-frame.is-form-photo {
+  min-height: 210px;
 }
 
 .photo-frame.is-uploading img,
@@ -528,6 +594,7 @@ onBeforeUnmount(() => {
 }
 
 .detail-form input,
+.detail-form select,
 .detail-form textarea {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -547,6 +614,7 @@ onBeforeUnmount(() => {
 }
 
 .detail-form input:focus,
+.detail-form select:focus,
 .detail-form textarea:focus {
   border-color: rgba(125, 244, 255, 0.68);
   box-shadow: 0 0 0 3px rgba(125, 244, 255, 0.12);
@@ -554,7 +622,41 @@ onBeforeUnmount(() => {
 
 .detail-form textarea {
   resize: vertical;
-  min-height: 8rem;
+  min-height: 6.6rem;
+}
+
+.primary-fields,
+.category-fields {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.primary-fields {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.primary-fields label:nth-child(2) {
+  grid-column: 3;
+}
+
+.category-fields {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.primary-fields label > span,
+.category-fields label > span,
+.detail-form > label > span {
+  padding-left: 0.75rem;
+}
+
+.category-fields input,
+.category-fields select {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.category-fields select {
+  appearance: none;
 }
 
 .upload-button {
@@ -562,9 +664,11 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   margin: 0;
-  padding: 0.7rem 1rem;
+  min-height: 72px;
+  padding: 1rem;
   border: 1px dashed rgba(125, 244, 255, 0.42);
   border-radius: 0.75rem;
+  background: rgba(125, 244, 255, 0.06);
   color: #b9fbff;
   cursor: pointer;
   font-size: 0.9rem;

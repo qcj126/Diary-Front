@@ -1,6 +1,7 @@
 <template>
   <article
     class="event-card"
+    :class="{ selected }"
     :style="cardStyle"
     role="button"
     tabindex="0"
@@ -32,6 +33,14 @@
         </div>
       </aside>
     </div>
+
+    <label class="card-check" aria-label="选择记录卡片" @click.stop>
+      <input
+        type="checkbox"
+        :checked="selected"
+        @change="$emit('toggle-selection', event.id)"
+      />
+    </label>
   </article>
 </template>
 
@@ -51,10 +60,14 @@ const props = defineProps({
   eventIcon: {
     type: String,
     default: '📝'
+  },
+  selected: {
+    type: Boolean,
+    default: false
   }
 })
 
-defineEmits(['select'])
+defineEmits(['select', 'toggle-selection'])
 
 const colorScheme = computed(() => {
   return COLOR_MAP[props.event.color] || COLOR_MAP.blue
@@ -72,6 +85,7 @@ const tagStyle = computed(() => ({
 
 <style scoped>
 .event-card {
+  position: relative;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07)),
     rgba(22, 20, 31, 0.54);
@@ -90,6 +104,14 @@ const tagStyle = computed(() => ({
   outline: none;
   height: 100%;
   min-height: 0;
+}
+
+.event-card.selected {
+  border-color: rgba(125, 244, 255, 0.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 0 0 2px rgba(125, 244, 255, 0.18),
+    0 16px 34px rgba(0, 0, 0, 0.32);
 }
 
 .card-layout {
@@ -227,5 +249,26 @@ const tagStyle = computed(() => ({
   font-size: 0.75rem;
   font-weight: 500;
   backdrop-filter: blur(8px);
+}
+
+.card-check {
+  position: absolute;
+  right: 0.72rem;
+  bottom: 0.64rem;
+  display: inline-grid;
+  width: 1.05rem;
+  height: 1.05rem;
+  place-items: center;
+  border-radius: 4px;
+  background: rgba(10, 14, 20, 0.62);
+  cursor: pointer;
+}
+
+.card-check input {
+  width: 0.78rem;
+  height: 0.78rem;
+  margin: 0;
+  accent-color: #7df4ff;
+  cursor: pointer;
 }
 </style>
