@@ -153,6 +153,7 @@ export async function queryGoals(filters = {}) {
       category: filters.category ?? 1,
       title: filters.title ?? '',
       recentDays: filters.recentDays ?? null,
+      exactDate: filters.exactDate ?? '',
       ddl: filters.ddl ?? 1,
     }),
     '查询阶段目标失败',

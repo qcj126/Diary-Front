@@ -21,9 +21,7 @@
 }
 
 .dashboard[data-theme='night'] .timeline-page {
-  background:
-    radial-gradient(circle at 16% 8%, rgba(246, 200, 95, 0.14), transparent 28%),
-    linear-gradient(135deg, #101218 0%, #171b25 58%, #111318 100%);
+  background: var(--dashboard-bg);
   color: var(--dashboard-text);
 }
 
@@ -51,7 +49,6 @@
 .dashboard[data-theme='night'] .add-event-panel,
 .dashboard[data-theme='night'] .event-card,
 .dashboard[data-theme='night'] .event-detail,
-.dashboard[data-theme='night'] .category-nav,
 .dashboard[data-theme='night'] .card-shell {
   border-color: var(--dashboard-border-soft);
   background: var(--dashboard-surface);

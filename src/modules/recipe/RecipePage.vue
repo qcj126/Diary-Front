@@ -1,6 +1,6 @@
 <template>
   <div class="recipe-page">
-    <header class="recipe-main-header" v-if="currentView === 'timeline'">
+    <header class="recipe-main-header">
       <h1 class="page-title">厨房创食记</h1>
     </header>
 
@@ -30,20 +30,16 @@
             <span class="material-symbols-outlined">add</span>
             添加新食谱
           </button>
-          <button class="add-category-btn" type="button" @click="loadRecipes">
-            <span class="material-symbols-outlined">sync</span>
-            重新同步
+          <button class="add-category-btn" type="button" @click="addCategory">
+            <span class="material-symbols-outlined">add_circle</span>
+            添加新分类
           </button>
         </div>
 
         <div class="sidebar-footer">
           <button type="button" class="menu-item" @click="selectAnniversary">
             <span class="material-symbols-outlined">favorite</span>
-            <span>纪念日食谱</span>
-          </button>
-          <button type="button" class="menu-item" @click="openSettings">
-            <span class="material-symbols-outlined">settings</span>
-            <span>设置</span>
+            <span>红心食谱</span>
           </button>
         </div>
       </aside>
@@ -57,10 +53,8 @@
             </form>
           </header>
 
-          <RecipeSettingsPage v-if="currentView === 'settings'" :settings="settings" />
-
           <RecipeDetailPage
-            v-else-if="selectedRecipe"
+            v-if="selectedRecipe"
             :recipe="selectedRecipe"
             :saving="recipeSaving"
             @close="closeRecipeDetail"
@@ -116,6 +110,34 @@
         </div>
       </main>
     </div>
+
+    <div v-if="categoryDialogOpen" class="modal-backdrop" @click.self="closeCategoryDialog">
+      <form class="category-dialog" @submit.prevent="confirmAddCategory">
+        <header class="dialog-header">
+          <h2>添加新分类</h2>
+          <button class="dialog-icon-button" type="button" @click="closeCategoryDialog">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </header>
+
+        <label class="dialog-field">
+          <span>分类名称</span>
+          <input v-model.trim="categoryDraft.label" type="text" placeholder="例如：轻食" />
+        </label>
+
+        <label class="dialog-field">
+          <span>图标</span>
+          <input v-model.trim="categoryDraft.icon" type="text" placeholder="例如：restaurant" />
+        </label>
+
+        <div v-if="categoryDialogError" class="dialog-error">{{ categoryDialogError }}</div>
+
+        <footer class="dialog-actions">
+          <button class="dialog-secondary-button" type="button" @click="closeCategoryDialog">取消</button>
+          <button class="dialog-primary-button" type="submit">确认添加</button>
+        </footer>
+      </form>
+    </div>
   </div>
 </template>
 
@@ -123,15 +145,13 @@
 import { computed, onMounted, ref } from 'vue'
 import RecipeCard from './components/RecipeCard.vue'
 import RecipeDetailPage from './RecipeDetailPage.vue'
-import RecipeSettingsPage from './RecipeSettingsPage.vue'
 import { addRecipe, deleteRecipe, normalizeRecipe, queryRecipes, updateRecipe } from './api/recipe.js'
-import { RECIPE_DATA, RECIPE_CATEGORIES, RECIPE_SETTINGS } from './mock/recipeData.js'
+import { RECIPE_DATA, RECIPE_CATEGORIES } from './mock/recipeData.js'
 
 const todayData = ref(RECIPE_DATA.today)
-const categories = ref(RECIPE_CATEGORIES)
+const categories = ref([...RECIPE_CATEGORIES])
 const selectedRecipe = ref(null)
 const currentView = ref('timeline')
-const settings = ref({ ...RECIPE_SETTINGS })
 const recipeLoading = ref(false)
 const recipeSaving = ref(false)
 const recipeError = ref('')
@@ -139,8 +159,14 @@ const recipeNotice = ref('')
 const keyword = ref('')
 const activeCategory = ref(null)
 const anniversaryOnly = ref(null)
+const categoryDialogOpen = ref(false)
+const categoryDialogError = ref('')
+const categoryDraft = ref({
+  label: '',
+  icon: '',
+})
 
-const isWideView = computed(() => currentView.value === 'settings' || !!selectedRecipe.value)
+const isWideView = computed(() => !!selectedRecipe.value)
 
 const formatToday = () =>
   new Intl.DateTimeFormat('zh-CN', {
@@ -201,6 +227,45 @@ function selectAnniversary() {
   loadRecipes()
 }
 
+function addCategory() {
+  categoryDraft.value = {
+    label: '',
+    icon: '',
+  }
+  categoryDialogError.value = ''
+  categoryDialogOpen.value = true
+}
+
+function closeCategoryDialog() {
+  categoryDialogOpen.value = false
+  categoryDialogError.value = ''
+}
+
+function confirmAddCategory() {
+  const label = categoryDraft.value.label.trim()
+  const icon = categoryDraft.value.icon.trim()
+
+  if (!label) {
+    categoryDialogError.value = '请填写分类名称'
+    return
+  }
+
+  const numericValues = categories.value
+    .map((category) => category.value)
+    .filter((value) => typeof value === 'number')
+  const nextValue = numericValues.length ? Math.max(...numericValues) + 1 : 0
+
+  categories.value.push({
+    key: `custom_${Date.now()}`,
+    label,
+    icon: icon || 'category',
+    value: nextValue,
+  })
+
+  closeCategoryDialog()
+  selectCategory(nextValue)
+}
+
 function updateFavorite(recipeId, isFavorite) {
   const recipe = todayData.value.recipes.find((item) => item.id === recipeId)
   if (recipe) recipe.isFavorite = isFavorite
@@ -223,11 +288,6 @@ function closeRecipeDetail() {
   selectedRecipe.value = null
 }
 
-function openSettings() {
-  selectedRecipe.value = null
-  currentView.value = 'settings'
-}
-
 function createDraftRecipe() {
   currentView.value = 'detail'
   selectedRecipe.value = normalizeRecipe({
@@ -237,6 +297,7 @@ function createDraftRecipe() {
     mealType: 3,
     difficulty: 1,
     cookingTime: 30,
+    servings: 1,
     status: 1,
     ingredients: [],
     steps: [],
@@ -293,18 +354,28 @@ onMounted(loadRecipes)
 
 <style scoped>
 .recipe-page {
+  --recipe-header-height: 72px;
+  height: 100vh;
   min-height: 100%;
   background-color: #fff8f6;
   color: #1d1b1a;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
 .recipe-main-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   display: flex;
   align-items: center;
-  min-height: 56px;
-  margin: 1rem 1rem 0;
-  padding: 0 1.5rem;
+  flex: 0 0 var(--recipe-header-height);
+  min-height: var(--recipe-header-height);
+  padding: 0 2.5rem;
+  background-color: #fff8f6;
+  border-bottom: 1px solid rgba(220, 193, 185, 0.72);
 }
 
 .material-symbols-outlined {
@@ -318,7 +389,8 @@ onMounted(loadRecipes)
 
 .main-layout {
   display: flex;
-  min-height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .category-sidebar {
@@ -332,8 +404,8 @@ onMounted(loadRecipes)
   overflow-y: auto;
   flex-shrink: 0;
   position: sticky;
-  top: 0;
-  height: calc(100vh - 64px);
+  top: var(--recipe-header-height);
+  height: calc(100vh - var(--recipe-header-height));
 }
 
 .sidebar-header {
@@ -433,7 +505,7 @@ onMounted(loadRecipes)
   min-width: 0;
   padding: 1rem;
   overflow-y: auto;
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--recipe-header-height));
 }
 
 .content-wrapper {
@@ -566,6 +638,104 @@ onMounted(loadRecipes)
   color: #3a4c31;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(29, 27, 26, 0.38);
+}
+
+.category-dialog {
+  width: min(420px, 100%);
+  border: 1px solid rgba(220, 193, 185, 0.86);
+  border-radius: 8px;
+  background: #fff8f6;
+  box-shadow: 0 24px 60px rgba(50, 47, 46, 0.22);
+  padding: 22px;
+  display: grid;
+  gap: 16px;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dialog-header h2 {
+  margin: 0;
+  color: #1d1b1a;
+  font-size: 20px;
+  line-height: 28px;
+}
+
+.dialog-icon-button {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: #f3ecea;
+  color: #7a2f16;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog-field {
+  display: grid;
+  gap: 8px;
+  color: #56423d;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.dialog-field input {
+  width: 100%;
+  border: 1px solid rgba(220, 193, 185, 0.9);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1d1b1a;
+  font: inherit;
+  padding: 12px 14px;
+}
+
+.dialog-error {
+  color: #b42318;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.dialog-secondary-button,
+.dialog-primary-button {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.dialog-secondary-button {
+  background: #f3ecea;
+  color: #56423d;
+}
+
+.dialog-primary-button {
+  background: #9a4024;
+  color: #ffffff;
+}
+
 .content-area::-webkit-scrollbar {
   width: 6px;
 }
@@ -580,11 +750,22 @@ onMounted(loadRecipes)
 }
 
 @media (max-width: 768px) {
+  .recipe-page {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .recipe-main-header {
+    padding: 0 1rem;
+  }
+
   .category-sidebar {
     display: none;
   }
 
   .content-area {
+    height: auto;
     padding: 1rem;
   }
 

@@ -59,18 +59,3 @@ export const RECIPE_CATEGORIES = [
   { key: 'soup', label: '汤粥', icon: 'ramen_dining', value: 3 },
   { key: 'other', label: '其他', icon: 'more_horiz', value: 4 },
 ]
-
-export const RECIPE_SETTINGS = {
-  kitchenName: 'Diary Kitchen',
-  ownerName: 'Lin',
-  bio: '记录每日食谱、烹饪节奏和厨房偏好。',
-  servingsPreset: '2 人份',
-  theme: '暖调食谱簿',
-  syncStatus: '已连接后端接口',
-  lastBackup: '实时同步',
-  stepSort: '按步骤顺序',
-  workflowTip: '食材按“名称 数量”填写，步骤按行填写。',
-  showNutrition: true,
-  showCookingTime: true,
-  stickyIngredients: true,
-}

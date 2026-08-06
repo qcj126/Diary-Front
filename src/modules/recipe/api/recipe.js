@@ -286,6 +286,7 @@ export function createRecipeDTO(recipe = {}) {
     mealType: toNumberOrNull(recipe.mealTypeValue ?? recipe.mealType),
     difficulty: toNumberOrNull(recipe.difficultyValue ?? recipe.difficulty),
     cookingTime: toNumberOrNull(recipe.cookingTime),
+    servings: toNumberOrNull(recipe.servings),
     story: recipe.story ?? recipe.detail?.story ?? '',
     ingredients,
     steps,

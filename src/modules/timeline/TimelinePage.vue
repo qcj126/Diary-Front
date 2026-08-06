@@ -28,24 +28,38 @@
         </button>
       </div>
 
-      <form v-if="queryPanelOpen" class="query-panel" @submit.prevent>
-        <label>
-          <span>距今时长</span>
-          <input v-model.number="queryFilters.daysAgo" type="number" min="0" placeholder="天" />
-        </label>
-        <label>
-          <span>精确时间</span>
-          <input v-model="queryFilters.exactDate" type="date" />
-        </label>
-        <label>
-          <span>分类</span>
-          <select v-model="queryFilters.categoryKey" :disabled="selectedCategory !== 'all'">
-            <option value="all">全部</option>
-            <option v-for="category in categories" :key="category.key" :value="category.key">
-              {{ category.icon }} {{ category.label }}
-            </option>
-          </select>
-        </label>
+      <form v-if="queryPanelOpen" class="query-panel" @submit.prevent="applyQueryFilters">
+        <input v-model.number="queryFilters.daysAgo" type="number" min="0" placeholder="距今时长" />
+        <span class="date-picker-field">
+          <button type="button" class="date-picker-btn" aria-label="选择日期" @click="openExactDatePicker">
+            <span class="material-symbols-outlined">calendar_month</span>
+          </button>
+          <span v-if="queryFilters.exactDate" class="date-picker-value">{{ queryFilters.exactDate }}</span>
+          <span v-else class="date-picker-placeholder">精确时间</span>
+          <input ref="exactDateInput" v-model="queryFilters.exactDate" class="date-picker-input" type="date" />
+        </span>
+        <select v-model="queryFilters.categoryKey" class="category-query-select" :disabled="selectedCategory !== 'all'">
+          <option value="all">📋 全部</option>
+          <option v-for="category in categories" :key="category.key" :value="category.key">
+            {{ category.icon }} {{ category.label }}
+          </option>
+        </select>
+        <select v-model.number="queryFilters.pageSize" class="page-size-query-select">
+          <option v-for="size in pageSizeOptions" :key="size" :value="size">
+            {{ size }}
+          </option>
+        </select>
+        <input
+          v-model.number="queryFilters.page"
+          class="page-query-input"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="页数"
+          @blur="normalizeQueryPage"
+        />
+        <button type="submit">查询</button>
+        <button type="button" @click="resetQueryFilters">重置</button>
       </form>
     </section>
 
@@ -138,6 +152,7 @@ import TimelineEventList from './components/TimelineEventList.vue'
 import { useTimelineEvents } from './composables/useTimelineEvents.js'
 
 const timelinePageRef = ref(null)
+const exactDateInput = ref(null)
 
 function handleWheel(e) {
   // 检查事件目标是否在可滚动的子元素内，如果是则允许滚动
@@ -166,6 +181,7 @@ const showDeleteConfirm = ref(false)
 const categoryEditorOpen = ref(false)
 const queryPanelOpen = ref(false)
 let toastTimer = 0
+const pageSizeOptions = Array.from({ length: 10 }, (_, index) => (index + 1) * 30)
 
 const categoryDraft = reactive({
   label: '',
@@ -176,6 +192,8 @@ const queryFilters = reactive({
   daysAgo: null,
   exactDate: '',
   categoryKey: 'all',
+  pageSize: 30,
+  page: 1,
 })
 
 const toast = reactive({
@@ -209,7 +227,7 @@ const selectedEvent = computed(() => {
   return allEvents.value.find((event) => String(event.id) === String(selectedEventId.value)) || null
 })
 
-const currentPageEvents = computed(() => {
+const filteredEvents = computed(() => {
   return sourcePageEvents.value.filter((event) => {
     if (queryFilters.categoryKey !== 'all' && event.categoryKey !== queryFilters.categoryKey) return false
     if (queryFilters.exactDate && event.date !== queryFilters.exactDate) return false
@@ -220,7 +238,23 @@ const currentPageEvents = computed(() => {
   })
 })
 
-const filteredEventsCount = computed(() => currentPageEvents.value.length)
+const selectedPageSize = computed(() => {
+  const size = Number(queryFilters.pageSize)
+  return pageSizeOptions.includes(size) ? size : pageSizeOptions[0]
+})
+
+const selectedQueryPage = computed(() => {
+  const page = Number(queryFilters.page)
+  if (!Number.isFinite(page)) return 1
+  return Math.max(1, Math.floor(page))
+})
+
+const currentPageEvents = computed(() => {
+  const start = (selectedQueryPage.value - 1) * selectedPageSize.value
+  return filteredEvents.value.slice(start, start + selectedPageSize.value)
+})
+
+const filteredEventsCount = computed(() => filteredEvents.value.length)
 
 function selectEvent(event) {
   selectedEventId.value = String(event.id)
@@ -436,6 +470,35 @@ function syncQueryCategory() {
   queryFilters.categoryKey = selectedCategory.value === 'all' ? queryFilters.categoryKey : selectedCategory.value
 }
 
+function resetQueryPage() {
+  queryFilters.page = 1
+}
+
+function normalizeQueryPage() {
+  const page = Number(queryFilters.page)
+  queryFilters.page = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1
+}
+
+function applyQueryFilters() {
+  normalizeQueryPage()
+}
+
+function resetQueryFilters() {
+  queryFilters.daysAgo = null
+  queryFilters.exactDate = ''
+  queryFilters.categoryKey = selectedCategory.value === 'all' ? 'all' : selectedCategory.value
+  queryFilters.pageSize = 30
+  queryFilters.page = 1
+}
+
+function openExactDatePicker() {
+  if (typeof exactDateInput.value?.showPicker === 'function') {
+    exactDateInput.value.showPicker()
+    return
+  }
+  exactDateInput.value?.click()
+}
+
 function showToast(message) {
   window.clearTimeout(toastTimer)
   toast.message = message
@@ -447,6 +510,27 @@ function showToast(message) {
 
 watch(selectedCategory, () => {
   syncQueryCategory()
+  resetQueryPage()
+})
+
+watch(
+  () => [queryFilters.daysAgo, queryFilters.exactDate, queryFilters.categoryKey, queryFilters.pageSize],
+  () => {
+    resetQueryPage()
+  }
+)
+
+watch(
+  () => queryFilters.page,
+  () => {
+    normalizeQueryPage()
+  }
+)
+
+watch(selectedPageSize, (size) => {
+  if (queryFilters.pageSize !== size) {
+    queryFilters.pageSize = size
+  }
 })
 
 </script>
@@ -458,26 +542,13 @@ watch(selectedCategory, () => {
   flex-direction: column;
   gap: 0.55rem;
   padding: 1rem;
-  color: #e5e1e4;
-  background:
-    radial-gradient(circle at 12% 8%, rgba(0, 240, 255, 0.2) 0, transparent 34%),
-    radial-gradient(circle at 84% 18%, rgba(255, 172, 232, 0.15) 0, transparent 28%),
-    radial-gradient(circle at 86% 86%, rgba(112, 0, 255, 0.22) 0, transparent 34%),
-    linear-gradient(135deg, #0e0e10 0%, #1a0b2e 50%, #2d1052 100%),
-    #131315;
+  color: var(--dashboard-text, #1c1b1b);
+  background: var(--dashboard-bg, #fdf8f8);
   overflow: hidden;
 }
 
 .timeline-page::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent 70%);
+  display: none;
 }
 
 .material-symbols-outlined {
@@ -492,21 +563,20 @@ watch(selectedCategory, () => {
   align-items: center;
   min-height: 56px;
   padding: 0 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(14, 14, 16, 0.46);
-  backdrop-filter: blur(18px);
-  border-radius: 1rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
+  background: var(--dashboard-surface, #ffffff);
+  border-radius: 8px;
+  box-shadow: var(--dashboard-shadow, 0 18px 50px rgba(28, 27, 27, 0.08));
 }
 
 .timeline-header h1 {
   margin: 0;
-  color: #dbfcff;
+  color: var(--dashboard-text-strong, #000000);
   font-family: Manrope, Inter, sans-serif;
   font-size: 1.75rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  text-shadow: 0 0 18px rgba(0, 240, 255, 0.32);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-shadow: none;
 }
 
 .carousel-section {
@@ -522,11 +592,10 @@ watch(selectedCategory, () => {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.8rem;
-  border: 0.5px solid rgba(255, 255, 255, 0.14);
-  border-radius: 1rem;
-  background: rgba(18, 18, 24, 0.72);
-  backdrop-filter: blur(16px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
+  border-radius: 8px;
+  background: var(--dashboard-surface, #ffffff);
+  box-shadow: var(--dashboard-shadow, 0 18px 50px rgba(28, 27, 27, 0.08));
 }
 
 .timeline-actions {
@@ -542,11 +611,11 @@ watch(selectedCategory, () => {
   justify-content: center;
   gap: 0.35rem;
   min-height: 38px;
-  border: 0;
-  border-radius: 12px;
+  border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
+  border-radius: 8px;
   padding: 0 0.9rem;
-  background: rgba(255, 255, 255, 0.1);
-  color: #e5e1e4;
+  background: var(--dashboard-surface-soft, #f7f3f2);
+  color: var(--dashboard-text, #1c1b1b);
   cursor: pointer;
   font-weight: 800;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
@@ -555,12 +624,13 @@ watch(selectedCategory, () => {
 .timeline-actions button:hover,
 .confirm-modal button:hover {
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--dashboard-hover, #e0e3e5);
 }
 
 .timeline-actions .primary {
-  background: linear-gradient(135deg, #00f0ff, #d1bcff);
-  color: #101014;
+  border-color: var(--dashboard-accent, #1c1b1a);
+  background: var(--dashboard-accent, #1c1b1a);
+  color: var(--dashboard-accent-contrast, #ffffff);
 }
 
 .timeline-actions .material-symbols-outlined {
@@ -571,39 +641,179 @@ watch(selectedCategory, () => {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.65rem;
+  gap: 10px;
 }
 
-.query-panel label,
 .category-modal label {
   display: grid;
   gap: 0.35rem;
-  color: #cbd5e1;
+  color: var(--dashboard-text-muted, #5c5f61);
   font-size: 0.78rem;
   font-weight: 800;
 }
 
-.query-panel input,
-.query-panel select,
 .category-modal input {
   min-height: 36px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 10px;
+  border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
+  border-radius: 8px;
   padding: 0 0.7rem;
-  background: rgba(255, 255, 255, 0.09);
-  color: #fff;
+  background: var(--dashboard-surface-soft, #f7f3f2);
+  color: var(--dashboard-text, #1c1b1b);
   font: 700 0.86rem/1.2 Inter, sans-serif;
   outline: none;
 }
 
 .query-panel input,
+.query-panel select,
+.date-picker-field {
+  box-sizing: border-box;
+  width: 96px;
+  min-height: 38px;
+  border: 1px solid rgba(196, 199, 199, 0.58);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
+  color: var(--dashboard-text, #1c1b1b);
+  font: 700 13px/1.4 Inter, sans-serif;
+  text-align: center;
+  outline: none;
+}
+
 .query-panel select {
-  width: 128px;
+  cursor: pointer;
+  padding-right: 4px;
+  padding-left: 4px;
+  text-align-last: center;
+}
+
+.query-panel .category-query-select {
+  width: 92px;
+}
+
+.query-panel .page-size-query-select {
+  width: 68px;
+}
+
+.query-panel .page-query-input {
+  width: 58px;
+  text-align: center;
+}
+
+.query-panel .category-query-select,
+.query-panel .page-size-query-select {
+  padding-left: 8px;
+  padding-right: 4px;
+  text-align: left;
+  text-align-last: left;
+}
+
+.query-panel .category-query-select option,
+.query-panel .page-size-query-select option {
+  text-align: left;
 }
 
 .query-panel select:disabled {
   opacity: 0.72;
   cursor: not-allowed;
+}
+
+.date-picker-field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 128px;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+.query-panel .date-picker-btn,
+:global(.dashboard[data-theme='night']) .query-panel .date-picker-btn {
+  display: inline-grid;
+  width: 18px;
+  height: 22px;
+  min-height: 0;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--dashboard-accent, #1c1b1a);
+  cursor: pointer;
+  transform: none;
+}
+
+.query-panel .date-picker-btn:hover,
+:global(.dashboard[data-theme='night']) .query-panel .date-picker-btn:hover {
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.date-picker-btn .material-symbols-outlined {
+  font-size: 17px;
+}
+
+.date-picker-placeholder {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  color: #757575;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.date-picker-value {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--dashboard-text, #1c1b1b);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+:global(.dashboard[data-theme='night']) .date-picker-field {
+  border-color: var(--dashboard-border-soft);
+  background: var(--dashboard-surface-soft);
+  color: var(--dashboard-text);
+}
+
+:global(.dashboard[data-theme='night']) .date-picker-placeholder {
+  color: var(--dashboard-text-muted);
+}
+
+.query-panel .date-picker-input {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.query-panel button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 14px;
+  background: #f1edec;
+  color: #444748;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .events-section {
@@ -618,16 +828,16 @@ watch(selectedCategory, () => {
   height: calc(100vh - 448px);
   overflow-y: auto;
   padding: 0.75rem;
-  border: 0.5px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  background: rgba(32, 31, 33, 0.6);
-  backdrop-filter: blur(12px);
+  border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
+  border-radius: 8px;
+  background: var(--dashboard-surface, #ffffff);
+  box-shadow: var(--dashboard-shadow, 0 18px 50px rgba(28, 27, 27, 0.08));
 }
 
 .event-list-area {
   height: calc(100vh - 448px);
   overflow-y: auto;
-  border-radius: 1rem;
+  border-radius: 8px;
 }
 
 .event-list-area::-webkit-scrollbar,
@@ -643,7 +853,7 @@ watch(selectedCategory, () => {
 
 .event-list-area::-webkit-scrollbar-thumb,
 .category-nav-area::-webkit-scrollbar-thumb {
-  background: rgba(0, 240, 255, 0.3);
+  background: var(--dashboard-border, #c4c7c7);
   border-radius: 2px;
 }
 
@@ -668,11 +878,11 @@ watch(selectedCategory, () => {
 .category-modal {
   width: min(100%, 420px);
   padding: 1.5rem;
-  border: 0.5px solid rgba(255, 255, 255, 0.14);
-  border-radius: 1rem;
-  background: rgba(18, 18, 24, 0.94);
-  color: #e5e1e4;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+  border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
+  border-radius: 8px;
+  background: var(--dashboard-surface, #ffffff);
+  color: var(--dashboard-text, #1c1b1b);
+  box-shadow: var(--dashboard-shadow, 0 18px 50px rgba(28, 27, 27, 0.08));
 }
 
 .category-modal {
@@ -698,18 +908,19 @@ watch(selectedCategory, () => {
   align-items: center;
   justify-content: center;
   min-height: 38px;
-  border: 0;
-  border-radius: 12px;
+  border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
+  border-radius: 8px;
   padding: 0 0.9rem;
-  background: rgba(255, 255, 255, 0.1);
-  color: #e5e1e4;
+  background: var(--dashboard-surface-soft, #f7f3f2);
+  color: var(--dashboard-text, #1c1b1b);
   cursor: pointer;
   font-weight: 800;
 }
 
 .category-modal footer .primary {
-  background: linear-gradient(135deg, #00f0ff, #d1bcff);
-  color: #101014;
+  border-color: var(--dashboard-accent, #1c1b1a);
+  background: var(--dashboard-accent, #1c1b1a);
+  color: var(--dashboard-accent-contrast, #ffffff);
 }
 
 .confirm-modal h2,
@@ -719,7 +930,7 @@ watch(selectedCategory, () => {
 
 .confirm-modal p {
   margin-top: 0.65rem;
-  color: #b9cacb;
+  color: var(--dashboard-text-muted, #5c5f61);
   line-height: 1.6;
 }
 
@@ -741,9 +952,10 @@ watch(selectedCategory, () => {
   left: 50%;
   z-index: 1200;
   padding: 0.9rem 1.3rem;
-  border-radius: 14px;
-  background: rgba(18, 18, 24, 0.94);
-  color: #fff;
+  border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
+  border-radius: 8px;
+  background: var(--dashboard-surface, #ffffff);
+  color: var(--dashboard-text-strong, #000000);
   font-weight: 900;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
   transform: translate(-50%, -50%);

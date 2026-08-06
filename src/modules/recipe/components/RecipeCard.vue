@@ -60,16 +60,25 @@
           </div>
         </div>
 
-        <button class="view-recipe-btn" type="button" @click="viewRecipe">
-          查看完整食谱
-          <span class="material-symbols-outlined">arrow_forward</span>
-        </button>
+        <div class="card-footer">
+          <button class="view-recipe-btn" type="button" @click="viewRecipe">
+            查看完整食谱
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </button>
+
+          <label class="cooked-checkbox" :class="{ cooked: isCooked }">
+            <input v-model="isCooked" type="checkbox" />
+            <span>已烹饪</span>
+          </label>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
+
 const props = defineProps({
   mealType: {
     type: String,
@@ -104,6 +113,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:isFavorite', 'toggleIngredient', 'viewRecipe'])
+const isCooked = ref(false)
 
 const toggleFavorite = () => {
   emit('update:isFavorite', !props.isFavorite)
@@ -176,23 +186,25 @@ const viewRecipe = () => {
 .favorite-btn {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(4px);
-  color: #9a4024;
+  background-color: transparent;
+  color: #ff2d2d;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   border: none;
   cursor: pointer;
-  transition: all 0.2s;
+  padding: 0;
+  transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .favorite-btn:hover,
 .favorite-btn.is-favorite {
-  background-color: #9a4024;
-  color: #ffffff;
+  color: #ff0000;
+  transform: scale(1.08);
+}
+
+.favorite-btn.is-favorite .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
 
 .info-section {
@@ -214,8 +226,8 @@ const viewRecipe = () => {
 }
 
 .meal-type {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 18px;
   font-weight: 700;
   color: #ba5839;
   letter-spacing: 0.05em;
@@ -304,6 +316,13 @@ const viewRecipe = () => {
   color: #56423d;
 }
 
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .view-recipe-btn {
   color: #9a4024;
   font-size: 14px;
@@ -325,5 +344,30 @@ const viewRecipe = () => {
 
 .view-recipe-btn .material-symbols-outlined {
   font-size: 16px;
+}
+
+.cooked-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #56423d;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 1s ease;
+}
+
+.cooked-checkbox input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #22c55e;
+  cursor: pointer;
+  transition: accent-color 1s ease;
+}
+
+.cooked-checkbox.cooked {
+  color: #22c55e;
 }
 </style>

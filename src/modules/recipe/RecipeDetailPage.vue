@@ -19,88 +19,97 @@
       </div>
 
       <div class="form-grid">
-        <label class="field field-wide">
-          <span>标题</span>
-          <input v-model.trim="draft.title" type="text" placeholder="例如：红烧肉" />
-        </label>
-
-        <div class="field field-wide">
-          <span>食谱图片</span>
-          <label class="upload-box">
-            <input type="file" accept="image/*" :disabled="imageUploading" @change="handleImageChange" />
-            <span class="material-symbols-outlined">add_photo_alternate</span>
-            <strong>{{ imageUploading ? '上传中...' : draft.imageId ? '可重新上传图片' : '选择图片上传' }}</strong>
+        <div class="top-fields">
+          <label class="field">
+            <span>标题</span>
+            <input v-model.trim="draft.title" type="text" placeholder="例如：红烧肉" />
           </label>
-          <p v-if="draft.imageId" class="image-id">图片ID：{{ draft.imageId }}</p>
-          <p v-if="imageError" class="form-error">{{ imageError }}</p>
+
+          <label class="field">
+            <span>分类</span>
+            <select v-model.number="draft.category">
+              <option :value="0">家常</option>
+              <option :value="1">西餐</option>
+              <option :value="2">甜点</option>
+              <option :value="3">汤粥</option>
+              <option :value="4">其他</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>餐别</span>
+            <select v-model.number="draft.mealTypeValue">
+              <option :value="1">早餐</option>
+              <option :value="2">午餐</option>
+              <option :value="3">晚餐</option>
+              <option :value="4">夜宵</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>难度</span>
+            <select v-model.number="draft.difficultyValue">
+              <option :value="1">简单</option>
+              <option :value="2">中等</option>
+              <option :value="3">困难</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>烹饪时长（分钟）</span>
+            <input v-model.number="draft.cookingTime" type="number" min="0" />
+          </label>
+
+          <label class="field">
+            <span>人数</span>
+            <input v-model.number="draft.servings" type="number" min="1" step="1" />
+          </label>
         </div>
 
-        <label class="field field-wide">
-          <span>简介</span>
-          <textarea v-model.trim="draft.description" rows="3" placeholder="写一点这道菜的味道和来历" />
-        </label>
+        <div class="story-fields">
+          <label class="field">
+            <span>简介</span>
+            <textarea v-model.trim="draft.description" rows="3" placeholder="写一点这道菜的味道和来历" />
+          </label>
 
-        <label class="field">
-          <span>分类</span>
-          <select v-model.number="draft.category">
-            <option :value="0">家常</option>
-            <option :value="1">西餐</option>
-            <option :value="2">甜点</option>
-            <option :value="3">汤粥</option>
-            <option :value="4">其他</option>
-          </select>
-        </label>
+          <div class="field">
+            <span>食谱图片</span>
+            <label class="upload-box">
+              <input type="file" accept="image/*" :disabled="imageUploading" @change="handleImageChange" />
+              <span class="material-symbols-outlined">add_photo_alternate</span>
+              <strong>{{ imageUploading ? '上传中...' : draft.imageId ? '可重新上传图片' : '选择图片上传' }}</strong>
+            </label>
+            <p v-if="draft.imageId" class="image-id">图片ID：{{ draft.imageId }}</p>
+            <p v-if="imageError" class="form-error">{{ imageError }}</p>
+          </div>
 
-        <label class="field">
-          <span>餐别</span>
-          <select v-model.number="draft.mealTypeValue">
-            <option :value="1">早餐</option>
-            <option :value="2">午餐</option>
-            <option :value="3">晚餐</option>
-            <option :value="4">夜宵</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>难度</span>
-          <select v-model.number="draft.difficultyValue">
-            <option :value="1">简单</option>
-            <option :value="2">中等</option>
-            <option :value="3">困难</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>烹饪时长（分钟）</span>
-          <input v-model.number="draft.cookingTime" type="number" min="0" />
-        </label>
-
-        <label class="field field-wide">
-          <span>情感故事</span>
-          <textarea v-model.trim="draft.story" rows="3" placeholder="可选，用来记录这道菜背后的故事" />
-        </label>
+          <label class="field">
+            <span>情感故事</span>
+            <textarea v-model.trim="draft.story" rows="3" placeholder="可选，用来记录这道菜背后的故事" />
+          </label>
+        </div>
       </div>
     </header>
 
     <section class="content-grid">
-      <article class="panel-card list-panel">
-        <div class="section-head">
-          <h2>食材</h2>
+      <article class="list-panel">
+        <div class="ingredient-header row-header">
+          <span></span>
+          <span>食材名</span>
+          <span>用量</span>
+          <span>是否主料</span>
+          <span></span>
         </div>
-
         <div class="entry-list">
           <div v-for="(ingredient, index) in ingredients" :key="ingredient.uid" class="ingredient-row">
             <span class="ingredient-index">{{ index + 1 }}</span>
             <label class="field compact-field">
-              <span v-if="index === 0">食材名</span>
               <input v-model.trim="ingredient.name" type="text" aria-label="食材名" placeholder="五花肉" />
             </label>
             <label class="field compact-field">
-              <span v-if="index === 0">用量</span>
               <input v-model.trim="ingredient.quantity" type="text" aria-label="用量" placeholder="500g" />
             </label>
             <label class="field compact-field">
-              <span v-if="index === 0">是否主料</span>
               <select v-model.number="ingredient.isMain" aria-label="是否主料">
                 <option :value="1">1</option>
                 <option :value="0">0</option>
@@ -122,20 +131,20 @@
 
       </article>
 
-      <article class="panel-card list-panel">
-        <div class="section-head">
-          <h2>步骤</h2>
+      <article class="list-panel">
+        <div class="step-header row-header">
+          <span></span>
+          <span>步骤描述</span>
+          <span>耗时</span>
+          <span></span>
         </div>
-
         <div class="entry-list">
           <div v-for="(step, index) in steps" :key="step.uid" class="step-row">
             <span class="step-number">{{ index + 1 }}</span>
             <label class="field compact-field step-description">
-              <span v-if="index === 0">步骤描述</span>
               <input v-model.trim="step.description" type="text" aria-label="步骤描述" placeholder="五花肉切块后冷水下锅焯水。" />
             </label>
             <label class="field compact-field timer-field">
-              <span v-if="index === 0">耗时</span>
               <input v-model.number="step.timerMin" type="number" min="0" aria-label="耗时" />
             </label>
             <div class="row-meta">
@@ -197,6 +206,7 @@ function cloneRecipe(recipe) {
     mealTypeValue: recipe.mealTypeValue ?? 3,
     difficultyValue: recipe.difficultyValue ?? recipe.difficulty ?? 1,
     cookingTime: recipe.cookingTime ?? null,
+    servings: recipe.servings ?? recipe.detail?.servings ?? 1,
     story: recipe.story ?? recipe.detail?.story ?? '',
   }
 }
@@ -287,6 +297,7 @@ function handleSave() {
   emit('save', {
     ...draft.value,
     imageId: String(draft.value.imageId ?? '').trim(),
+    servings: Number(draft.value.servings ?? 1),
     ingredients: ingredients.value.map((item, index) => ({
       name: item.name,
       quantity: item.quantity,
@@ -385,8 +396,35 @@ function handleDelete() {
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.top-fields,
+.story-fields {
+  display: grid;
+  gap: 16px;
+}
+
+.top-fields {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.top-fields .field > span {
+  text-align: center;
+}
+
+.story-fields {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+}
+
+.story-fields .field {
+  grid-template-rows: auto 1fr auto auto;
+  height: 100%;
+}
+
+.story-fields .field > span {
+  text-align: center;
 }
 
 .field {
@@ -416,6 +454,16 @@ function handleDelete() {
 .field textarea {
   resize: vertical;
   line-height: 1.7;
+}
+
+.story-fields textarea,
+.story-fields .upload-box {
+  min-height: 150px;
+  height: 150px;
+}
+
+.story-fields textarea {
+  resize: none;
 }
 
 .upload-box {
@@ -464,7 +512,7 @@ function handleDelete() {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 18px;
+  gap: 10px;
 }
 
 .section-head {
@@ -492,6 +540,32 @@ function handleDelete() {
   display: grid;
   width: 100%;
   gap: 14px;
+}
+
+.row-header {
+  display: grid;
+  gap: 12px;
+  align-items: center;
+  padding: 0 14px;
+  color: #56423d;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.row-header span {
+  text-align: left;
+}
+
+.row-header span:not(:first-child):not(:last-child) {
+  padding-left: 10px;
+}
+
+.ingredient-header {
+  grid-template-columns: 34px minmax(112px, 0.9fr) minmax(92px, 0.72fr) minmax(86px, 0.54fr) 84px;
+}
+
+.step-header {
+  grid-template-columns: 34px minmax(190px, 1fr) 72px 84px;
 }
 
 .ingredient-row,
@@ -591,13 +665,19 @@ function handleDelete() {
 }
 
 @media (max-width: 820px) {
-  .form-grid {
+  .top-fields,
+  .story-fields {
     grid-template-columns: 1fr;
   }
 
   .ingredient-row,
   .step-row {
     grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .ingredient-header,
+  .step-header {
+    display: none;
   }
 
   .ingredient-row .compact-field,

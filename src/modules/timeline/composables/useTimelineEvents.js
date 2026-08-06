@@ -154,7 +154,7 @@ export function useTimelineEvents() {
   const selectedSubcategory = ref(null)
   const currentPage = ref(1)
   const pageIndex = ref(1)
-  const pageSize = 25
+  const pageSize = 30
   const hasMoreCards = ref(false)
 
   const categoryMap = computed(() => new Map(categories.value.map((category) => [toKey(category.id), category])))

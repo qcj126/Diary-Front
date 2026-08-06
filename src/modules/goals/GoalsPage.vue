@@ -36,6 +36,14 @@
         </select>
         <input v-model.trim="filters.title" type="text" placeholder="标题" />
         <input v-model.number="filters.recentDays" type="number" min="0" placeholder="最近X天" />
+        <span class="date-picker-field">
+          <button type="button" class="date-picker-btn" aria-label="选择日期" @click="openExactDatePicker">
+            <span class="material-symbols-outlined">calendar_month</span>
+          </button>
+          <span v-if="filters.exactDate" class="date-picker-value">{{ filters.exactDate }}</span>
+          <span v-else class="date-picker-placeholder">精确时间</span>
+          <input ref="exactDateInput" v-model="filters.exactDate" class="date-picker-input" type="date" />
+        </span>
         <select v-model.number="filters.ddl">
           <option :value="1">全部</option>
           <option :value="2">正常</option>
@@ -411,6 +419,7 @@ const expandedIds = ref([])
 const selectedIds = ref([])
 const selectedSubGoalKeys = ref([])
 const queryPanelOpen = ref(false)
+const exactDateInput = ref(null)
 const editorOpen = ref(false)
 const editorMode = ref('create')
 const editingId = ref(null)
@@ -487,6 +496,7 @@ const filters = reactive({
   category: 1,
   title: '',
   recentDays: null,
+  exactDate: '',
   ddl: 1,
 })
 
@@ -520,8 +530,9 @@ const filteredGoals = computed(() =>
     const categoryHit = filters.category === 1 || goal.category === categoryLabelFromValue(filters.category)
     const titleHit = !filters.title || goal.title.includes(filters.title)
     const recentHit = !Number(filters.recentDays) || goal.daysSinceUpdate <= Number(filters.recentDays)
+    const exactDateHit = !filters.exactDate || datePart(goal.ddl) === filters.exactDate
     const ddlHit = matchesDdlStatus(goal.ddl, filters.ddl)
-    return creatorHit && categoryHit && titleHit && recentHit && ddlHit
+    return creatorHit && categoryHit && titleHit && recentHit && exactDateHit && ddlHit
   }),
 )
 
@@ -731,8 +742,17 @@ async function resetFilters() {
   filters.category = 1
   filters.title = ''
   filters.recentDays = null
+  filters.exactDate = ''
   filters.ddl = 1
   await loadGoals(true)
+}
+
+function openExactDatePicker() {
+  if (typeof exactDateInput.value?.showPicker === 'function') {
+    exactDateInput.value.showPicker()
+    return
+  }
+  exactDateInput.value?.click()
 }
 
 function showToast(message) {
@@ -1016,6 +1036,7 @@ button:disabled {
 
 .query-panel input,
 .query-panel select,
+.date-picker-field,
 .stage-goal-block input,
 .stage-goal-block select,
 .stage-sub-goal-block input {
@@ -1029,7 +1050,8 @@ button:disabled {
 }
 
 .query-panel input,
-.query-panel select {
+.query-panel select,
+.date-picker-field {
   box-sizing: border-box;
   text-align: center;
   width: 96px;
@@ -1037,6 +1059,79 @@ button:disabled {
 
 .query-panel select {
   text-align-last: center;
+}
+
+.date-picker-field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 128px;
+  min-height: 38px;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+.query-panel .date-picker-btn {
+  display: inline-grid;
+  width: 18px;
+  height: 22px;
+  min-height: 0;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #1c1b1b;
+  cursor: pointer;
+  transform: none;
+}
+
+.query-panel .date-picker-btn:hover {
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.date-picker-btn .material-symbols-outlined {
+  font-size: 17px;
+}
+
+.date-picker-placeholder {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  color: #757575;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.date-picker-value {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: #1c1b1b;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.query-panel .date-picker-input {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .table-panel {

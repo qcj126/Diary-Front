@@ -22,13 +22,8 @@
     <!-- 加载更多按钮 -->
     <div v-if="hasMore" class="load-more-area">
       <button class="load-more-btn" @click="handleLoadMore">
-        加载更多 (还有 {{ totalEventsCount - currentPageEvents.length }} 条)
+        加载更多
       </button>
-    </div>
-    
-    <!-- 已加载全部提示 -->
-    <div v-else-if="currentPageEvents.length > 0" class="load-more-area">
-      <p class="all-loaded">已加载全部 {{ currentPageEvents.length }} 条事件</p>
     </div>
   </div>
 </template>
@@ -113,7 +108,7 @@ function getEventIcon(event) {
   overflow-y: auto;
   align-content: start;
   padding-right: 0.5rem;
-  padding-bottom: 5.5rem;
+  padding-bottom: 1rem;
 }
 
 .empty-state {
@@ -161,14 +156,6 @@ function getEventIcon(event) {
 
 .load-more-btn:active {
   transform: translateY(0);
-}
-
-.all-loaded {
-  margin: 0;
-  color: #94a3b8;
-  font-size: 0.9rem;
-  text-align: center;
-  pointer-events: auto;
 }
 
 /* 滚动条样式 */

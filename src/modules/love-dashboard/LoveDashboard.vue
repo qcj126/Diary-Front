@@ -10,6 +10,7 @@
     <main class="content">
       <HomeOverview
         v-if="active === 'home'"
+        @navigate="active = $event"
       />
       <TimelinePage v-else-if="active === 'timeline'" />
       <DietPage v-else-if="active === 'diet'" />
