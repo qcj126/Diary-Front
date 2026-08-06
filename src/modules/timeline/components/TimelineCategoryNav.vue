@@ -27,13 +27,16 @@
           <span class="category-icon">{{ category.icon }}</span>
           <span class="category-label">{{ category.label }}</span>
         </div>
-        <button 
-          class="add-btn"
-          @click.stop="handleAddCategory(category)"
-          title="新增卡片"
-        >
-          <span class="material-symbols-outlined">add</span>
-        </button>
+        <Transition name="add-btn-slide">
+          <button 
+            v-if="selectedCategory === category.key"
+            class="add-btn"
+            @click.stop="handleAddCategory(category)"
+            title="新增卡片"
+          >
+            <span class="material-symbols-outlined">add</span>
+          </button>
+        </Transition>
       </div>
 
       <!-- 子类展开 -->
@@ -126,6 +129,32 @@ function handleAddCategory(category) {
   transition: all 0.2s;
   box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
   flex-shrink: 0;
+}
+
+.add-btn-slide-enter-active,
+.add-btn-slide-leave-active {
+  overflow: hidden;
+  transition:
+    opacity 1s ease,
+    transform 1s ease,
+    width 1s ease,
+    margin 1s ease;
+}
+
+.add-btn-slide-enter-from,
+.add-btn-slide-leave-to {
+  width: 0;
+  margin-left: -0.5rem;
+  opacity: 0;
+  transform: translateX(-24px);
+}
+
+.add-btn-slide-enter-to,
+.add-btn-slide-leave-from {
+  width: 32px;
+  margin-left: 0;
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .add-btn:hover {
