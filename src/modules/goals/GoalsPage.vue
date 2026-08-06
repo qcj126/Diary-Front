@@ -34,16 +34,17 @@
 
       <form v-if="queryPanelOpen" class="query-panel" @submit.prevent="loadGoals(true)">
         <input v-model.trim="filters.creator" type="text" placeholder="创建人" />
-        <select v-model="filters.category">
-          <option value="">全部分类</option>
-          <option v-for="category in categories" :key="category" :value="category">{{ category }}</option>
+        <select v-model.number="filters.category">
+          <option :value="1">全部</option>
+          <option v-for="(category, index) in categories" :key="category" :value="index + 2">{{ category }}</option>
         </select>
         <input v-model.trim="filters.title" type="text" placeholder="标题" />
         <input v-model.number="filters.recentDays" type="number" min="0" placeholder="最近X天" />
-        <select v-model="filters.ddlStatus">
-          <option value="">全部DDL</option>
-          <option value="expired">已到期</option>
-          <option value="dueSoon">即将到期</option>
+        <select v-model.number="filters.ddl">
+          <option :value="1">全部</option>
+          <option :value="2">正常</option>
+          <option :value="3">即将到期</option>
+          <option :value="4">已到期</option>
         </select>
         <button type="submit" :disabled="loading">{{ loading ? '查询中' : '查询' }}</button>
         <button type="button" :disabled="loading" @click="resetFilters">重置</button>
@@ -54,44 +55,45 @@
       <div class="table-wrap">
         <table>
           <colgroup>
-            <col :style="{ width: `${columnWidths.main.expand}px` }" />
+            <col :style="{ width: `${columnWidths.main.controls}px` }" />
             <col :style="{ width: `${columnWidths.main.creator}px` }" />
             <col :style="{ width: `${columnWidths.main.category}px` }" />
             <col :style="{ width: `${columnWidths.main.title}px` }" />
             <col :style="{ width: `${columnWidths.main.content}px` }" />
             <col :style="{ width: `${columnWidths.main.hours}px` }" />
-            <col :style="{ width: `${columnWidths.main.hours}px` }" />
             <col :style="{ width: `${columnWidths.main.progress}px` }" />
             <col :style="{ width: `${columnWidths.main.estimated}px` }" />
-            <col :style="{ width: `${columnWidths.main.date}px` }" />
+            <col :style="{ width: `${columnWidths.main.status}px` }" />
             <col :style="{ width: `${columnWidths.main.ddl}px` }" />
             <col :style="{ width: `${columnWidths.main.date}px` }" />
+            <col :style="{ width: `${columnWidths.main.date}px` }" />
             <col :style="{ width: `${columnWidths.main.stale}px` }" />
-            <col :style="{ width: `${columnWidths.main.select}px` }" />
           </colgroup>
           <thead>
             <tr>
-              <th class="goal-menu-col"></th>
+              <th class="goal-controls-col"></th>
               <th>创建人</th>
               <th>分类</th>
               <th>标题</th>
               <th>内容</th>
               <th>已学时长</th>
-              <th>剩余时长</th>
               <th>进度</th>
               <th>预计用时</th>
-              <th>创建时间</th>
+              <th>状态</th>
               <th>DDL</th>
+              <th>创建时间</th>
               <th>修改时间</th>
               <th>距上次更新</th>
-              <th class="select-col"></th>
             </tr>
           </thead>
           <tbody>
             <template v-for="goal in filteredGoals" :key="goal.id">
               <tr :class="{ selected: selectedIds.includes(goal.id), expanded: expandedIds.includes(goal.id) }">
-                <td class="goal-menu-col">
+                <td class="goal-controls-col">
                   <div class="goal-row-actions">
+                    <label class="goal-control" aria-label="select stage goal">
+                      <input v-model="selectedIds" type="checkbox" :value="goal.id" />
+                    </label>
                     <button type="button" aria-label="toggle stage goal" @click="toggleExpand(goal.id)">
                       <span class="material-symbols-outlined">
                         {{ expandedIds.includes(goal.id) ? 'expand_less' : 'expand_more' }}
@@ -113,7 +115,6 @@
                 <td class="strong">{{ goal.title }}</td>
                 <td class="content-cell">{{ goal.content }}</td>
                 <td>{{ formatHours(goal.learnedHours) }}h</td>
-                <td>{{ formatHours(remainingHours(goal)) }}h</td>
                 <td>
                   <div class="progress-cell">
                     <span>{{ goal.progress }}%</span>
@@ -121,73 +122,45 @@
                   </div>
                 </td>
                 <td>{{ formatHours(goal.estimatedHours) }}h</td>
-                <td><span class="time-stack"><span>{{ datePart(goal.createdAt) }}</span><span>{{ timePart(goal.createdAt) }}</span></span></td>
+                <td><span :class="['ddl-status', ddlStatusInfo(goal.ddl).type]">{{ ddlStatusInfo(goal.ddl).label }}</span></td>
                 <td>{{ formatDateTime(goal.ddl) }}</td>
+                <td><span class="time-stack"><span>{{ datePart(goal.createdAt) }}</span><span>{{ timePart(goal.createdAt) }}</span></span></td>
                 <td><span class="time-stack"><span>{{ datePart(goal.updatedAt) }}</span><span>{{ timePart(goal.updatedAt) }}</span></span></td>
                 <td>
                   <span :class="['stale-pill', { warn: goal.daysSinceUpdate >= 3 }]">
                     {{ goal.daysSinceUpdate }}天
                   </span>
                 </td>
-                <td class="select-col">
-                  <input v-model="selectedIds" type="checkbox" :value="goal.id" aria-label="select stage goal" />
-                </td>
               </tr>
               <tr v-if="expandedIds.includes(goal.id)" class="detail-row">
-                <td colspan="14">
+                <td colspan="13">
                   <div class="detail-card">
-                    <aside class="sub-gap-panel">
-                      <h3>小分类学时差距</h3>
-                      <div class="sub-gap-list">
-                        <div v-for="sub in goal.subcategories" :key="`gap-${sub.name}`" class="sub-gap-row">
-                          <div class="sub-gap-meta">
-                            <span>{{ sub.name }}</span>
-                            <strong>{{ formatHours(sub.learnedHours) }}/{{ formatHours(sub.estimatedHours) }}h</strong>
-                          </div>
-                          <div class="sub-gap-track">
-                            <i class="total" />
-                            <i class="learned" :style="{ width: `${subProgress(sub)}%` }" />
-                          </div>
-                        </div>
-                      </div>
-                    </aside>
                     <div class="sub-table-wrap">
                       <table class="sub-table">
                         <colgroup>
                           <!-- 对齐到大分类列：小分类列宽使用大分类对应列宽，保证垂直对齐 -->
+                          <col :style="{ width: `${columnWidths.main.controls}px` }" />
+                          <col :style="{ width: `${columnWidths.main.creator}px` }" />
+                          <col :style="{ width: `${columnWidths.main.category}px` }" />
                           <col :style="{ width: `${columnWidths.main.title}px` }" />
                           <col :style="{ width: `${columnWidths.main.content}px` }" />
                           <col :style="{ width: `${columnWidths.main.hours}px` }" />
-                          <col :style="{ width: `${columnWidths.main.hours}px` }" />
                           <col :style="{ width: `${columnWidths.main.progress}px` }" />
                           <col :style="{ width: `${columnWidths.main.estimated}px` }" />
-                          <col :style="{ width: `${columnWidths.main.date}px` }" />
+                          <col :style="{ width: `${columnWidths.main.status}px` }" />
                           <col :style="{ width: `${columnWidths.main.ddl}px` }" />
                           <col :style="{ width: `${columnWidths.main.date}px` }" />
+                          <col :style="{ width: `${columnWidths.main.date}px` }" />
                           <col :style="{ width: `${columnWidths.main.stale}px` }" />
-                          <col :style="{ width: `${columnWidths.main.select}px` }" />
                         </colgroup>
-                        <thead>
-                        <tr>
-                          <th>小分类</th>
-                          <th>内容</th>
-                          <th>已学时长</th>
-                          <th>剩余时长</th>
-                          <th>进度</th>
-                          <th>预计用时</th>
-                          <th>创建时间</th>
-                          <th>DDL</th>
-                          <th>修改时间</th>
-                          <th>距上次更新</th>
-                          <th class="select-col"></th>
-                        </tr>
-                        </thead>
                         <tbody>
                         <tr v-for="(sub, subIndex) in goal.subcategories" :key="sub.name">
+                          <td></td>
+                          <td class="sub-index">{{ circledIndex(subIndex) }}</td>
+                          <td><span class="tag">{{ goal.category }}</span></td>
                           <td class="strong">{{ sub.name }}</td>
                           <td class="content-cell">{{ sub.content }}</td>
                           <td>{{ formatHours(sub.learnedHours) }}h</td>
-                          <td>{{ formatHours(subRemainingHours(sub)) }}h</td>
                           <td>
                             <div class="sub-progress-with-controls">
                               <div class="sub-progress-controls-top" role="group" aria-label="sub progress controls">
@@ -208,16 +181,14 @@
                             </div>
                           </td>
                           <td>{{ formatHours(sub.estimatedHours) }}h</td>
-                          <td><span class="time-stack"><span>{{ datePart(sub.createdAt) }}</span><span>{{ timePart(sub.createdAt) }}</span></span></td>
+                          <td><span :class="['ddl-status', ddlStatusInfo(sub.ddl).type]">{{ ddlStatusInfo(sub.ddl).label }}</span></td>
                           <td>{{ formatDateTime(sub.ddl) }}</td>
+                          <td><span class="time-stack"><span>{{ datePart(sub.createdAt) }}</span><span>{{ timePart(sub.createdAt) }}</span></span></td>
                           <td><span class="time-stack"><span>{{ datePart(sub.updatedAt) }}</span><span>{{ timePart(sub.updatedAt) }}</span></span></td>
                           <td>
                               <span :class="['stale-pill', { warn: sub.daysSinceUpdate >= 3 }]">
                                 {{ sub.daysSinceUpdate }}天
                               </span>
-                          </td>
-                          <td class="select-col">
-                            <input v-model="selectedSubGoalKeys" type="checkbox" :value="subKey(goal, sub)" aria-label="select sub goal" />
                           </td>
                         </tr>
                         </tbody>
@@ -228,10 +199,10 @@
               </tr>
             </template>
             <tr v-if="!loading && !filteredGoals.length">
-              <td colspan="14" class="empty-cell">暂无阶段目标</td>
+              <td colspan="13" class="empty-cell">暂无阶段目标</td>
             </tr>
             <tr v-if="loading">
-              <td colspan="14" class="empty-cell">加载中...</td>
+              <td colspan="13" class="empty-cell">加载中...</td>
             </tr>
           </tbody>
         </table>
@@ -416,18 +387,18 @@ const categories = ['技术', '学习', '健康', '生活']
 
 const columnWidths = {
   main: {
-    select: 42,
-    expand: 80,
-    creator: 97,
-    category: 97,
-    title: 140,
-    content: 300,
-    hours: 90,
-    progress: 140,
-    estimated: 110,
-    date: 120,
-    ddl: 120,
-    stale: 120,
+    controls: 78,
+    creator: 70,
+    category: 68,
+    title: 118,
+    content: 190,
+    hours: 70,
+    progress: 98,
+    estimated: 78,
+    status: 78,
+    date: 96,
+    ddl: 96,
+    stale: 80,
   },
   sub: {
     title: 140,
@@ -471,12 +442,56 @@ const exportForm = reactive({
   exportSize: 10,
 })
 
+const STATIC_GOALS = [
+  {
+    id: 'static-stage-goal-1',
+    userId: 10000,
+    creator: 'Codex',
+    category: '技术',
+    title: '阶段目标示例',
+    content: '用于验证阶段目标和小目标展示流程',
+    learnedHours: 1,
+    estimatedHours: 5,
+    progress: 20,
+    createdAt: '2026-08-06 09:00:00',
+    ddl: '2026-08-20 18:00:00',
+    updatedAt: '2026-08-06 09:00:00',
+    daysSinceUpdate: 0,
+    subcategories: [
+      {
+        id: 'static-sub-goal-1',
+        stageId: 'static-stage-goal-1',
+        name: '梳理需求',
+        content: '整理阶段目标页面的查询和新增规则',
+        learnedHours: 1,
+        estimatedHours: 2,
+        createdAt: '2026-08-06 09:00:00',
+        ddl: '2026-08-12 18:00:00',
+        updatedAt: '2026-08-06 09:00:00',
+        daysSinceUpdate: 0,
+      },
+      {
+        id: 'static-sub-goal-2',
+        stageId: 'static-stage-goal-1',
+        name: '完成联调',
+        content: '验证新增、查询和筛选参数传递',
+        learnedHours: 0,
+        estimatedHours: 3,
+        createdAt: '2026-08-06 09:00:00',
+        ddl: '2026-08-20 18:00:00',
+        updatedAt: '2026-08-06 09:00:00',
+        daysSinceUpdate: 0,
+      },
+    ],
+  },
+]
+
 const filters = reactive({
   creator: '',
-  category: '',
+  category: 1,
   title: '',
   recentDays: null,
-  ddlStatus: '',
+  ddl: 1,
 })
 
 const emptyDraft = () => ({
@@ -487,7 +502,7 @@ const emptyDraft = () => ({
 })
 
 const draft = reactive(emptyDraft())
-const goals = ref([])
+const goals = ref(STATIC_GOALS.map((goal) => ({ ...goal, subcategories: goal.subcategories.map((sub) => ({ ...sub })) })))
 
 function roundHours(value) {
   const number = Number(value)
@@ -498,33 +513,45 @@ function formatHours(value) {
   return String(roundHours(value))
 }
 
+function circledIndex(index) {
+  const circledNumbers = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
+  return circledNumbers[index] ?? `${index + 1}.`
+}
+
 const filteredGoals = computed(() =>
   goals.value.filter((goal) => {
     const creatorHit = !filters.creator || goal.creator.includes(filters.creator)
-    const categoryHit = !filters.category || goal.category === filters.category
+    const categoryHit = filters.category === 1 || goal.category === categoryLabelFromValue(filters.category)
     const titleHit = !filters.title || goal.title.includes(filters.title)
     const recentHit = !Number(filters.recentDays) || goal.daysSinceUpdate <= Number(filters.recentDays)
-    const ddlHit = matchesDdlStatus(goal.ddl, filters.ddlStatus)
+    const ddlHit = matchesDdlStatus(goal.ddl, filters.ddl)
     return creatorHit && categoryHit && titleHit && recentHit && ddlHit
   }),
 )
 
+function categoryLabelFromValue(value) {
+  return categories[Number(value) - 2] ?? ''
+}
+
 function matchesDdlStatus(value, status) {
-  if (!status) return true
+  if (status === 1) return true
   const ddlTime = new Date(value).getTime()
   if (!Number.isFinite(ddlTime)) return false
   const remainingMs = ddlTime - Date.now()
-  if (status === 'expired') return remainingMs <= 0
-  if (status === 'dueSoon') return remainingMs > 0 && remainingMs < 5 * 60 * 60 * 1000
+  if (status === 4) return remainingMs <= 0
+  if (status === 3) return remainingMs > 0 && remainingMs < 5 * 60 * 60 * 1000
+  if (status === 2) return remainingMs >= 5 * 60 * 60 * 1000
   return true
 }
 
-function remainingHours(goal) {
-  return roundHours(Math.max((Number(goal.estimatedHours) || 0) - (Number(goal.learnedHours) || 0), 0))
-}
+function ddlStatusInfo(value) {
+  const ddlTime = new Date(value).getTime()
+  if (!Number.isFinite(ddlTime)) return { label: '正常', type: 'normal' }
 
-function subRemainingHours(sub) {
-  return roundHours(Math.max((Number(sub.estimatedHours) || 0) - (Number(sub.learnedHours) || 0), 0))
+  const remainingMs = ddlTime - Date.now()
+  if (remainingMs <= 0) return { label: '已过期', type: 'expired' }
+  if (remainingMs < 5 * 60 * 60 * 1000) return { label: '即将过期', type: 'due-soon' }
+  return { label: '正常', type: 'normal' }
 }
 
 function subProgress(sub) {
@@ -576,7 +603,10 @@ async function loadGoals(showSuccess = false) {
     selectedSubGoalKeys.value = selectedSubGoalKeys.value.filter((key) => subKeys.includes(key))
     if (showSuccess) showToast('查询完成')
   } catch (error) {
-    showToast(error instanceof Error ? error.message : '查询阶段目标失败')
+    goals.value = STATIC_GOALS.map((goal) => ({ ...goal, subcategories: goal.subcategories.map((sub) => ({ ...sub })) }))
+    if (showSuccess) {
+      showToast(error instanceof Error ? error.message : '查询阶段目标失败')
+    }
   } finally {
     loading.value = false
   }
@@ -702,10 +732,10 @@ async function saveSubGoals() {
 
 async function resetFilters() {
   filters.creator = ''
-  filters.category = ''
+  filters.category = 1
   filters.title = ''
   filters.recentDays = null
-  filters.ddlStatus = ''
+  filters.ddl = 1
   await loadGoals(true)
 }
 
@@ -1007,6 +1037,17 @@ button:disabled {
   outline: none;
 }
 
+.query-panel input,
+.query-panel select {
+  box-sizing: border-box;
+  text-align: center;
+  width: 96px;
+}
+
+.query-panel select {
+  text-align-last: center;
+}
+
 .table-panel {
   overflow: hidden;
 }
@@ -1017,7 +1058,7 @@ button:disabled {
 
 table {
   width: 100%;
-  min-width: 1484px;
+  min-width: 1222px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -1037,7 +1078,7 @@ th {
   top: 0;
   z-index: 1;
   background: rgba(247, 243, 242, 0.96);
-  color: #5c5f61;
+  color: #1c1b1b;
   font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
@@ -1061,42 +1102,49 @@ tbody tr.selected {
   background: rgba(76, 175, 80, 0.09);
 }
 
-.goal-menu-col {
-  text-align: left;
-}
-
-.select-col {
+.goal-controls-col {
   text-align: center;
 }
 
-.select-col input[type="checkbox"] {
-  margin: 0;
-}
-
 .goal-row-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
+  justify-items: center;
+  gap: 0;
+  width: 100%;
 }
 
 
+.goal-control,
 .goal-row-actions button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
   padding: 0;
-  border-radius: 10px;
+  border-radius: 7px;
+}
+
+.goal-control {
+  cursor: pointer;
+}
+
+.goal-control input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
+.goal-row-actions button {
   background: rgba(224, 227, 229, 0.68);
   color: #1c1b1b;
 }
 
 .goal-row-actions button .material-symbols-outlined {
   display: block;
-  font-size: 20px;
+  font-size: 16px;
   line-height: 1;
 }
 
@@ -1124,27 +1172,48 @@ tbody tr.selected {
   white-space: nowrap;
 }
 
-.tag,
 .stale-pill {
-  display: inline-flex;
-  border-radius: 999px;
-  padding: 4px 8px;
+  display: inline;
   font-size: 12px;
   font-weight: 900;
 }
 
-.tag {
-  background: rgba(255, 152, 0, 0.13);
+.ddl-status {
+  display: inline;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ddl-status.normal {
+  color: #2f7c34;
+}
+
+.ddl-status.due-soon {
   color: #9a5a00;
 }
 
+.ddl-status.expired {
+  color: #ba1a1a;
+}
+
+.tag {
+  color: #444748;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.sub-index {
+  color: #1c1b1b;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .stale-pill {
-  background: rgba(76, 175, 80, 0.12);
   color: #2f7c34;
 }
 
 .stale-pill.warn {
-  background: rgba(186, 26, 26, 0.1);
   color: #ba1a1a;
 }
 
@@ -1200,9 +1269,7 @@ tbody tr.selected {
 }
 
 .detail-card {
-  display: grid;
-  grid-template-columns: 400px minmax(0, 1fr);
-  gap: 0;
+  display: block;
   padding: 18px 0;
   animation: unfold 0.24s ease both;
 }
@@ -1308,7 +1375,7 @@ tbody tr.selected {
 }
 
 .sub-table {
-  min-width: 1484px;
+  min-width: 1222px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -1331,10 +1398,10 @@ tbody tr.selected {
 
 .sub-progress-controls-top {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 20px 1fr 20px;
   align-items: center;
   width: 100%;
-  padding: 0 4px;
+  padding: 0;
 }
 
 .sub-progress-controls-top .sub-progress-pct {
@@ -1349,8 +1416,8 @@ tbody tr.selected {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border-radius: 50%;
   background: #ffffff;
@@ -1370,7 +1437,7 @@ tbody tr.selected {
 
 .sub-btn .material-symbols-outlined {
   display: block;
-  font-size: 20px;
+  font-size: 14px;
   line-height: 1;
 }
 
