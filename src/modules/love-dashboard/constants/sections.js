@@ -7,4 +7,5 @@ export const LOVE_SECTIONS = [
   { key: 'board', label: '生活随想', icon: 'chat_bubble' },
   { key: 'ledger', label: '账目', icon: 'payments' },
   { key: 'diet', label: '饮食记录', icon: 'restaurant' },
+  { key: 'icons', label: '图标库', icon: 'category' },
 ]

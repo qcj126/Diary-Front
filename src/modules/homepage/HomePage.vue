@@ -181,9 +181,12 @@ function go(key) {
 .home-header {
   display: flex;
   align-items: center;
-  min-height: 56px;
-  padding: 0 1.5rem;
-  margin-bottom: 1rem;
+  height: 72px;
+  min-height: 72px;
+  margin: -1rem -1rem 1rem;
+  padding: 0 2.5rem;
+  background-color: #fff8f6;
+  border-bottom: 1px solid rgba(220, 193, 185, 0.72);
 }
 
 .home-header h1,

@@ -39,32 +39,59 @@
             <span class="material-symbols-outlined">delete</span>
             删除分类
           </button>
-          <button class="add-recipe-btn" type="button" @click="createDraftRecipe">
-            <span class="material-symbols-outlined">add</span>
-            添加新食谱
+          <button class="edit-category-btn" type="button" @click="requestUpdateCategory">
+            <span class="material-symbols-outlined">edit</span>
+            修改分类
           </button>
           <button class="add-category-btn" type="button" @click="addCategory">
             <span class="material-symbols-outlined">add_circle</span>
-            添加新分类
+            添加分类
           </button>
-        </div>
-
-        <div class="sidebar-footer">
-          <button type="button" class="menu-item" @click="selectAnniversary">
-            <span class="material-symbols-outlined">favorite</span>
-            <span>红心食谱</span>
+          <button class="add-recipe-btn" type="button" @click="createDraftRecipe">
+            <span class="material-symbols-outlined">add</span>
+            添加食谱
           </button>
         </div>
       </aside>
 
       <main class="content-area">
         <div class="content-wrapper" :class="{ 'content-wrapper-wide': isWideView }">
-          <header class="page-header" v-if="currentView === 'timeline'">
-            <form class="search-row" @submit.prevent="loadRecipes">
-              <input v-model.trim="keyword" type="search" placeholder="搜索标题关键词" />
+          <section class="recipe-toolbar" v-if="currentView === 'timeline'">
+            <div class="recipe-actions">
+              <button type="button" class="primary" @click="createDraftRecipe">
+                <span class="material-symbols-outlined">add</span>
+                增
+              </button>
+              <button type="button" @click="requestDeleteCategories">
+                <span class="material-symbols-outlined">delete</span>
+                删
+              </button>
+              <button type="button" @click="requestUpdateCategory">
+                <span class="material-symbols-outlined">edit</span>
+                改
+              </button>
+              <button type="button" @click="recipeQueryPanelOpen = !recipeQueryPanelOpen">
+                <span class="material-symbols-outlined">search</span>
+                查
+              </button>
+            </div>
+
+            <form v-if="recipeQueryPanelOpen" class="search-row" @submit.prevent="loadRecipes">
+              <input v-model.trim="keyword" type="text" placeholder="关键字" />
+              <button
+                type="button"
+                class="red-heart-query-button"
+                :class="{ active: redHeart === 1 }"
+                aria-label="红心"
+                title="红心"
+                @click="toggleRedHeartQuery"
+              >
+                <span class="material-symbols-outlined">favorite</span>
+              </button>
               <button type="submit">搜索</button>
+              <button type="button" @click="resetRecipeQuery">重置</button>
             </form>
-          </header>
+          </section>
 
           <RecipeDetailPage
             v-if="selectedRecipe"
@@ -125,9 +152,9 @@
     </div>
 
     <div v-if="categoryDialogOpen" class="modal-backdrop" @click.self="closeCategoryDialog">
-      <form class="category-dialog" @submit.prevent="confirmAddCategory">
+      <form class="category-dialog" @submit.prevent="saveCategory">
         <header class="dialog-header">
-          <h2>添加新分类</h2>
+          <h2>{{ categoryDialogMode === 'edit' ? '修改分类' : '添加新分类' }}</h2>
           <button class="dialog-icon-button" type="button" @click="closeCategoryDialog">
             <span class="material-symbols-outlined">close</span>
           </button>
@@ -178,7 +205,7 @@
           </button>
         </header>
 
-        <p class="dialog-message">请选择分类</p>
+        <p class="dialog-message">{{ categoryAlertMessage }}</p>
 
         <footer class="dialog-actions">
           <button class="dialog-primary-button" type="button" @click="closeCategoryAlert">知道了</button>
@@ -222,6 +249,7 @@ import {
   queryRecipeCategories,
   queryRecipes,
   updateRecipe,
+  updateRecipeCategory,
 } from './api/recipe.js'
 import { RECIPE_DATA, RECIPE_CATEGORIES } from './mock/recipeData.js'
 
@@ -242,14 +270,18 @@ const iconLoading = ref(false)
 const recipeError = ref('')
 const recipeNotice = ref('')
 const keyword = ref('')
+const recipeQueryPanelOpen = ref(false)
 const activeCategory = ref(null)
-const anniversaryOnly = ref(null)
+const redHeart = ref(0)
 const selectedCategoryIds = ref([])
 const categoryDialogOpen = ref(false)
+const categoryDialogMode = ref('add')
 const categoryDialogError = ref('')
 const categoryAlertOpen = ref(false)
+const categoryAlertMessage = ref('请选择分类')
 const deleteCategoryDialogOpen = ref(false)
 const categoryDraft = ref({
+  categoryId: null,
   label: '',
   iconId: '',
   icon: '',
@@ -282,7 +314,7 @@ async function loadRecipes() {
       pageIndex: 1,
       pageSize: 20,
       category: activeCategory.value,
-      isAnniversary: anniversaryOnly.value,
+      redHeart: redHeart.value,
       keyword: keyword.value,
     })
 
@@ -333,14 +365,6 @@ async function loadCategories() {
 
 function selectCategory(value) {
   activeCategory.value = value
-  anniversaryOnly.value = null
-  currentView.value = 'timeline'
-  selectedRecipe.value = null
-  loadRecipes()
-}
-
-function selectAnniversary() {
-  anniversaryOnly.value = anniversaryOnly.value === 1 ? null : 1
   currentView.value = 'timeline'
   selectedRecipe.value = null
   loadRecipes()
@@ -356,10 +380,58 @@ function toggleCategorySelection(categoryId) {
 
 function requestDeleteCategories() {
   if (!selectedCategoryIds.value.length) {
+    categoryAlertMessage.value = '请选择分类'
     categoryAlertOpen.value = true
     return
   }
   deleteCategoryDialogOpen.value = true
+}
+
+function resetRecipeQuery() {
+  keyword.value = ''
+  redHeart.value = 0
+  loadRecipes()
+}
+
+function toggleRedHeartQuery() {
+  redHeart.value = redHeart.value === 1 ? 0 : 1
+}
+
+function getSelectedEditableCategory() {
+  const [categoryId] = selectedCategoryIds.value
+  return categories.value.find((category) => String(category.id) === String(categoryId))
+}
+
+async function requestUpdateCategory() {
+  if (!selectedCategoryIds.value.length) {
+    categoryAlertMessage.value = '请选择分类'
+    categoryAlertOpen.value = true
+    return
+  }
+
+  if (selectedCategoryIds.value.length > 1) {
+    categoryAlertMessage.value = '请选择一个分类'
+    categoryAlertOpen.value = true
+    return
+  }
+
+  const category = getSelectedEditableCategory()
+  if (!category) {
+    categoryAlertMessage.value = '请选择分类'
+    categoryAlertOpen.value = true
+    return
+  }
+
+  categoryDialogMode.value = 'edit'
+  categoryDraft.value = {
+    categoryId: category.id,
+    label: category.label ?? '',
+    iconId: category.iconId ?? '',
+    icon: category.icon ?? '',
+  }
+  categoryDialogError.value = ''
+  categoryDialogOpen.value = true
+  await loadCategoryIcons(false)
 }
 
 function closeCategoryAlert() {
@@ -401,14 +473,16 @@ async function confirmDeleteCategories() {
 }
 
 async function addCategory() {
+  categoryDialogMode.value = 'add'
   categoryDraft.value = {
+    categoryId: null,
     label: '',
     iconId: '',
     icon: '',
   }
   categoryDialogError.value = ''
   categoryDialogOpen.value = true
-  await loadCategoryIcons()
+  await loadCategoryIcons(true)
 }
 
 function closeCategoryDialog() {
@@ -417,14 +491,14 @@ function closeCategoryDialog() {
   categoryDialogError.value = ''
 }
 
-async function loadCategoryIcons() {
+async function loadCategoryIcons(selectDefault = true) {
   iconLoading.value = true
   categoryDialogError.value = ''
 
   try {
     categoryIcons.value = await queryRecipeIcons(RECIPE_MENU_NAME)
     const firstIcon = categoryIcons.value[0]
-    if (firstIcon) selectCategoryIcon(firstIcon)
+    if (selectDefault && firstIcon) selectCategoryIcon(firstIcon)
   } catch (error) {
     console.error(error)
     categoryIcons.value = []
@@ -442,7 +516,7 @@ function selectCategoryIcon(icon) {
   }
 }
 
-async function confirmAddCategory() {
+async function saveCategory() {
   const label = categoryDraft.value.label.trim()
   const iconId = categoryDraft.value.iconId
 
@@ -460,17 +534,31 @@ async function confirmAddCategory() {
   categoryDialogError.value = ''
 
   try {
-    await addRecipeCategory({
-      categoryName: label,
-      iconId,
-    })
+    if (categoryDialogMode.value === 'edit') {
+      await updateRecipeCategory({
+        categoryId: categoryDraft.value.categoryId,
+        categoryName: label,
+        iconId,
+      })
+      showNotice('分类已修改')
+    } else {
+      await addRecipeCategory({
+        categoryName: label,
+        iconId,
+      })
+      showNotice('分类已新增')
+    }
     categoryDialogOpen.value = false
     categoryDialogError.value = ''
-    showNotice('分类已新增')
     await loadCategories()
   } catch (error) {
     console.error(error)
-    categoryDialogError.value = error instanceof Error ? error.message : '新增分类失败'
+    categoryDialogError.value =
+      error instanceof Error
+        ? error.message
+        : categoryDialogMode.value === 'edit'
+          ? '修改分类失败'
+          : '新增分类失败'
   } finally {
     categorySaving.value = false
   }
@@ -738,6 +826,7 @@ onMounted(async () => {
 
 .add-recipe-btn,
 .add-category-btn,
+.edit-category-btn,
 .delete-category-btn {
   border-radius: 8px;
   padding: 12px 16px;
@@ -761,6 +850,12 @@ onMounted(async () => {
 .add-category-btn {
   background-color: #ba5839;
   color: #ffffff;
+}
+
+.edit-category-btn {
+  background-color: #fff8f6;
+  color: #9a4024;
+  border: 1px solid rgba(154, 64, 36, 0.28);
 }
 
 .delete-category-btn {
@@ -789,11 +884,6 @@ onMounted(async () => {
   max-width: 1240px;
 }
 
-.page-header {
-  padding: 0;
-  margin-bottom: 32px;
-}
-
 .page-title {
   margin: 0;
   font-size: 1.75rem;
@@ -802,23 +892,85 @@ onMounted(async () => {
   color: #1d1b1a;
 }
 
+.recipe-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid rgba(220, 193, 185, 0.72);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 18px 40px rgba(50, 47, 46, 0.06);
+}
+
+.recipe-actions,
 .search-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
-  max-width: 560px;
+}
+
+.recipe-actions button,
+.search-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 14px;
+  background: #f3ecea;
+  color: #56423d;
+  cursor: pointer;
+  font-weight: 800;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.recipe-actions button:hover,
+.search-row button:hover {
+  transform: translateY(-1px);
+}
+
+.recipe-actions .primary,
+.search-row button[type='submit'] {
+  background: #9a4024;
+  color: #ffffff;
+}
+
+.red-heart-query-button {
+  width: 42px;
+  padding: 0;
+}
+
+.red-heart-query-button .material-symbols-outlined {
+  color: #7a5a51;
+  transition: color 0.18s ease, font-variation-settings 0.18s ease;
+}
+
+.red-heart-query-button.active .material-symbols-outlined {
+  color: #ff0000;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
 
 .search-row input {
-  flex: 1;
+  width: 78px;
   min-width: 0;
   border: 1px solid rgba(220, 193, 185, 0.9);
-  border-radius: 8px;
+  border-radius: 12px;
   background: #ffffff;
-  padding: 12px 14px;
-  font: inherit;
+  padding: 10px 12px;
+  color: #1d1b1a;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  outline: none;
 }
 
-.search-row button,
 .retry-button {
   border: none;
   border-radius: 8px;
@@ -1108,6 +1260,21 @@ onMounted(async () => {
   .content-area {
     height: auto;
     padding: 1rem;
+  }
+
+  .recipe-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .recipe-actions,
+  .search-row {
+    justify-content: flex-start;
+  }
+
+  .search-row input {
+    flex: 1 1 160px;
+    width: auto;
   }
 
   .page-title {

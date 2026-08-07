@@ -163,14 +163,17 @@ const filteredMeals = computed(() => {
   line-height: 1;
 }
 
-.hero-card {
+.diet-dashboard > .hero-card {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  min-height: 56px;
-  padding: 0 1.5rem;
-  background: transparent;
+  height: 72px;
+  min-height: 72px;
+  margin: -1rem -1rem 1rem;
+  padding: 0 2.5rem;
+  background-color: #fff8f6;
   border: 0;
+  border-bottom: 1px solid rgba(220, 193, 185, 0.72);
   box-shadow: none;
 }
 
@@ -328,7 +331,6 @@ const filteredMeals = computed(() => {
 }
 
 @media (max-width: 1100px) {
-  .hero-card,
   .section-heading {
     flex-direction: column;
     align-items: stretch;
@@ -348,9 +350,10 @@ const filteredMeals = computed(() => {
     padding: 12px;
   }
 
-  .hero-card {
-    padding: 24px 20px;
-    border-radius: 24px;
+  .diet-dashboard > .hero-card {
+    margin: -12px -12px 1rem;
+    padding: 0 1rem;
+    border-radius: 0;
   }
 
   .hero-meta {

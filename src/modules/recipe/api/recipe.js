@@ -372,7 +372,7 @@ export async function queryRecipes(params = {}) {
       category: params.category ?? null,
       mealType: params.mealType ?? null,
       difficulty: params.difficulty ?? null,
-      isAnniversary: params.isAnniversary ?? null,
+      redHeart: params.redHeart ?? 0,
       keyword: params.keyword ?? '',
     },
     '查询食谱失败',
@@ -395,6 +395,18 @@ export function addRecipeCategory(category) {
       iconId: category.iconId,
     },
     '新增分类失败',
+  )
+}
+
+export function updateRecipeCategory(category) {
+  return postJson(
+    RECIPE_API.updateCategory,
+    {
+      categoryId: category.categoryId,
+      categoryName: category.categoryName,
+      iconId: category.iconId,
+    },
+    '修改分类失败',
   )
 }
 

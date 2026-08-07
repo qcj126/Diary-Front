@@ -527,9 +527,12 @@ function showToast(message) {
 .thoughts-hero {
   display: flex;
   align-items: center;
-  min-height: 56px;
-  padding: 0 1.5rem;
-  margin-bottom: 24px;
+  height: 72px;
+  min-height: 72px;
+  margin: -1rem -1rem 24px;
+  padding: 0 2.5rem;
+  background-color: #fff8f6;
+  border-bottom: 1px solid rgba(220, 193, 185, 0.72);
 }
 .hero-copy,
 .hero-card,
@@ -1440,7 +1443,6 @@ select {
   opacity: 1;
 }
 @media (max-width: 1180px) {
-  .thoughts-hero,
   .thoughts-layout {
     grid-template-columns: 1fr;
   }
@@ -1451,6 +1453,10 @@ select {
 @media (max-width: 700px) {
   .thoughts-page {
     padding: 18px;
+  }
+  .thoughts-hero {
+    margin: -18px -18px 24px;
+    padding: 0 1rem;
   }
   .moment-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));

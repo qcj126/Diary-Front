@@ -940,9 +940,12 @@ onMounted(() => {
 .goals-header {
   align-items: center;
   justify-content: flex-start;
-  min-height: 56px;
-  padding: 0 1.5rem;
-  margin-bottom: 24px;
+  height: 72px;
+  min-height: 72px;
+  margin: -1rem -1rem 24px;
+  padding: 0 2.5rem;
+  background-color: #fff8f6;
+  border-bottom: 1px solid rgba(220, 193, 185, 0.72);
 }
 
 .eyebrow {
@@ -1836,10 +1839,14 @@ tbody tr.selected {
 }
 
 @media (max-width: 980px) {
-  .goals-header,
   .toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .goals-header {
+    align-items: center;
+    flex-direction: row;
   }
 
   .query-panel {
@@ -1867,6 +1874,10 @@ tbody tr.selected {
 }
 
 @media (max-width: 680px) {
+  .goals-header {
+    padding: 0 1rem;
+  }
+
   .sub-goal-field-row {
     grid-template-columns: 1fr 40px;
   }

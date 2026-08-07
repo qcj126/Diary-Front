@@ -247,9 +247,12 @@ function formatMoney(value) {
 .ledger-hero {
   display: flex;
   align-items: center;
-  min-height: 56px;
-  padding: 0 1.5rem;
-  margin-bottom: 18px;
+  height: 72px;
+  min-height: 72px;
+  margin: -1rem -1rem 18px;
+  padding: 0 2.5rem;
+  background-color: #fff8f6;
+  border-bottom: 1px solid rgba(220, 193, 185, 0.72);
 }
 
 .hero-copy,
@@ -589,8 +592,7 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .ledger-layout,
-  .ledger-hero {
+  .ledger-layout {
     grid-template-columns: 1fr;
   }
 }
@@ -600,9 +602,14 @@ button {
     padding: 18px;
   }
 
+  .ledger-hero {
+    margin: -18px -18px 18px;
+    padding: 0 1rem;
+  }
+
   .hero-copy {
-    min-height: auto;
-    padding: 24px;
+    min-height: 0;
+    padding: 0;
   }
 
   .hero-copy h1 {

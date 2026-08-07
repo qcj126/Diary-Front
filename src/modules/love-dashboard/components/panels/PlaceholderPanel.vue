@@ -1,6 +1,8 @@
 <template>
   <section class="panel">
-    <h2 class="title">{{ title }}</h2>
+    <header class="title-header">
+      <h2 class="title">{{ title }}</h2>
+    </header>
   </section>
 </template>
 
@@ -20,14 +22,21 @@ defineProps({
   padding: 1rem;
 }
 
-.title {
+.title-header {
   display: flex;
   align-items: center;
-  min-height: 56px;
+  height: 72px;
+  min-height: 72px;
+  margin: -1rem -1rem 0;
+  padding: 0 2.5rem;
+  background-color: #fff8f6;
+  border-bottom: 1px solid rgba(220, 193, 185, 0.72);
+}
+
+.title {
   margin: 0;
-  padding: 0 1.5rem;
   font-size: 1.75rem;
   line-height: 1.2;
-  color: #0f172a;
+  color: #1d1b1a;
 }
 </style>

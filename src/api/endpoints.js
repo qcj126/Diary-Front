@@ -32,6 +32,13 @@ export const TIMELINE_API = {
   cardQuery: `${API_BASE}/time-machine/card/query`,
 }
 
+export const ICON_API = {
+  add: `${API_BASE}/file/icon/add`,
+  query: `${API_BASE}/file/icon/query`,
+  update: `${API_BASE}/file/icon/update`,
+  delete: `${API_BASE}/file/icon/delete`,
+}
+
 export const GOAL_API = {
   add: `${API_BASE}/goal/add`,
   batchAddSubGoal: `${API_BASE}/goal/batch/addSubGoal`,
@@ -48,6 +55,7 @@ export const RECIPE_API = {
   delete: `${API_BASE}/recipe/delete`,
   addCategory: `${API_BASE}/recipe/add/category`,
   queryCategory: `${API_BASE}/recipe/query/category`,
+  updateCategory: `${API_BASE}/recipe/update/category`,
   deleteCategory: `${API_BASE}/recipe/delete/category`,
   uploadImages: `${API_BASE}/file/upload/images`,
   queryImageUrls: `${API_BASE}/file/query/images/urls`,
@@ -58,6 +66,7 @@ export const API_ENDPOINTS = {
   auth: AUTH_API,
   loveDashboard: LOVE_DASHBOARD_API,
   timeline: TIMELINE_API,
+  icon: ICON_API,
   goal: GOAL_API,
   recipe: RECIPE_API,
 }

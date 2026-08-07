@@ -585,18 +585,21 @@ watch(selectedPageSize, (size) => {
 .timeline-header {
   display: flex;
   align-items: center;
-  min-height: 56px;
-  padding: 0 1.5rem;
-  border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
-  background: var(--dashboard-surface, #ffffff);
-  border-radius: 8px;
-  box-shadow: var(--dashboard-shadow, 0 18px 50px rgba(28, 27, 27, 0.08));
+  flex: 0 0 72px;
+  height: 72px;
+  min-height: 72px;
+  margin: -1rem -1rem 0.45rem;
+  padding: 0 2.5rem;
+  border: 0;
+  border-bottom: 1px solid rgba(220, 193, 185, 0.72);
+  background-color: #fff8f6;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .timeline-header h1 {
   margin: 0;
-  color: var(--dashboard-text-strong, #000000);
-  font-family: Manrope, Inter, sans-serif;
+  color: #1d1b1a;
   font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -988,6 +991,11 @@ watch(selectedPageSize, (size) => {
 @media (max-width: 900px) {
   .timeline-page {
     padding: 0.75rem;
+  }
+
+  .timeline-header {
+    margin: -0.75rem -0.75rem 0.45rem;
+    padding: 0 1rem;
   }
 
   .carousel-section {
