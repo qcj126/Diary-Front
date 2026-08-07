@@ -1,70 +1,123 @@
 <template>
-  <div class="diet-timeline">
-    <div class="timeline-line" aria-hidden="true" />
-
-    <article
-      v-for="meal in meals"
-      :key="meal.id"
-      class="timeline-entry"
-      :class="meal.type"
-    >
-      <div class="time-rail">
-        <div class="time-dot">{{ meal.period.slice(0, 1) }}</div>
-        <div class="time-label">{{ meal.time }}</div>
+  <div class="diet-timeline split-timeline">
+    <section v-for="group in mealGroups" :key="group.key" class="meal-column">
+      <div class="column-head">
+        <h3>{{ group.title }}</h3>
+        <span>{{ group.items.length }} 条</span>
       </div>
 
-      <div class="meal-card">
-        <div class="meal-photo" :class="{ empty: !meal.img }">
-          <img v-if="meal.img" :src="meal.img" :alt="meal.name" />
-        </div>
+      <div class="column-timeline">
+        <div class="timeline-line" aria-hidden="true" />
 
-        <div class="meal-body">
-          <div class="meal-topline">
-            <span class="meal-period">{{ meal.period }}</span>
-            <span class="meal-mood">{{ meal.mood }}</span>
+        <article v-for="meal in group.items" :key="meal.id" class="timeline-entry">
+          <div class="time-dot" aria-hidden="true" />
+
+          <div class="meal-card" :class="{ outside: group.key === 'outside' }">
+            <time class="meal-time">{{ meal.recordedAt || meal.time }}</time>
+
+            <div class="meal-photo" :class="{ empty: !meal.img }">
+              <img v-if="meal.img" :src="meal.img" :alt="meal.name" />
+            </div>
+
+            <div class="meal-body">
+              <div class="meal-topline">
+                <span class="meal-period">{{ meal.period }}</span>
+              </div>
+
+              <h3 class="meal-name">{{ meal.name }}</h3>
+              <p class="meal-desc">{{ meal.desc }}</p>
+
+              <div v-if="group.key === 'home'" class="meal-tags">
+                <span class="tag">蛋白质 {{ meal.protein }}g</span>
+                <span class="tag">碳水 {{ meal.carbs }}g</span>
+                <span class="tag">脂肪 {{ meal.fat }}g</span>
+                <span class="tag">钠 {{ meal.sodium ?? 0 }}mg</span>
+                <span class="tag kcal-tag">热量 {{ meal.kcal }}kcal</span>
+              </div>
+            </div>
           </div>
-
-          <h3 class="meal-name">{{ meal.name }}</h3>
-          <p class="meal-desc">{{ meal.desc }}</p>
-
-          <div class="meal-tags">
-            <span class="tag">{{ meal.protein }}g 蛋白</span>
-            <span class="tag">{{ meal.carbs }}g 碳水</span>
-            <span class="tag">{{ meal.fat }}g 脂肪</span>
-          </div>
-
-          <p class="meal-comment">{{ meal.comment }}</p>
-        </div>
-
-        <div class="meal-kcal">
-          <span class="kcal-value">{{ meal.kcal }}</span>
-          <span class="kcal-unit">kcal</span>
-        </div>
+        </article>
       </div>
-    </article>
+    </section>
   </div>
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   meals: {
     type: Array,
     required: true,
   },
 })
+
+const mealGroups = computed(() => [
+  {
+    key: 'home',
+    title: '在家吃的',
+    items: props.meals.filter((meal) => meal.place !== 'outside'),
+  },
+  {
+    key: 'outside',
+    title: '在外吃的',
+    items: props.meals.filter((meal) => meal.place === 'outside'),
+  },
+])
 </script>
 
 <style scoped>
 .diet-timeline {
   position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 1 1 auto;
+  gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.meal-column {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  min-height: 0;
+}
+
+.column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 0 2px 0 20px;
+}
+
+.column-head h3 {
+  margin: 0;
+  color: #1d1b1a;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.column-head span {
+  color: #89726c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.column-timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
 }
 
 .timeline-line {
   position: absolute;
-  left: 33px;
+  left: 6px;
   top: 0;
   bottom: 0;
   width: 2px;
@@ -73,59 +126,53 @@ defineProps({
 
 .timeline-entry {
   position: relative;
-  display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-
-.time-rail {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  padding-left: 20px;
 }
 
 .time-dot {
-  width: 34px;
-  height: 34px;
+  position: absolute;
+  left: 1px;
+  top: 14px;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
   border-radius: 999px;
-  display: grid;
-  place-items: center;
   background: #ba5839;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  box-shadow: 0 10px 18px rgba(154, 64, 36, 0.2);
-}
-
-.time-label {
-  padding: 8px 10px;
-  border-radius: 999px;
-  background: #fff;
-  border: 1px solid #dcc1b9;
-  color: #7e2c11;
-  font-size: 13px;
-  font-weight: 700;
+  border: 3px solid #fff8f6;
+  box-shadow: 0 0 0 1px rgba(154, 64, 36, 0.28);
 }
 
 .meal-card {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) auto;
-  gap: clamp(14px, 1.6vw, 18px);
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 10px;
   align-items: stretch;
-  padding: clamp(14px, 1.6vw, 18px);
-  border-radius: 24px;
+  padding: 28px 10px 10px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(220, 193, 185, 0.92);
-  box-shadow: 0 18px 34px rgba(50, 47, 46, 0.07);
+  box-shadow: 0 10px 22px rgba(50, 47, 46, 0.06);
+}
+
+.meal-card.outside {
+  background: rgba(249, 242, 240, 0.92);
+}
+
+.meal-time {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  color: #89726c;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 14px;
+  white-space: nowrap;
 }
 
 .meal-photo {
-  min-height: clamp(150px, 16vw, 188px);
-  border-radius: 18px;
+  height: 86px;
+  border-radius: 10px;
   overflow: hidden;
   background: linear-gradient(135deg, #f3ecea, #e8e1df);
 }
@@ -147,16 +194,15 @@ defineProps({
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
 }
 
 .meal-period,
-.meal-mood,
 .tag {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
-  padding: 7px 12px;
+  border-radius: 8px;
+  padding: 5px 8px;
   font-size: 12px;
   line-height: 1;
   font-weight: 700;
@@ -167,31 +213,28 @@ defineProps({
   color: #7e2c11;
 }
 
-.meal-mood {
-  background: #d4e9c5;
-  color: #3a4c31;
-}
-
 .meal-name {
   margin: 0;
-  font-family: 'Playfair Display', 'Times New Roman', serif;
-  font-size: clamp(22px, 2vw, 30px);
-  line-height: 1.1;
+  font-size: 15px;
+  line-height: 1.25;
   color: #1d1b1a;
 }
 
 .meal-desc {
-  margin: 10px 0 14px;
+  display: -webkit-box;
+  margin: 5px 0 8px;
+  overflow: hidden;
   color: #56423d;
-  font-size: 15px;
-  line-height: 24px;
+  font-size: 12px;
+  line-height: 18px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .meal-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 6px;
 }
 
 .tag {
@@ -199,101 +242,30 @@ defineProps({
   color: #56423d;
 }
 
-.meal-comment {
-  margin: auto 0 0;
-  padding-top: 14px;
-  border-top: 1px solid #eee7e5;
-  color: #89726c;
-  font-size: 14px;
-  line-height: 22px;
-}
-
-.meal-kcal {
-  min-width: 92px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.kcal-value {
-  font-family: 'Playfair Display', 'Times New Roman', serif;
-  font-size: 42px;
-  line-height: 1;
+.kcal-tag {
+  background: #ffdbd1;
   color: #9a4024;
-}
-
-.kcal-unit {
-  font-size: 13px;
-  line-height: 16px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #89726c;
-  font-weight: 700;
 }
 
 @media (max-width: 1180px) {
   .meal-card {
-    grid-template-columns: minmax(120px, 170px) minmax(0, 1fr);
-  }
-
-  .meal-kcal {
-    grid-column: 2;
-    min-width: 0;
-    flex-direction: row;
-    align-items: baseline;
-    justify-content: flex-start;
-    gap: 8px;
+    grid-template-columns: 96px minmax(0, 1fr);
   }
 }
 
 @media (max-width: 900px) {
-  .timeline-line {
-    left: 22px;
-  }
-
-  .timeline-entry {
-    grid-template-columns: 56px minmax(0, 1fr);
-    gap: 14px;
-  }
-
-  .meal-card {
+  .diet-timeline {
     grid-template-columns: 1fr;
   }
 
-  .meal-photo {
-    min-height: 220px;
-  }
-
-  .meal-kcal {
-    flex-direction: row;
-    align-items: baseline;
-    justify-content: flex-start;
-    gap: 8px;
+  .meal-card {
+    grid-template-columns: 120px minmax(0, 1fr);
   }
 }
 
 @media (max-width: 560px) {
-  .timeline-line {
-    display: none;
-  }
-
-  .timeline-entry {
-    grid-template-columns: 1fr;
-  }
-
-  .time-rail {
-    align-items: flex-start;
-    flex-direction: row;
-  }
-
-  .meal-photo {
-    min-height: 180px;
-  }
-
-  .meal-topline {
-    align-items: flex-start;
-    flex-direction: column;
+  .meal-card {
+    grid-template-columns: 88px minmax(0, 1fr);
   }
 }
 </style>

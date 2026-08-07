@@ -1,8 +1,17 @@
 <template>
   <div class="summary-stack">
     <section class="summary-card spotlight-card">
-      <p class="panel-kicker">Nutrition</p>
-      <h3 class="panel-title">今日营养总览</h3>
+      <div class="panel-head">
+        <div>
+          <p class="panel-kicker">Nutrition</p>
+          <h3 class="panel-title">营养总览</h3>
+        </div>
+        <label class="date-picker-button" title="选择日期" aria-label="选择日期">
+          <span class="material-symbols-outlined">calendar_month</span>
+          <span>{{ selectedDate }}</span>
+          <input v-model="selectedDate" type="date" />
+        </label>
+      </div>
 
       <div class="ring-block">
         <div class="ring-chart">
@@ -47,7 +56,7 @@
           </svg>
 
           <div class="chart-center">
-            <span class="center-label">今日热量</span>
+            <span class="center-label">热量</span>
             <strong>{{ total.kcal }}</strong>
             <span class="center-unit">kcal</span>
           </div>
@@ -66,51 +75,21 @@
             <span class="macro-label"><i :style="{ background: colors.fat }" />脂肪</span>
             <strong>{{ total.fat }}g · {{ fatRatio }}%</strong>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="summary-card">
-      <p class="panel-kicker">Goals</p>
-      <h3 class="panel-title">目标完成进度</h3>
-
-      <div class="goal-list">
-        <div v-for="goal in goals" :key="goal.key" class="goal-row">
-          <div class="goal-head">
-            <span>{{ goal.label }}</span>
-            <strong>{{ goal.current }} / {{ goal.target }}{{ goal.unit }}</strong>
-          </div>
-          <div class="goal-track">
-            <div class="goal-fill" :style="{ width: goal.progress + '%', background: goal.color }" />
+          <div class="macro-row">
+            <span class="macro-label"><i :style="{ background: colors.sodium }" />钠</span>
+            <strong>{{ total.sodium }}mg</strong>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="summary-card insight-card">
-      <p class="panel-kicker">Insight</p>
-      <h3 class="panel-title">今日状态小结</h3>
-
-      <div class="insight-grid">
-        <div class="insight-item">
-          <span>热量区间</span>
-          <strong>{{ total.kcal > 1600 ? '接近目标' : '略低一些' }}</strong>
-        </div>
-        <div class="insight-item">
-          <span>蛋白表现</span>
-          <strong>{{ total.protein >= 90 ? '很稳定' : '还能再补' }}</strong>
-        </div>
-        <div class="insight-item">
-          <span>饮食节奏</span>
-          <strong>{{ meals.length >= 4 ? '分配均衡' : '可增加加餐' }}</strong>
-        </div>
-      </div>
-    </section>
+    <WeeklyNutritionChart :total="total" :colors="colors" :targets="nutritionTargets" />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import WeeklyNutritionChart from './WeeklyNutritionChart.vue'
 
 const props = defineProps({
   meals: {
@@ -123,8 +102,11 @@ const colors = {
   protein: '#7a8d6e',
   carbs: '#d36b4b',
   fat: '#c8953d',
+  sodium: '#4d938a',
   kcal: '#9a4024',
 }
+
+const selectedDate = ref('2026-08-07')
 
 const total = computed(() =>
   props.meals.reduce(
@@ -133,8 +115,9 @@ const total = computed(() =>
       protein: acc.protein + (meal.protein || 0),
       carbs: acc.carbs + (meal.carbs || 0),
       fat: acc.fat + (meal.fat || 0),
+      sodium: acc.sodium + (meal.sodium || 0),
     }),
-    { kcal: 0, protein: 0, carbs: 0, fat: 0 },
+    { kcal: 0, protein: 0, carbs: 0, fat: 0, sodium: 0 },
   ),
 )
 
@@ -147,43 +130,42 @@ const proteinArc = computed(() => proteinRatio.value)
 const carbsArc = computed(() => carbsRatio.value)
 const fatArc = computed(() => fatRatio.value)
 
-const goals = computed(() => [
-  createGoal('kcal', '热量', total.value.kcal, 2000, ' kcal', colors.kcal),
-  createGoal('protein', '蛋白质', total.value.protein, 120, 'g', colors.protein),
-  createGoal('carbs', '碳水', total.value.carbs, 220, 'g', colors.carbs),
-  createGoal('fat', '脂肪', total.value.fat, 65, 'g', colors.fat),
-])
-
-function createGoal(key, label, current, target, unit, color) {
-  return {
-    key,
-    label,
-    current,
-    target,
-    unit,
-    color,
-    progress: Math.min(100, Math.round((current / target) * 100)),
-  }
+const nutritionTargets = {
+  kcal: 2000,
+  protein: 120,
+  carbs: 220,
+  fat: 65,
+  sodium: 2000,
 }
 
 function emptyArc(value) {
   return Math.max(0, 100 - value)
 }
+
 </script>
 
 <style scoped>
 .summary-stack {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
+  height: 100%;
+  overflow: hidden;
 }
 
 .summary-card {
-  padding: clamp(18px, 2vw, 24px);
-  border-radius: 24px;
+  padding: 10px;
+  border-radius: 14px;
   background: rgba(249, 242, 240, 0.9);
   border: 1px solid #dcc1b9;
   box-shadow: 0 16px 34px rgba(50, 47, 46, 0.06);
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .spotlight-card {
@@ -193,7 +175,7 @@ function emptyArc(value) {
 }
 
 .panel-kicker {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   font-size: 12px;
   line-height: 16px;
   letter-spacing: 0.14em;
@@ -203,27 +185,61 @@ function emptyArc(value) {
 }
 
 .panel-title {
-  margin: 0 0 20px;
-  font-family: 'Playfair Display', 'Times New Roman', serif;
-  font-size: clamp(22px, 2vw, 28px);
+  margin: 0;
+  font-size: clamp(18px, 1.5vw, 22px);
   line-height: 1.15;
   color: #1d1b1a;
 }
 
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.date-picker-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  border-radius: 10px;
+  padding: 0 10px;
+  background: #ffffff;
+  border: 1px solid rgba(220, 193, 185, 0.9);
+  color: #444748;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.date-picker-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .ring-block {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
 }
 
 .ring-chart {
   position: relative;
-  width: min(220px, 100%);
+  flex: 0 0 112px;
+  width: 112px;
   margin: 0 auto;
 }
 
 .donut-chart {
-  width: min(220px, 100%);
+  width: 112px;
   height: auto;
   transform: rotate(-90deg);
 }
@@ -245,35 +261,36 @@ function emptyArc(value) {
 .center-label,
 .center-unit {
   color: #89726c;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .chart-center strong {
-  font-family: 'Playfair Display', 'Times New Roman', serif;
-  font-size: 42px;
+  font-size: 22px;
   line-height: 1;
   color: #9a4024;
 }
 
-.macro-list,
-.goal-list {
+.macro-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 7px;
 }
 
-.macro-row,
-.goal-head {
+.macro-list {
+  flex: 1;
+  min-width: 0;
+}
+
+.macro-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
-.macro-row strong,
-.goal-head strong,
-.insight-item strong {
+.macro-row strong {
   color: #1d1b1a;
+  font-size: 12px;
 }
 
 .macro-label {
@@ -281,6 +298,7 @@ function emptyArc(value) {
   align-items: center;
   gap: 10px;
   color: #56423d;
+  font-size: 12px;
 }
 
 .macro-label i {
@@ -290,63 +308,19 @@ function emptyArc(value) {
   display: inline-block;
 }
 
-.goal-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.goal-head span {
-  color: #56423d;
-}
-
-.goal-track {
-  width: 100%;
-  height: 10px;
-  border-radius: 999px;
-  background: #eadfdc;
-  overflow: hidden;
-}
-
-.goal-fill {
-  height: 100%;
-  border-radius: inherit;
-}
-
-.insight-card {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(249, 242, 240, 0.98)),
-    #f9f2f0;
-}
-
-.insight-grid {
-  display: grid;
-  gap: 12px;
-}
-
-.insight-item {
-  padding: 16px 18px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(220, 193, 185, 0.85);
-}
-
-.insight-item span {
-  display: block;
-  margin-bottom: 6px;
-  color: #89726c;
-  font-size: 13px;
-}
-
 @media (max-width: 900px) {
   .summary-card {
-    padding: 20px;
-    border-radius: 24px;
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .ring-block {
+    flex-direction: column;
   }
 
   .ring-chart,
   .donut-chart {
-    width: min(200px, 100%);
+    width: min(112px, 100%);
   }
 }
 </style>
