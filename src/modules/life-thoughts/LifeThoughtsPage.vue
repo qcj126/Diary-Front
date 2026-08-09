@@ -1023,8 +1023,7 @@ select {
   display: block;
   min-width: 0;
 }
-.mood-select-trigger,
-:global(.dashboard[data-theme='night']) .mood-select-trigger {
+.mood-select-trigger {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) 16px;
   align-items: center;
@@ -1040,8 +1039,7 @@ select {
   color: var(--dashboard-text, #1c1b1b);
   transform: none;
 }
-.mood-select-trigger:hover,
-:global(.dashboard[data-theme='night']) .mood-select-trigger:hover {
+.mood-select-trigger:hover {
   border-color: var(--thoughts-accent);
   box-shadow: none;
   transform: none;
@@ -1084,8 +1082,7 @@ select {
   background: var(--dashboard-surface, #ffffff);
   box-shadow: 0 16px 34px rgba(28, 27, 27, 0.16);
 }
-.mood-option,
-:global(.dashboard[data-theme='night']) .mood-option {
+.mood-option {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
@@ -1101,9 +1098,7 @@ select {
   transform: none;
 }
 .mood-option:hover,
-.mood-option.active,
-:global(.dashboard[data-theme='night']) .mood-option:hover,
-:global(.dashboard[data-theme='night']) .mood-option.active {
+.mood-option.active {
   background: color-mix(in srgb, var(--thoughts-accent) 12%, transparent);
   box-shadow: none;
   transform: none;
@@ -1125,8 +1120,7 @@ select {
   font: inherit;
   line-height: normal;
 }
-.date-picker-btn,
-:global(.dashboard[data-theme='night']) .date-picker-btn {
+.date-picker-btn {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -1143,8 +1137,7 @@ select {
   cursor: pointer;
   transform: none;
 }
-.date-picker-btn:hover,
-:global(.dashboard[data-theme='night']) .date-picker-btn:hover {
+.date-picker-btn:hover {
   background: transparent;
   box-shadow: none;
   transform: none;
@@ -1364,79 +1357,79 @@ select {
   color: var(--dashboard-accent-contrast, #ffffff);
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
 }
-:global(.dashboard[data-theme='night']) .thoughts-page {
+:global(.dashboard[data-theme='night'] .thoughts-page) {
   background:
     radial-gradient(circle at 12% 8%, rgba(246, 200, 95, 0.1), transparent 26rem),
     radial-gradient(circle at 88% 16%, rgba(77, 147, 138, 0.12), transparent 24rem),
     linear-gradient(135deg, var(--dashboard-bg, #111318), var(--dashboard-surface-soft, #151820));
 }
-:global(.dashboard[data-theme='night']) .toolbar,
-:global(.dashboard[data-theme='night']) .detail-panel,
-:global(.dashboard[data-theme='night']) .editor-modal,
-:global(.dashboard[data-theme='night']) .confirm-dialog,
-:global(.dashboard[data-theme='night']) .empty-state {
+:global(.dashboard[data-theme='night'] .thoughts-page .toolbar),
+:global(.dashboard[data-theme='night'] .thoughts-page .detail-panel),
+:global(.dashboard[data-theme='night'] .thoughts-page .editor-modal),
+:global(.dashboard[data-theme='night'] .thoughts-page .confirm-dialog),
+:global(.dashboard[data-theme='night'] .thoughts-page .empty-state) {
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(26, 29, 36, 0.78);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
 }
-:global(.dashboard[data-theme='night']) .moment-strip div,
-:global(.dashboard[data-theme='night']) .thought-card,
-:global(.dashboard[data-theme='night']) .detail-grid div {
+:global(.dashboard[data-theme='night'] .thoughts-page .moment-strip div),
+:global(.dashboard[data-theme='night'] .thoughts-page .thought-card),
+:global(.dashboard[data-theme='night'] .thoughts-page .detail-grid div) {
   border-color: var(--dashboard-border-soft);
   background: var(--dashboard-surface-soft);
 }
-:global(.dashboard[data-theme='night']) .moment-strip span,
-:global(.dashboard[data-theme='night']) .card-meta,
-:global(.dashboard[data-theme='night']) .thought-card p,
-:global(.dashboard[data-theme='night']) .detail-grid dt,
-:global(.dashboard[data-theme='night']) .form-grid label > span:first-child,
-:global(.dashboard[data-theme='night']) .content-field > span,
-:global(.dashboard[data-theme='night']) .upload-title,
-:global(.dashboard[data-theme='night']) .date-picker-placeholder {
+:global(.dashboard[data-theme='night'] .thoughts-page .moment-strip span),
+:global(.dashboard[data-theme='night'] .thoughts-page .card-meta),
+:global(.dashboard[data-theme='night'] .thoughts-page .thought-card p),
+:global(.dashboard[data-theme='night'] .thoughts-page .detail-grid dt),
+:global(.dashboard[data-theme='night'] .thoughts-page .form-grid label > span:first-child),
+:global(.dashboard[data-theme='night'] .thoughts-page .content-field > span),
+:global(.dashboard[data-theme='night'] .thoughts-page .upload-title),
+:global(.dashboard[data-theme='night'] .thoughts-page .date-picker-placeholder) {
   color: #a7afbc;
 }
-:global(.dashboard[data-theme='night']) .moment-strip strong,
-:global(.dashboard[data-theme='night']) .thought-card h2,
-:global(.dashboard[data-theme='night']) .detail-head h2,
-:global(.dashboard[data-theme='night']) .confirm-dialog h3,
-:global(.dashboard[data-theme='night']) .detail-content,
-:global(.dashboard[data-theme='night']) .date-picker-value,
-:global(.dashboard[data-theme='night']) button,
-:global(.dashboard[data-theme='night']) select,
-:global(.dashboard[data-theme='night']) input,
-:global(.dashboard[data-theme='night']) textarea {
+:global(.dashboard[data-theme='night'] .thoughts-page .moment-strip strong),
+:global(.dashboard[data-theme='night'] .thoughts-page .thought-card h2),
+:global(.dashboard[data-theme='night'] .thoughts-page .detail-head h2),
+:global(.dashboard[data-theme='night'] .thoughts-page .confirm-dialog h3),
+:global(.dashboard[data-theme='night'] .thoughts-page .detail-content),
+:global(.dashboard[data-theme='night'] .thoughts-page .date-picker-value),
+:global(.dashboard[data-theme='night'] .thoughts-page button),
+:global(.dashboard[data-theme='night'] .thoughts-page select),
+:global(.dashboard[data-theme='night'] .thoughts-page input),
+:global(.dashboard[data-theme='night'] .thoughts-page textarea) {
   color: #f5f7fb;
 }
-:global(.dashboard[data-theme='night']) .confirm-dialog p {
+:global(.dashboard[data-theme='night'] .thoughts-page .confirm-dialog p) {
   color: #a7afbc;
 }
-:global(.dashboard[data-theme='night']) button,
-:global(.dashboard[data-theme='night']) select,
-:global(.dashboard[data-theme='night']) input,
-:global(.dashboard[data-theme='night']) textarea,
-:global(.dashboard[data-theme='night']) .date-picker-field,
-:global(.dashboard[data-theme='night']) .mood-menu,
-:global(.dashboard[data-theme='night']) .search-box {
+:global(.dashboard[data-theme='night'] .thoughts-page button),
+:global(.dashboard[data-theme='night'] .thoughts-page select),
+:global(.dashboard[data-theme='night'] .thoughts-page input),
+:global(.dashboard[data-theme='night'] .thoughts-page textarea),
+:global(.dashboard[data-theme='night'] .thoughts-page .date-picker-field),
+:global(.dashboard[data-theme='night'] .thoughts-page .mood-menu),
+:global(.dashboard[data-theme='night'] .thoughts-page .search-box) {
   border-color: rgba(255, 255, 255, 0.14);
   background: rgba(20, 24, 32, 0.88);
 }
-:global(.dashboard[data-theme='night']) button.primary {
+:global(.dashboard[data-theme='night'] .thoughts-page button.primary) {
   background: var(--dashboard-accent);
   color: var(--dashboard-accent-contrast);
 }
-:global(.dashboard[data-theme='night']) .upload-frame-button {
+:global(.dashboard[data-theme='night'] .thoughts-page .upload-frame-button) {
   border-color: rgba(255, 255, 255, 0.14);
   background: rgba(20, 24, 32, 0.88);
   color: #f5f7fb;
 }
-:global(.dashboard[data-theme='night']) .upload-frame-button.danger {
+:global(.dashboard[data-theme='night'] .thoughts-page .upload-frame-button.danger) {
   border-color: #000000;
   background: #000000;
   color: #ffffff;
 }
-:global(.dashboard[data-theme='night']) .upload-frame-button:hover,
-:global(.dashboard[data-theme='night']) .upload-frame-button.danger:focus-visible,
-:global(.dashboard[data-theme='night']) .upload-frame-button.danger:hover {
+:global(.dashboard[data-theme='night'] .thoughts-page .upload-frame-button:hover),
+:global(.dashboard[data-theme='night'] .thoughts-page .upload-frame-button.danger:focus-visible),
+:global(.dashboard[data-theme='night'] .thoughts-page .upload-frame-button.danger:hover) {
   border-color: #000000;
   background: #000000;
   color: #ffffff;

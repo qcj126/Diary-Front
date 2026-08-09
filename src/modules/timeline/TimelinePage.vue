@@ -808,8 +808,7 @@ watch(selectedPageSize, (size) => {
   padding: 0 8px;
 }
 
-.query-panel .date-picker-btn,
-:global(.dashboard[data-theme='night']) .query-panel .date-picker-btn {
+.query-panel .date-picker-btn {
   display: inline-grid;
   width: 18px;
   height: 22px;
@@ -826,8 +825,7 @@ watch(selectedPageSize, (size) => {
   transform: none;
 }
 
-.query-panel .date-picker-btn:hover,
-:global(.dashboard[data-theme='night']) .query-panel .date-picker-btn:hover {
+.query-panel .date-picker-btn:hover {
   background: transparent;
   box-shadow: none;
   transform: none;
@@ -860,13 +858,13 @@ watch(selectedPageSize, (size) => {
   white-space: nowrap;
 }
 
-:global(.dashboard[data-theme='night']) .date-picker-field {
+:global(.dashboard[data-theme='night'] .timeline-page .date-picker-field) {
   border-color: var(--dashboard-border-soft);
   background: var(--dashboard-surface-soft);
   color: var(--dashboard-text);
 }
 
-:global(.dashboard[data-theme='night']) .date-picker-placeholder {
+:global(.dashboard[data-theme='night'] .timeline-page .date-picker-placeholder) {
   color: var(--dashboard-text-muted);
 }
 
