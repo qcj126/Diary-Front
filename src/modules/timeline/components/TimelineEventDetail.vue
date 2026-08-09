@@ -52,11 +52,19 @@
 
           <label>
             <span>分类</span>
-            <select v-model="draft.categoryId" :required="isCreating" disabled>
-              <option v-for="item in categories" :key="item.id" :value="String(item.id)">
-                {{ item.icon }} {{ item.label }}
-              </option>
-            </select>
+            <span class="category-display" aria-readonly="true">
+              <span class="category-display-icon" aria-hidden="true">
+                <img
+                  v-if="isImageIcon(selectedCategory?.icon)"
+                  :src="selectedCategory.icon"
+                  alt=""
+                />
+                <span v-else>{{ selectedCategory?.icon || '📁' }}</span>
+              </span>
+              <span class="category-display-name">
+                {{ selectedCategory?.label || draft.categoryName || '未分类' }}
+              </span>
+            </span>
           </label>
 
           <label>
@@ -184,6 +192,12 @@ const IMAGE_URL_POLL_DELAY = 3000
 const IMAGE_URL_POLL_INTERVAL = 3000
 
 const isCreating = computed(() => Boolean(props.category))
+const selectedCategory = computed(() => (
+  getCategoryById(draft.categoryId)
+    || getCategoryByKey(draft.categoryKey)
+    || props.category
+    || null
+))
 const hasRequiredFields = computed(() => Boolean(
   draft.title.trim()
     && draft.date
@@ -215,6 +229,11 @@ function wait(ms) {
 
 function toKey(value) {
   return String(value ?? '').trim()
+}
+
+function isImageIcon(icon) {
+  const value = String(icon ?? '')
+  return /^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')
 }
 
 function getCategoryById(categoryId) {
@@ -575,7 +594,8 @@ onBeforeUnmount(() => {
 
 .detail-form input,
 .detail-form select,
-.detail-form textarea {
+.detail-form textarea,
+.category-display {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 0.65rem;
@@ -585,6 +605,42 @@ onBeforeUnmount(() => {
   line-height: 1.5;
   padding: 0.68rem 0.75rem;
   outline: none;
+}
+
+.category-display {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.category-display-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 1.5rem;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 0.35rem;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.category-display-icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.category-display-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detail-form input[aria-invalid='true'],
@@ -620,7 +676,8 @@ onBeforeUnmount(() => {
 }
 
 .primary-fields input,
-.primary-fields select {
+.primary-fields select,
+.primary-fields .category-display {
   box-sizing: border-box;
   min-width: 0;
 }

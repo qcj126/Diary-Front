@@ -24,7 +24,10 @@
           :class="{ active: selectedCategory === category.key }"
           @click="handleSelectCategory(category.key)"
         >
-          <span class="category-icon">{{ category.icon }}</span>
+          <span class="category-icon">
+            <img v-if="isImageIcon(category.icon)" :src="category.icon" alt="" />
+            <span v-else>{{ category.icon }}</span>
+          </span>
           <span class="category-label">{{ category.label }}</span>
         </div>
         <Transition name="add-btn-slide">
@@ -51,7 +54,10 @@
           :class="{ active: selectedSubcategory === child.key }"
           @click.stop="handleSelectSubcategory(child.key)"
         >
-          <span class="subcategory-icon">{{ child.icon }}</span>
+          <span class="subcategory-icon">
+            <img v-if="isImageIcon(child.icon)" :src="child.icon" alt="" />
+            <span v-else>{{ child.icon }}</span>
+          </span>
           <span class="subcategory-label">{{ child.label }}</span>
         </div>
       </div>
@@ -88,6 +94,11 @@ function handleSelectSubcategory(subcategoryKey) {
 
 function handleAddCategory(category) {
   emit('add-category', category)
+}
+
+function isImageIcon(icon) {
+  const value = String(icon ?? '')
+  return /^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')
 }
 
 </script>
@@ -220,6 +231,13 @@ function handleAddCategory(category) {
   color: inherit;
 }
 
+.category-icon img,
+.subcategory-icon img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
 .category-label {
   min-width: 0;
   font-size: 0.82rem;
@@ -271,6 +289,10 @@ function handleAddCategory(category) {
 }
 
 .subcategory-icon {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
   font-size: 1rem;
   flex-shrink: 0;
 }

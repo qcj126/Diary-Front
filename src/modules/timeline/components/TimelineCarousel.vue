@@ -21,7 +21,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   events: {
@@ -160,6 +160,15 @@ onMounted(() => {
   window.addEventListener('resize', resizeHandler)
   start()
 })
+
+watch(
+  () => renderEvents.value.length,
+  (length) => {
+    updateMetrics()
+    if (length) resume()
+    else stop()
+  },
+)
 
 onBeforeUnmount(() => {
   stop()

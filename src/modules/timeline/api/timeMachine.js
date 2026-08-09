@@ -43,8 +43,21 @@ export function createCategoryDTO(category = {}) {
     id: category.id ?? null,
     userId: category.userId ?? GLOBAL_USER_ID,
     categoryName: category.categoryName ?? category.label ?? category.name ?? '',
+    iconId: category.iconId ?? null,
+    icon: category.icon ?? category.iconUrl ?? '',
     deleted: category.deleted ?? 0,
     sort: category.sort ?? 0,
+  }
+}
+
+export function createCategoryQueryDTO(category = {}) {
+  return {
+    id: category.id ?? null,
+    userId: category.userId ?? GLOBAL_USER_ID,
+    categoryName: category.categoryName ?? category.label ?? category.name ?? '',
+    sort: category.sort ?? null,
+    iconName: category.iconName ?? '',
+    iconPath: category.iconPath ?? category.icon ?? category.iconUrl ?? '',
   }
 }
 
@@ -82,7 +95,7 @@ export function deleteTimeCategory(categoryDTO) {
 }
 
 export function queryTimeCategories(categoryDTO = {}) {
-  return postJson(TIMELINE_API.categoryQuery, createCategoryDTO(categoryDTO), 'Query categories failed.')
+  return postJson(TIMELINE_API.categoryQuery, createCategoryQueryDTO(categoryDTO), 'Query categories failed.')
 }
 
 export function addTimeCard(cardDTO) {

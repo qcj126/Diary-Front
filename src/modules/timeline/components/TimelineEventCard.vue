@@ -12,7 +12,10 @@
     <div class="card-layout">
       <div class="card-main">
         <div class="card-header">
-          <span class="event-icon">{{ eventIcon }}</span>
+          <span class="event-icon">
+            <img v-if="isImageIcon(eventIcon)" :src="eventIcon" alt="" />
+            <span v-else>{{ eventIcon }}</span>
+          </span>
         </div>
 
         <div class="card-body">
@@ -59,7 +62,7 @@ const props = defineProps({
   },
   eventIcon: {
     type: String,
-    default: '📝'
+    default: ''
   },
   selected: {
     type: Boolean,
@@ -68,6 +71,11 @@ const props = defineProps({
 })
 
 defineEmits(['select', 'toggle-selection'])
+
+function isImageIcon(icon) {
+  const value = String(icon ?? '')
+  return /^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')
+}
 
 const colorScheme = computed(() => {
   return COLOR_MAP[props.event.color] || COLOR_MAP.blue
@@ -164,7 +172,17 @@ const tagStyle = computed(() => ({
 }
 
 .event-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
   font-size: 1.5rem;
+}
+
+.event-icon img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
 }
 
 .event-date {

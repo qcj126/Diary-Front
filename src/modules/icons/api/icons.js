@@ -115,12 +115,13 @@ export function normalizeIcon(raw = {}, index = 0) {
 }
 
 export async function queryIcons(params = {}) {
+  const body = {}
+  if (params.iconName) body.iconName = params.iconName
+  if (params.iconType !== null && params.iconType !== undefined) body.iconType = params.iconType
+
   const payload = await postJson(
     ICON_API.query,
-    {
-      iconName: params.iconName || null,
-      iconType: params.iconType ?? null,
-    },
+    body,
     '查询图标失败',
   )
 

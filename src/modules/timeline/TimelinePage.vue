@@ -5,7 +5,7 @@
     </header>
 
     <div class="carousel-section">
-      <TimelineCarousel :events="recentEvents" />
+      <TimelineCarousel :events="carouselEvents" />
     </div>
 
     <section class="timeline-toolbar">
@@ -29,7 +29,6 @@
       </div>
 
       <form v-if="queryPanelOpen" class="query-panel" @submit.prevent="applyQueryFilters">
-        <input v-model.number="queryFilters.daysAgo" type="number" min="0" placeholder="距今时长" />
         <span class="date-picker-field">
           <button type="button" class="date-picker-btn" aria-label="选择日期" @click="openExactDatePicker">
             <span class="material-symbols-outlined">calendar_month</span>
@@ -38,12 +37,6 @@
           <span v-else class="date-picker-placeholder">精确时间</span>
           <input ref="exactDateInput" v-model="queryFilters.exactDate" class="date-picker-input" type="date" />
         </span>
-        <select v-model="queryFilters.categoryKey" class="category-query-select" :disabled="selectedCategory !== 'all'">
-          <option value="all">📋 全部</option>
-          <option v-for="category in categories" :key="category.key" :value="category.key">
-            {{ category.icon }} {{ category.label }}
-          </option>
-        </select>
         <select v-model.number="queryFilters.pageSize" class="page-size-query-select">
           <option v-for="size in pageSizeOptions" :key="size" :value="size">
             {{ size }}
@@ -78,6 +71,7 @@
       <div class="event-list-area">
         <TimelineEventList
           :currentPageEvents="currentPageEvents"
+          :categories="categories"
           :currentPage="currentPage"
           :totalPages="totalPages"
           :hasMore="hasMore"
@@ -129,8 +123,25 @@
         </label>
         <label>
           <span>子菜单图标</span>
-          <input v-model.trim="categoryDraft.icon" required type="text" placeholder="例如：✈️" />
+          <div class="category-icon-picker">
+            <span class="category-icon-preview">
+              <img v-if="isIconUrl(categoryDraft.icon)" :src="categoryDraft.icon" alt="" />
+              <span v-else>{{ categoryDraft.icon || '?' }}</span>
+            </span>
+            <select
+              v-model="categoryDraft.iconId"
+              required
+              :disabled="iconLoading || !categoryIconOptions.length"
+              @change="selectCategoryIconById"
+            >
+              <option value="" disabled>{{ iconLoading ? '图标加载中...' : '请选择图标' }}</option>
+              <option v-for="icon in categoryIconOptions" :key="icon.id ?? icon.iconName" :value="String(icon.id)">
+                {{ icon.iconName }}
+              </option>
+            </select>
+          </div>
         </label>
+        <p v-if="categoryIconError" class="category-icon-error">{{ categoryIconError }}</p>
 
         <footer>
           <button type="button" @click="closeCategoryEditor">取消</button>
@@ -150,6 +161,7 @@ import TimelineCategoryNav from './components/TimelineCategoryNav.vue'
 import TimelineEventDetail from './components/TimelineEventDetail.vue'
 import TimelineEventList from './components/TimelineEventList.vue'
 import { useTimelineEvents } from './composables/useTimelineEvents.js'
+import { queryIcons } from '../icons/api/icons.js'
 
 const timelinePageRef = ref(null)
 const exactDateInput = ref(null)
@@ -186,12 +198,16 @@ const pageSizeOptions = Array.from({ length: 10 }, (_, index) => (index + 1) * 3
 const categoryDraft = reactive({
   label: '',
   icon: '',
+  iconId: '',
+  iconName: '',
+  iconPath: '',
 })
+const categoryIconOptions = ref([])
+const iconLoading = ref(false)
+const categoryIconError = ref('')
 
 const queryFilters = reactive({
-  daysAgo: null,
   exactDate: '',
-  categoryKey: 'all',
   pageSize: 30,
   page: 1,
 })
@@ -207,7 +223,7 @@ const {
   selectedCategory,
   selectedSubcategory,
   currentPage,
-  recentEvents,
+  carouselEvents,
   currentPageEvents: sourcePageEvents,
   totalPages,
   hasMore,
@@ -230,11 +246,7 @@ const selectedEvent = computed(() => {
 
 const filteredEvents = computed(() => {
   return sourcePageEvents.value.filter((event) => {
-    if (queryFilters.categoryKey !== 'all' && event.categoryKey !== queryFilters.categoryKey) return false
     if (queryFilters.exactDate && event.date !== queryFilters.exactDate) return false
-    if (queryFilters.daysAgo !== null && queryFilters.daysAgo !== '' && Number.isFinite(Number(queryFilters.daysAgo))) {
-      return daysBetweenToday(event.date) === Number(queryFilters.daysAgo)
-    }
     return true
   })
 })
@@ -324,12 +336,13 @@ function openCreateEvent() {
 }
 
 function openCreateCategory() {
-  const category = selectedCategory.value === 'all'
-    ? categories.value[0]
-    : categories.value.find((item) => item.key === selectedCategory.value)
   categoryDraft.label = ''
-  categoryDraft.icon = category?.icon || '📝'
+  categoryDraft.icon = ''
+  categoryDraft.iconId = ''
+  categoryDraft.iconName = ''
+  categoryDraft.iconPath = ''
   categoryEditorOpen.value = true
+  loadCategoryIcons()
 }
 
 function openEditSelected() {
@@ -355,17 +368,6 @@ function requestDeleteSelected() {
 
 function toggleQueryPanel() {
   queryPanelOpen.value = !queryPanelOpen.value
-  syncQueryCategory()
-}
-
-function handleSaveNewEvent(event) {
-  // TODO: 调用API创建新事件
-  console.log('保存新事件:', event)
-  // 保存成功后退出编辑模式
-  isAddingEvent.value = false
-  addingCategory.value = null
-  // 重新加载事件列表
-  loadMore()
 }
 
 async function handleSaveNewEventWithApi(event) {
@@ -393,15 +395,6 @@ onBeforeUnmount(() => {
   }
 })
 
-function handleDeleteEvent(eventId) {
-  // TODO: 调用API删除事件
-  console.log('删除事件:', eventId)
-  // 删除成功后清除选择
-  clearSelectedEvent()
-  // 重新加载事件列表
-  loadMore()
-}
-
 async function handleDeleteEventWithApi(eventId) {
   try {
     await removeEvent(eventId)
@@ -415,13 +408,56 @@ async function handleDeleteEventWithApi(eventId) {
 
 function closeCategoryEditor() {
   categoryEditorOpen.value = false
+  categoryIconError.value = ''
+}
+
+function isIconUrl(icon) {
+  const value = String(icon ?? '')
+  return /^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')
+}
+
+async function loadCategoryIcons() {
+  iconLoading.value = true
+  categoryIconError.value = ''
+
+  try {
+    categoryIconOptions.value = await queryIcons()
+    const firstIcon = categoryIconOptions.value[0]
+    if (!categoryDraft.iconId && firstIcon) selectCategoryIcon(firstIcon)
+  } catch (error) {
+    console.error(error)
+    categoryIconOptions.value = []
+    categoryIconError.value = error instanceof Error ? error.message : '图标查询失败'
+  } finally {
+    iconLoading.value = false
+  }
+}
+
+function selectCategoryIcon(icon) {
+  categoryDraft.iconId = icon?.id === null || icon?.id === undefined ? '' : String(icon.id)
+  categoryDraft.icon = icon?.iconUrl || icon?.iconPath || ''
+  categoryDraft.iconName = icon?.iconName || ''
+  categoryDraft.iconPath = icon?.iconPath || categoryDraft.icon
+}
+
+function selectCategoryIconById() {
+  const icon = categoryIconOptions.value.find((item) => String(item.id) === String(categoryDraft.iconId))
+  if (icon) selectCategoryIcon(icon)
 }
 
 async function saveCategory() {
+  if (!categoryDraft.iconId) {
+    categoryIconError.value = iconLoading.value ? '图标加载中，请稍后再保存' : '请选择子菜单图标'
+    return
+  }
+
   try {
     await createCategory({
       label: categoryDraft.label,
       icon: categoryDraft.icon,
+      iconId: categoryDraft.iconId,
+      iconName: categoryDraft.iconName,
+      iconPath: categoryDraft.iconPath,
       sort: categories.value.length,
     })
     closeCategoryEditor()
@@ -457,19 +493,6 @@ async function confirmDeleteSelected() {
   }
 }
 
-function daysBetweenToday(value) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  const today = new Date()
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
-  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
-  return Math.floor((todayStart - dateStart) / 86400000)
-}
-
-function syncQueryCategory() {
-  queryFilters.categoryKey = selectedCategory.value === 'all' ? queryFilters.categoryKey : selectedCategory.value
-}
-
 function resetQueryPage() {
   queryFilters.page = 1
 }
@@ -481,10 +504,9 @@ function normalizeQueryPage() {
 
 function buildCardQueryParams({ append = false, nextPageIndex = selectedQueryPage.value } = {}) {
   return {
-    categoryKey: queryFilters.categoryKey,
+    categoryKey: selectedCategory.value,
     nextPageIndex,
     nextPageSize: selectedPageSize.value,
-    daysAgo: queryFilters.daysAgo === '' ? null : queryFilters.daysAgo,
     exactDate: queryFilters.exactDate,
     append,
   }
@@ -507,9 +529,7 @@ async function handleLoadMore() {
 }
 
 async function resetQueryFilters() {
-  queryFilters.daysAgo = null
   queryFilters.exactDate = ''
-  queryFilters.categoryKey = selectedCategory.value === 'all' ? 'all' : selectedCategory.value
   queryFilters.pageSize = 30
   queryFilters.page = 1
   await refreshCards(buildCardQueryParams())
@@ -533,12 +553,11 @@ function showToast(message) {
 }
 
 watch(selectedCategory, () => {
-  syncQueryCategory()
   resetQueryPage()
 })
 
 watch(
-  () => [queryFilters.daysAgo, queryFilters.exactDate, queryFilters.categoryKey, queryFilters.pageSize],
+  () => [queryFilters.exactDate, queryFilters.pageSize],
   () => {
     resetQueryPage()
   }
@@ -687,7 +706,8 @@ watch(selectedPageSize, (size) => {
   font-weight: 800;
 }
 
-.category-modal input {
+.category-modal input,
+.category-modal select {
   min-height: 36px;
   border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
   border-radius: 8px;
@@ -696,6 +716,38 @@ watch(selectedPageSize, (size) => {
   color: var(--dashboard-text, #1c1b1b);
   font: 700 0.86rem/1.2 Inter, sans-serif;
   outline: none;
+}
+
+.category-icon-picker {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.category-icon-preview {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
+  border-radius: 8px;
+  background: var(--dashboard-surface-soft, #f7f3f2);
+  color: var(--dashboard-text, #1c1b1b);
+  font-weight: 800;
+}
+
+.category-icon-preview img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.category-icon-error {
+  margin: -0.35rem 0 0;
+  color: #c2410c;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .query-panel input,
@@ -721,10 +773,6 @@ watch(selectedPageSize, (size) => {
   text-align-last: center;
 }
 
-.query-panel .category-query-select {
-  width: 92px;
-}
-
 .query-panel .page-size-query-select {
   width: 68px;
 }
@@ -734,7 +782,6 @@ watch(selectedPageSize, (size) => {
   text-align: center;
 }
 
-.query-panel .category-query-select,
 .query-panel .page-size-query-select {
   padding-left: 8px;
   padding-right: 4px;
@@ -742,7 +789,6 @@ watch(selectedPageSize, (size) => {
   text-align-last: left;
 }
 
-.query-panel .category-query-select option,
 .query-panel .page-size-query-select option {
   text-align: left;
 }

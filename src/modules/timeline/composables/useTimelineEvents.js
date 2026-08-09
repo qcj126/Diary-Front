@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
-import { TIMELINE_EVENTS } from '../mock/timelineData.js'
+import { API_BASE } from '../../../api/index.js'
 import { CAROUSEL_CONFIG } from '../constants/carouselConfig.js'
-import { COLOR_MAP, EVENT_CATEGORIES } from '../constants/eventCategories.js'
+import { COLOR_MAP } from '../constants/eventCategories.js'
 import { GLOBAL_USER_ID } from '../constants/imageTypes.js'
 import { normalizeImageUrl, queryCarouselImageUrls, queryTimelineImageUrls } from '../api/images.js'
 import {
@@ -16,7 +16,7 @@ import {
 } from '../api/timeMachine.js'
 
 const CATEGORY_COLORS = Object.keys(COLOR_MAP)
-const CATEGORY_ICONS = ['📝', '🍱', '🎁', '✈️', '🏠', '🚶', '📷', '⭐']
+const ICON_STATIC_PREFIX = '/file/icon'
 
 function readUserId() {
   return GLOBAL_USER_ID
@@ -54,17 +54,41 @@ function toKey(value) {
   return String(value ?? '').trim()
 }
 
+function normalizeIconPath(path) {
+  const value = String(path ?? '').trim()
+  if (!value) return ''
+  if (/^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
+    return value
+  }
+
+  const normalized = value.replaceAll('\\', '/')
+  const iconIndex = normalized.toLowerCase().lastIndexOf('/icon/')
+  if (iconIndex >= 0) {
+    const fileName = normalized.slice(iconIndex + '/icon/'.length)
+    return encodeURI(`${API_BASE}${ICON_STATIC_PREFIX}/${fileName}`)
+  }
+  return encodeURI(`${API_BASE}${ICON_STATIC_PREFIX}/${normalized.replace(/^\/+/, '')}`)
+}
+
 function mapCategoryDTO(dto, index = 0) {
-  const id = dto?.id ?? index + 1
+  const id = dto?.id ?? dto?.categoryId ?? dto?.categoryID ?? dto?.value ?? index + 1
+  const iconPath = dto?.iconPath || dto?.iconUrl || dto?.icon || ''
+  const icon = normalizeIconPath(iconPath)
   return {
     id: toKey(id),
     userId: dto?.userId ?? readUserId(),
     key: dto?.key || `cat_${id}`,
-    label: dto?.categoryName || dto?.label || `Category ${index + 1}`,
-    icon: dto?.icon || CATEGORY_ICONS[index % CATEGORY_ICONS.length],
+    label: dto?.categoryName || dto?.label || '',
+    icon,
+    iconName: dto?.iconName ?? '',
+    iconPath,
+    iconId: dto?.iconId ?? null,
     color: dto?.color || CATEGORY_COLORS[index % CATEGORY_COLORS.length] || 'blue',
     sort: dto?.sort ?? index,
     deleted: dto?.deleted ?? 0,
+    children: toArray(dto?.children ?? dto?.subcategories ?? dto?.subMenus).map((child, childIndex) =>
+      mapCategoryDTO(child, childIndex),
+    ),
   }
 }
 
@@ -73,6 +97,9 @@ function mapCategoryToDTO(category) {
     id: category?.id ?? null,
     userId: category?.userId ?? readUserId(),
     categoryName: category?.categoryName ?? category?.label ?? '',
+    iconId: category?.iconId ?? null,
+    iconName: category?.iconName ?? '',
+    iconPath: category?.iconPath ?? category?.icon ?? '',
     icon: category?.icon ?? '',
     color: category?.color ?? '',
     deleted: category?.deleted ?? 0,
@@ -81,12 +108,12 @@ function mapCategoryToDTO(category) {
 }
 
 function categoryKeyById(categoryMap, categoryId) {
-  return categoryMap.get(toKey(categoryId))?.key || 'all'
+  return categoryMap.get(toKey(categoryId))?.key || ''
 }
 
-function mapCardDTO(dto, categoryMap) {
+function mapCardDTO(dto, categoryMap, fallback = {}) {
   const id = dto?.id ?? Date.now()
-  const categoryId = dto?.categoryId ?? null
+  const categoryId = dto?.categoryId ?? dto?.categoryID ?? dto?.timeMachineCategoryId ?? fallback.categoryId ?? null
   const category = categoryMap.get(toKey(categoryId))
   return {
     id: toKey(id),
@@ -94,7 +121,7 @@ function mapCardDTO(dto, categoryMap) {
     userId: dto?.userId ?? readUserId(),
     imageId: dto?.imageId ?? null,
     categoryId: categoryId === null ? null : toKey(categoryId),
-    categoryKey: categoryKeyById(categoryMap, categoryId),
+    categoryKey: categoryKeyById(categoryMap, categoryId) || fallback.categoryKey || 'all',
     subcategoryKey: null,
     title: dto?.cardTitle || dto?.title || '',
     content: dto?.cardContent || dto?.content || '',
@@ -143,8 +170,8 @@ async function attachImageUrls(events) {
 }
 
 export function useTimelineEvents() {
-  const categories = ref(EVENT_CATEGORIES.map((category, index) => mapCategoryDTO(category, index)))
-  const events = ref(TIMELINE_EVENTS.map((event) => ({ ...event })))
+  const categories = ref([])
+  const events = ref([])
   const carouselImageUrls = ref([])
   const loading = ref(false)
   const error = ref('')
@@ -163,15 +190,17 @@ export function useTimelineEvents() {
     return [...events.value].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   })
 
-  const recentEvents = computed(() => {
-    const source = allEvents.value.slice(0, CAROUSEL_CONFIG.maxItems)
-    if (!carouselImageUrls.value.length) return source
-
-    return source.map((event, index) => ({
-      ...event,
-      imageUrl: carouselImageUrls.value[index % carouselImageUrls.value.length] || event.imageUrl,
-    }))
-  })
+  // The carousel is an independent data source. Do not fall back to card events here:
+  // category queries replace `events`, which would otherwise also replace/empty the carousel.
+  const carouselEvents = computed(() =>
+    carouselImageUrls.value.slice(0, CAROUSEL_CONFIG.maxItems).map((imageUrl, index) => ({
+      id: `carousel-${index}`,
+      imageUrl,
+      title: '',
+      content: '',
+      date: '',
+    })),
+  )
 
   function getLoadedCount(categoryKey, subcategoryKey) {
     return events.value.length
@@ -237,7 +266,7 @@ export function useTimelineEvents() {
   }
 
   async function refreshCategories() {
-    const result = await queryTimeCategories({ userId: readUserId(), deleted: 0 })
+    const result = await queryTimeCategories({ userId: readUserId() })
     const nextCategories = toArray(result).map(mapCategoryDTO).filter((category) => category.deleted !== 1)
     if (nextCategories.length) {
       categories.value = nextCategories.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
@@ -272,7 +301,7 @@ export function useTimelineEvents() {
     if (token !== cardQueryToken) return
 
     const mappedEvents = toArray(result)
-      .map((card) => mapCardDTO(card, categoryMap.value))
+      .map((card) => mapCardDTO(card, categoryMap.value, { categoryId, categoryKey }))
       .filter((event) => event.deleted !== 1)
     const nextEvents = await attachImageUrls(mappedEvents)
     if (token !== cardQueryToken) return
@@ -389,7 +418,7 @@ export function useTimelineEvents() {
     selectedCategory,
     selectedSubcategory,
     currentPage,
-    recentEvents,
+    carouselEvents,
     filteredEvents,
     currentPageEvents,
     totalPages,

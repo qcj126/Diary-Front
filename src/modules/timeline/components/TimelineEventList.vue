@@ -31,7 +31,6 @@
 <script setup>
 import { ref } from 'vue'
 import TimelineEventCard from './TimelineEventCard.vue'
-import { EVENT_CATEGORIES } from '../constants/eventCategories.js'
 
 const props = defineProps({
   currentPageEvents: {
@@ -57,6 +56,10 @@ const props = defineProps({
   selectedEventIds: {
     type: Array,
     default: () => []
+  },
+  categories: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -76,16 +79,16 @@ function handleToggleSelection(eventId) {
 }
 
 function getCategoryLabel(event) {
-  const category = EVENT_CATEGORIES.find(c => c.key === event.categoryKey)
-  if (!category) return ''
+  const category = props.categories.find(c => c.key === event.categoryKey || String(c.id) === String(event.categoryId))
+  if (!category) return event.categoryName || ''
   
   const subcategory = category.children?.find(sc => sc.key === event.subcategoryKey)
   return subcategory ? subcategory.label : category.label
 }
 
 function getEventIcon(event) {
-  const category = EVENT_CATEGORIES.find(c => c.key === event.categoryKey)
-  if (!category) return '📝'
+  const category = props.categories.find(c => c.key === event.categoryKey || String(c.id) === String(event.categoryId))
+  if (!category) return event.categoryIcon || ''
   
   const subcategory = category.children?.find(sc => sc.key === event.subcategoryKey)
   return subcategory ? subcategory.icon : category.icon
