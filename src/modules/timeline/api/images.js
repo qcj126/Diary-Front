@@ -53,17 +53,10 @@ function normalizeCarouselImageUrl(image) {
 export async function uploadTimelineImages(files, imageDTO) {
   const formData = new FormData()
   for (const file of files) {
-    formData.append('files', file)
+    formData.append('files', file, file.name)
   }
 
-  const payload = {
-    code: imageDTO.code,
-    userId: imageDTO.userId,
-  }
-
-  formData.append('imageDTO', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
-  formData.append('code', String(payload.code ?? ''))
-  formData.append('userId', String(payload.userId ?? ''))
+  formData.append('code', String(imageDTO?.code ?? 1000))
 
   const res = await fetch(TIMELINE_API.uploadImages, {
     method: 'POST',

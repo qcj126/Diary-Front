@@ -2,6 +2,7 @@ import { API_BASE, ICON_API } from '../../../api/index.js'
 import { getAuthSession } from '../../auth/session.js'
 
 const DEFAULT_USER_ID = 10000
+const ICON_STATIC_PREFIX = '/file/icon'
 
 function authHeaders(contentType = 'application/json') {
   const session = getAuthSession()
@@ -86,9 +87,12 @@ function normalizeIconPath(path) {
 
   const normalized = value.replaceAll('\\', '/')
   const iconIndex = normalized.toLowerCase().lastIndexOf('/icon/')
-  if (iconIndex >= 0) return normalized.slice(iconIndex)
-  if (normalized.startsWith('/')) return `${API_BASE}${normalized}`
-  return `${API_BASE}/${normalized}`
+  if (iconIndex >= 0) {
+    const fileName = normalized.slice(iconIndex + '/icon/'.length)
+    return encodeURI(`${API_BASE}${ICON_STATIC_PREFIX}/${fileName}`)
+  }
+  if (normalized.startsWith('/')) return encodeURI(`${API_BASE}${normalized}`)
+  return encodeURI(`${API_BASE}/${normalized}`)
 }
 
 export function normalizeIcon(raw = {}, index = 0) {

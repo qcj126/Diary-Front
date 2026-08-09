@@ -175,11 +175,13 @@ function handleAddCategory(category) {
 .category-item {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  flex: 1;
+  gap: 0.45rem;
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: 100%;
   min-width: 0;
-  min-height: 40px;
-  padding: 0.65rem 0.75rem;
+  min-height: 32px;
+  padding: 0.38rem 0.55rem;
   border: 1px solid transparent;
   border-radius: 8px;
   cursor: pointer;
@@ -203,8 +205,8 @@ function handleAddCategory(category) {
 
 .category-icon {
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   place-items: center;
   border-radius: 6px;
   background: var(--dashboard-surface-muted, #f1edec);
@@ -228,20 +230,24 @@ function handleAddCategory(category) {
 }
 
 .subcategories {
-  margin: 0.15rem 0 0.25rem 0.8rem;
-  padding-left: 0.6rem;
+  margin: 0.15rem 0 0.25rem 0.65rem;
+  padding-left: 0.45rem;
   border-left: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  width: fit-content;
+  max-width: calc(100% - 0.8rem);
 }
 
 .subcategory-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  min-height: 36px;
-  padding: 0.55rem 0.65rem;
+  gap: 0.4rem;
+  width: fit-content;
+  max-width: 112px;
+  min-height: 28px;
+  padding: 0.28rem 0.38rem;
   border: 1px solid transparent;
   border-radius: 8px;
   cursor: pointer;

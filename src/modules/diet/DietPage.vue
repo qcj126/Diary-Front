@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="diet-dashboard">
     <section class="hero-card">
       <div class="hero-copy">
@@ -56,10 +56,8 @@
       <section class="timeline-area">
         <div class="section-heading">
           <div>
-            <p class="section-kicker">Timeline</p>
             <h2>餐食轨迹</h2>
           </div>
-          <span class="section-note">按在家和在外分组查看记录点</span>
         </div>
         <DietTimeline :meals="filteredMeals" />
       </section>
@@ -103,6 +101,7 @@ const meals = ref([
     carbs: 45,
     fat: 15,
     sodium: 420,
+    sugar: 6,
     img: 'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?auto=format&fit=crop&w=900&q=80',
   },
   {
@@ -119,6 +118,7 @@ const meals = ref([
     carbs: 50,
     fat: 20,
     sodium: 610,
+    sugar: 9,
     img: 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=80',
   },
   {
@@ -135,6 +135,7 @@ const meals = ref([
     carbs: 18,
     fat: 4,
     sodium: 70,
+    sugar: 12,
     img: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=900&q=80',
   },
   {
@@ -151,6 +152,7 @@ const meals = ref([
     carbs: 34,
     fat: 14,
     sodium: 520,
+    sugar: 8,
     img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80',
   },
 ])
@@ -448,3 +450,5 @@ button:hover {
   }
 }
 </style>
+
+

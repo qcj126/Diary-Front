@@ -73,15 +73,14 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import LoginForm from './modules/auth/components/LoginForm.vue'
 import RegisterForm from './modules/auth/components/RegisterForm.vue'
 import ResetPasswordForm from './modules/auth/components/ResetPasswordForm.vue'
-// import { hasAuthSession } from './modules/auth/session.js'
+import { hasAuthSession } from './modules/auth/session.js'
 import LoveDashboard from './modules/love-dashboard/LoveDashboard.vue'
 
 const BUBBLE_COUNT = 10
 const bubbles = ref([])
 const page = ref('login')
 const loginNotice = ref('')
-// const loggedIn = ref(hasAuthSession())
-const loggedIn = ref(true)
+const loggedIn = ref(hasAuthSession())
 let bubbleFrame = 0
 let lastBubbleTime = 0
 

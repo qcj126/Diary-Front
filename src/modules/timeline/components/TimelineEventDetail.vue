@@ -51,6 +51,15 @@
           </label>
 
           <label>
+            <span>分类</span>
+            <select v-model="draft.categoryId" :required="isCreating" disabled>
+              <option v-for="item in categories" :key="item.id" :value="String(item.id)">
+                {{ item.icon }} {{ item.label }}
+              </option>
+            </select>
+          </label>
+
+          <label>
             <span>日期</span>
             <input
               v-model="draft.date"
@@ -63,25 +72,6 @@
               @input="clearValidationError('date')"
             />
             <p v-if="validationErrors.date" class="field-error">{{ validationErrors.date }}</p>
-          </label>
-        </div>
-
-        <div class="category-fields">
-          <label>
-            <span>所属分类</span>
-            <select v-model="draft.categoryId" :required="isCreating" @change="syncSelectedCategory">
-              <option v-for="item in categories" :key="item.id" :value="String(item.id)">
-                {{ item.icon }} {{ item.label }}
-              </option>
-            </select>
-          </label>
-          <label>
-            <span>分类名称</span>
-            <input v-model.trim="draft.categoryName" type="text" placeholder="分类名称" />
-          </label>
-          <label>
-            <span>分类图标</span>
-            <input v-model.trim="draft.categoryIcon" type="text" placeholder="图标" />
           </label>
         </div>
 
@@ -155,7 +145,6 @@ import {
   queryTimelineImageUrls,
   uploadTimelineImages,
 } from '../api/images.js'
-import { GLOBAL_USER_ID, getImageTypeByCategoryKey } from '../constants/imageTypes.js'
 
 const props = defineProps({
   event: {
@@ -222,14 +211,6 @@ function wait(ms) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms)
   })
-}
-
-function readUserId() {
-  return GLOBAL_USER_ID
-}
-
-function getUploadImageCode() {
-  return getImageTypeByCategoryKey(draft.categoryKey || props.category?.key).code
 }
 
 function toKey(value) {
@@ -348,8 +329,7 @@ async function handlePhotoUpload(event) {
 
   try {
     const imageIds = await uploadTimelineImages([file], {
-      code: getUploadImageCode(),
-      userId: readUserId(),
+      code: 1000,
     })
     draft.imageId = imageIds[0] || null
 
@@ -625,8 +605,7 @@ onBeforeUnmount(() => {
   min-height: 6.6rem;
 }
 
-.primary-fields,
-.category-fields {
+.primary-fields {
   display: grid;
   gap: 0.75rem;
 }
@@ -635,28 +614,24 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.primary-fields label:nth-child(2) {
-  grid-column: 3;
-}
-
-.category-fields {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 .primary-fields label > span,
-.category-fields label > span,
 .detail-form > label > span {
   padding-left: 0.75rem;
 }
 
-.category-fields input,
-.category-fields select {
+.primary-fields input,
+.primary-fields select {
   box-sizing: border-box;
   min-width: 0;
 }
 
-.category-fields select {
+.primary-fields select {
   appearance: none;
+}
+
+.primary-fields select:disabled {
+  cursor: default;
+  opacity: 1;
 }
 
 .upload-button {
@@ -880,6 +855,12 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, #dc2626, #b91c1c);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+@media (max-width: 720px) {
+  .primary-fields {
+    grid-template-columns: 1fr;
+  }
 }
 
 @keyframes image-upload-spin {

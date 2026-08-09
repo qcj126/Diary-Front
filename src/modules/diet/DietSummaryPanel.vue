@@ -1,11 +1,8 @@
-<template>
+﻿<template>
   <div class="summary-stack">
     <section class="summary-card spotlight-card">
       <div class="panel-head">
-        <div>
-          <p class="panel-kicker">Nutrition</p>
-          <h3 class="panel-title">营养总览</h3>
-        </div>
+        <h3 class="panel-title">营养摄入</h3>
         <label class="date-picker-button" title="选择日期" aria-label="选择日期">
           <span class="material-symbols-outlined">calendar_month</span>
           <span>{{ selectedDate }}</span>
@@ -13,72 +10,13 @@
         </label>
       </div>
 
-      <div class="ring-block">
-        <div class="ring-chart">
-          <svg viewBox="0 0 220 220" class="donut-chart">
-            <circle cx="110" cy="110" r="78" fill="transparent" stroke="#eadfdc" stroke-width="18" />
-            <circle
-              v-if="proteinRatio > 0"
-              cx="110"
-              cy="110"
-              r="78"
-              fill="transparent"
-              :stroke="colors.protein"
-              :stroke-dasharray="proteinArc + ' ' + emptyArc(proteinArc)"
-              stroke-dashoffset="0"
-              stroke-width="18"
-              class="chart-segment"
-            />
-            <circle
-              v-if="carbsRatio > 0"
-              cx="110"
-              cy="110"
-              r="78"
-              fill="transparent"
-              :stroke="colors.carbs"
-              :stroke-dasharray="carbsArc + ' ' + emptyArc(carbsArc)"
-              :stroke-dashoffset="-(proteinArc)"
-              stroke-width="18"
-              class="chart-segment"
-            />
-            <circle
-              v-if="fatRatio > 0"
-              cx="110"
-              cy="110"
-              r="78"
-              fill="transparent"
-              :stroke="colors.fat"
-              :stroke-dasharray="fatArc + ' ' + emptyArc(fatArc)"
-              :stroke-dashoffset="-(proteinArc + carbsArc)"
-              stroke-width="18"
-              class="chart-segment"
-            />
-          </svg>
-
-          <div class="chart-center">
-            <span class="center-label">热量</span>
-            <strong>{{ total.kcal }}</strong>
-            <span class="center-unit">kcal</span>
-          </div>
-        </div>
-
-        <div class="macro-list">
-          <div class="macro-row">
-            <span class="macro-label"><i :style="{ background: colors.protein }" />蛋白质</span>
-            <strong>{{ total.protein }}g · {{ proteinRatio }}%</strong>
-          </div>
-          <div class="macro-row">
-            <span class="macro-label"><i :style="{ background: colors.carbs }" />碳水</span>
-            <strong>{{ total.carbs }}g · {{ carbsRatio }}%</strong>
-          </div>
-          <div class="macro-row">
-            <span class="macro-label"><i :style="{ background: colors.fat }" />脂肪</span>
-            <strong>{{ total.fat }}g · {{ fatRatio }}%</strong>
-          </div>
-          <div class="macro-row">
-            <span class="macro-label"><i :style="{ background: colors.sodium }" />钠</span>
-            <strong>{{ total.sodium }}mg</strong>
-          </div>
+      <div class="nutrition-overview">
+        <div v-for="item in overviewItems" :key="item.key" class="overview-item">
+          <span class="overview-name">
+            <i :style="{ background: item.color }" />
+            {{ item.label }}
+          </span>
+          <strong>{{ item.value }}{{ item.unit }}</strong>
         </div>
       </div>
     </section>
@@ -102,6 +40,7 @@ const colors = {
   protein: '#7a8d6e',
   carbs: '#d36b4b',
   fat: '#c8953d',
+  sugar: '#c45a84',
   sodium: '#4d938a',
   kcal: '#9a4024',
 }
@@ -115,46 +54,45 @@ const total = computed(() =>
       protein: acc.protein + (meal.protein || 0),
       carbs: acc.carbs + (meal.carbs || 0),
       fat: acc.fat + (meal.fat || 0),
+      sugar: acc.sugar + (meal.sugar || 0),
       sodium: acc.sodium + (meal.sodium || 0),
     }),
-    { kcal: 0, protein: 0, carbs: 0, fat: 0, sodium: 0 },
+    { kcal: 0, protein: 0, carbs: 0, fat: 0, sugar: 0, sodium: 0 },
   ),
 )
 
-const sum = computed(() => total.value.protein + total.value.carbs + total.value.fat)
-const proteinRatio = computed(() => (sum.value ? Math.round((total.value.protein / sum.value) * 100) : 0))
-const carbsRatio = computed(() => (sum.value ? Math.round((total.value.carbs / sum.value) * 100) : 0))
-const fatRatio = computed(() => (sum.value ? Math.max(0, 100 - proteinRatio.value - carbsRatio.value) : 0))
-
-const proteinArc = computed(() => proteinRatio.value)
-const carbsArc = computed(() => carbsRatio.value)
-const fatArc = computed(() => fatRatio.value)
+const overviewItems = computed(() => [
+  { key: 'protein', label: '蛋白质', value: total.value.protein, unit: 'g', color: colors.protein },
+  { key: 'carbs', label: '碳水', value: total.value.carbs, unit: 'g', color: colors.carbs },
+  { key: 'fat', label: '脂肪', value: total.value.fat, unit: 'g', color: colors.fat },
+  { key: 'sugar', label: '糖', value: total.value.sugar, unit: 'g', color: colors.sugar },
+  { key: 'sodium', label: '钠', value: total.value.sodium, unit: 'mg', color: colors.sodium },
+  { key: 'kcal', label: '热量', value: total.value.kcal, unit: 'kcal', color: colors.kcal },
+])
 
 const nutritionTargets = {
   kcal: 2000,
   protein: 120,
   carbs: 220,
   fat: 65,
+  sugar: 50,
   sodium: 2000,
 }
-
-function emptyArc(value) {
-  return Math.max(0, 100 - value)
-}
-
 </script>
 
 <style scoped>
 .summary-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-rows: 104px minmax(0, 1fr);
+  gap: 8px;
   height: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 
 .summary-card {
-  padding: 10px;
+  box-sizing: border-box;
+  padding: 9px 10px;
   border-radius: 14px;
   background: rgba(249, 242, 240, 0.9);
   border: 1px solid #dcc1b9;
@@ -169,19 +107,10 @@ function emptyArc(value) {
 }
 
 .spotlight-card {
+  overflow: hidden;
   background:
     radial-gradient(circle at top, rgba(255, 219, 209, 0.65), transparent 36%),
     rgba(249, 242, 240, 0.96);
-}
-
-.panel-kicker {
-  margin: 0 0 4px;
-  font-size: 12px;
-  line-height: 16px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #7e2c11;
-  font-weight: 700;
 }
 
 .panel-title {
@@ -195,8 +124,8 @@ function emptyArc(value) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 7px;
 }
 
 .date-picker-button {
@@ -205,9 +134,9 @@ function emptyArc(value) {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 34px;
+  min-height: 32px;
   border-radius: 10px;
-  padding: 0 10px;
+  padding: 0 9px;
   background: #ffffff;
   border: 1px solid rgba(220, 193, 185, 0.9);
   color: #444748;
@@ -224,88 +153,56 @@ function emptyArc(value) {
   cursor: pointer;
 }
 
-.ring-block {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-}
-
-.ring-chart {
-  position: relative;
-  flex: 0 0 112px;
-  width: 112px;
-  margin: 0 auto;
-}
-
-.donut-chart {
-  width: 112px;
-  height: auto;
-  transform: rotate(-90deg);
-}
-
-.chart-segment {
-  transition: stroke-dasharray 0.3s ease;
-}
-
-.chart-center {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-.center-label,
-.center-unit {
-  color: #89726c;
-  font-size: 11px;
-}
-
-.chart-center strong {
-  font-size: 22px;
-  line-height: 1;
-  color: #9a4024;
-}
-
-.macro-list {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.macro-list {
-  flex: 1;
+.nutrition-overview {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
   min-width: 0;
 }
 
-.macro-row {
+.overview-item {
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 4px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(220, 193, 185, 0.58);
 }
 
-.macro-row strong {
-  color: #1d1b1a;
-  font-size: 12px;
-}
-
-.macro-label {
+.overview-name {
+  min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 3px;
   color: #56423d;
-  font-size: 12px;
+  font-size: 10px;
+  line-height: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.macro-label i {
-  width: 10px;
-  height: 10px;
+.overview-name i {
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
   border-radius: 999px;
-  display: inline-block;
+}
+
+.overview-item strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #1d1b1a;
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 @media (max-width: 900px) {
@@ -314,13 +211,13 @@ function emptyArc(value) {
     border-radius: 14px;
   }
 
-  .ring-block {
-    flex-direction: column;
+  .summary-stack {
+    grid-template-rows: auto auto;
+    overflow: visible;
   }
 
-  .ring-chart,
-  .donut-chart {
-    width: min(112px, 100%);
+  .nutrition-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

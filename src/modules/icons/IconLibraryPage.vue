@@ -167,6 +167,7 @@ async function loadIcons() {
   error.value = ''
 
   try {
+    failedImages.value = new Set()
     icons.value = await queryIcons({ iconName: filters.iconName })
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '查询图标失败'

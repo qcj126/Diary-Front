@@ -1,53 +1,50 @@
-<template>
+﻿<template>
   <section class="summary-card trend-card">
     <div class="panel-head compact">
-      <div>
-        <p class="panel-kicker">Week</p>
-        <h3 class="panel-title">一周营养趋势</h3>
-      </div>
+      <h3 class="panel-title">营养趋势</h3>
     </div>
 
-    <div class="line-chart-wrap">
-      <svg class="line-chart" viewBox="0 0 360 170" role="img" aria-label="一周营养摄入折线图">
-        <g class="chart-grid">
-          <line v-for="tick in xTicks" :key="tick" :x1="chartX(tick)" :x2="chartX(tick)" y1="18" y2="132" />
-        </g>
-        <g class="chart-axis">
-          <line x1="52" x2="340" y1="132" y2="132" />
-          <line x1="52" x2="52" y1="18" y2="132" />
-          <text class="axis-title x-axis-title" x="340" y="164">营养量</text>
-          <text class="axis-title y-axis-title" x="18" y="16">周几</text>
-          <text v-for="tick in xTicks" :key="tick" class="x-label" :x="chartX(tick)" y="151">{{ tickLabel(tick) }}</text>
-          <text v-for="day in weekDays" :key="day.label" class="y-label" x="42" :y="day.y + 4">{{ day.label }}</text>
-        </g>
-        <g class="chart-lines">
-          <polyline
-            v-for="series in weeklySeries"
-            :key="series.key"
-            :points="series.points"
-            :stroke="series.color"
-          />
-        </g>
-        <g class="chart-points">
-          <template v-for="series in weeklySeries" :key="series.key">
-            <circle
-              v-for="point in series.pointList"
-                :key="`${series.key}-${point.index}`"
-              :cx="point.x"
-              :cy="point.y"
-              r="2.6"
-              :fill="series.color"
+    <div class="nutrition-trend-grid">
+      <article v-for="chart in nutritionCharts" :key="chart.key" class="nutrition-chart">
+        <div class="chart-head">
+          <span class="chart-dot" :style="{ background: chart.color }" />
+          <h4>{{ chart.label }}（{{ chart.unit }}）</h4>
+        </div>
+
+        <svg class="bar-chart" viewBox="0 0 220 136" role="img" :aria-label="`${chart.label}一周柱状图`">
+          <g class="chart-grid">
+            <line
+              v-for="tick in chart.ticks"
+              :key="tick"
+              x1="28"
+              x2="212"
+              :y1="chartY(chart, tick)"
+              :y2="chartY(chart, tick)"
             />
-          </template>
-        </g>
-      </svg>
-    </div>
-
-    <div class="trend-legend">
-      <span v-for="series in weeklySeries" :key="series.key">
-        <i :style="{ background: series.color }" />
-        {{ series.label }}
-      </span>
+          </g>
+          <g class="chart-axis">
+            <line x1="28" x2="212" y1="116" y2="116" />
+            <line x1="28" x2="28" y1="4" y2="116" />
+            <text v-for="tick in chart.ticks" :key="tick" class="y-label" x="23" :y="chartY(chart, tick) + 3">
+              {{ tick }}
+            </text>
+          </g>
+          <g class="chart-bars">
+            <rect
+              v-for="bar in chart.bars"
+              :key="bar.label"
+              :x="bar.x"
+              :y="bar.y"
+              width="9"
+              :height="bar.height"
+              :fill="chart.color"
+            />
+          </g>
+          <g class="x-labels">
+            <text v-for="bar in chart.bars" :key="bar.label" :x="bar.x + 4.5" y="131">{{ bar.label }}</text>
+          </g>
+        </svg>
+      </article>
     </div>
   </section>
 </template>
@@ -70,56 +67,49 @@ const props = defineProps({
   },
 })
 
-const xTicks = [0, 0.5, 1]
+const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '今日']
+const gramTicks = [0, 30, 60, 90, 120, 150, 180, 210]
+const largeUnitTicks = [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000]
+const seriesMeta = [
+  { key: 'protein', label: '蛋白质', unit: 'g', maxValue: 210, ticks: gramTicks },
+  { key: 'carbs', label: '碳水', unit: 'g', maxValue: 210, ticks: gramTicks },
+  { key: 'fat', label: '脂肪', unit: 'g', maxValue: 210, ticks: gramTicks },
+  { key: 'sugar', label: '糖', unit: 'g', maxValue: 210, ticks: gramTicks },
+  { key: 'sodium', label: '钠', unit: 'mg', maxValue: 4000, ticks: largeUnitTicks },
+  { key: 'kcal', label: '热量', unit: 'kcal', maxValue: 4000, ticks: largeUnitTicks },
+]
 
 const weekData = computed(() => {
   const factors = [0.78, 0.9, 0.84, 1.05, 0.96, 1.12, 1]
   return factors.map((factor, index) => ({
-    label: ['周一', '周二', '周三', '周四', '周五', '周六', '今日'][index],
+    label: weekdays[index],
     kcal: Math.round(props.total.kcal * factor),
     protein: Math.round(props.total.protein * (factor + (index % 2 ? 0.04 : -0.02))),
     carbs: Math.round(props.total.carbs * (factor + (index % 3 === 0 ? 0.05 : -0.03))),
     fat: Math.round(props.total.fat * (factor + (index % 2 ? -0.03 : 0.03))),
+    sugar: Math.round(props.total.sugar * (factor + (index % 3 === 2 ? 0.07 : -0.02))),
     sodium: Math.round(props.total.sodium * (factor + (index % 3 === 1 ? 0.06 : -0.01))),
   }))
 })
 
-const weekDays = computed(() => weekData.value.map((day, index) => ({ label: day.label, y: chartY(index) })))
-const weeklySeries = computed(() =>
-  [
-    { key: 'kcal', label: '热量', color: props.colors.kcal },
-    { key: 'protein', label: '蛋白质', color: props.colors.protein },
-    { key: 'carbs', label: '碳水', color: props.colors.carbs },
-    { key: 'fat', label: '脂肪', color: props.colors.fat },
-    { key: 'sodium', label: '钠', color: props.colors.sodium },
-  ].map((series) => {
-    const pointList = weekData.value.map((day, index) => {
-      const ratio = props.targets[series.key] ? day[series.key] / props.targets[series.key] : 0
+const nutritionCharts = computed(() =>
+  seriesMeta.map((series) => ({
+    ...series,
+    color: props.colors[series.key],
+    bars: weekData.value.map((day, index) => {
+      const height = Math.round((Math.min(day[series.key], series.maxValue) / series.maxValue) * 112)
       return {
-        index,
-        x: chartX(ratio),
-        y: chartY(index),
+        label: day.label.replace('周', ''),
+        x: 42 + index * 25,
+        y: 116 - height,
+        height: Math.max(3, height),
       }
-    })
-    return {
-      ...series,
-      pointList,
-      points: pointList.map((point) => `${point.x},${point.y}`).join(' '),
-    }
-  }),
+    }),
+  })),
 )
 
-function chartX(ratio) {
-  const clamped = Math.max(0, Math.min(1.35, ratio))
-  return Math.round(52 + (clamped / 1.35) * 288)
-}
-
-function chartY(index) {
-  return 22 + index * (110 / 6)
-}
-
-function tickLabel(tick) {
-  return `${Math.round(tick * 100)}%`
+function chartY(chart, tick) {
+  return 116 - (tick / chart.maxValue) * 112
 }
 </script>
 
@@ -133,22 +123,14 @@ function tickLabel(tick) {
 }
 
 .trend-card {
+  min-height: 0;
   background: rgba(255, 255, 255, 0.82);
-}
-
-.panel-kicker {
-  margin: 0 0 4px;
-  font-size: 12px;
-  line-height: 16px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #7e2c11;
-  font-weight: 700;
+  overflow: hidden;
 }
 
 .panel-title {
   margin: 0;
-  font-size: clamp(18px, 1.5vw, 22px);
+  font-size: 18px;
   line-height: 1.15;
   color: #1d1b1a;
 }
@@ -158,17 +140,58 @@ function tickLabel(tick) {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
-.line-chart-wrap {
-  height: 170px;
+.nutrition-trend-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  height: calc(100% - 29px);
+  min-height: 0;
 }
 
-.line-chart {
+.nutrition-chart {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 6px 6px 1px;
+  border-radius: 12px;
+  background: rgba(249, 242, 240, 0.74);
+  border: 1px solid rgba(220, 193, 185, 0.7);
+}
+
+.chart-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chart-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.chart-head h4 {
+  margin: 0;
+  color: #1d1b1a;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.bar-chart {
   display: block;
   width: 100%;
-  height: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 .chart-grid line {
@@ -176,65 +199,27 @@ function tickLabel(tick) {
   stroke-width: 1;
 }
 
-.chart-lines polyline {
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2.4;
+.chart-axis line {
+  stroke: rgba(126, 44, 17, 0.36);
+  stroke-width: 1.2;
 }
 
-.chart-axis text {
+.chart-axis text,
+.x-labels text {
   fill: #89726c;
-  font-size: 11px;
+  font-size: 8px;
   font-weight: 700;
-}
-
-.axis-title {
-  fill: #7e2c11;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.x-axis-title {
-  text-anchor: end;
-}
-
-.y-axis-title {
-  text-anchor: middle;
-}
-
-.x-label {
-  text-anchor: middle;
 }
 
 .y-label {
   text-anchor: end;
 }
 
-.chart-axis line {
-  stroke: rgba(126, 44, 17, 0.36);
-  stroke-width: 1.2;
+.x-labels text {
+  text-anchor: middle;
 }
 
-.trend-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-top: 6px;
-}
-
-.trend-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: #56423d;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.trend-legend i {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
+.chart-bars rect {
+  opacity: 0.92;
 }
 </style>

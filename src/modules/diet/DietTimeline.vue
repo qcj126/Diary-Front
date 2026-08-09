@@ -1,9 +1,8 @@
-<template>
+﻿<template>
   <div class="diet-timeline split-timeline">
     <section v-for="group in mealGroups" :key="group.key" class="meal-column">
       <div class="column-head">
-        <h3>{{ group.title }}</h3>
-        <span>{{ group.items.length }} 条</span>
+        <h3>{{ group.title }} {{ group.items.length }}条</h3>
       </div>
 
       <div class="column-timeline">
@@ -27,10 +26,11 @@
               <h3 class="meal-name">{{ meal.name }}</h3>
               <p class="meal-desc">{{ meal.desc }}</p>
 
-              <div v-if="group.key === 'home'" class="meal-tags">
+              <div class="meal-tags">
                 <span class="tag">蛋白质 {{ meal.protein }}g</span>
                 <span class="tag">碳水 {{ meal.carbs }}g</span>
                 <span class="tag">脂肪 {{ meal.fat }}g</span>
+                <span class="tag">糖 {{ meal.sugar ?? 0 }}g</span>
                 <span class="tag">钠 {{ meal.sodium ?? 0 }}mg</span>
                 <span class="tag kcal-tag">热量 {{ meal.kcal }}kcal</span>
               </div>
@@ -88,7 +88,7 @@ const mealGroups = computed(() => [
 .column-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
   margin-bottom: 8px;
   padding: 0 2px 0 20px;
@@ -99,12 +99,6 @@ const mealGroups = computed(() => [
   color: #1d1b1a;
   font-size: 15px;
   line-height: 20px;
-}
-
-.column-head span {
-  color: #89726c;
-  font-size: 12px;
-  font-weight: 800;
 }
 
 .column-timeline {
@@ -148,6 +142,9 @@ const mealGroups = computed(() => [
   grid-template-columns: 104px minmax(0, 1fr);
   gap: 10px;
   align-items: stretch;
+  box-sizing: border-box;
+  width: calc(100% - 50px);
+  min-height: 154px;
   padding: 28px 10px 10px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.82);
@@ -259,6 +256,7 @@ const mealGroups = computed(() => [
   }
 
   .meal-card {
+    width: 100%;
     grid-template-columns: 120px minmax(0, 1fr);
   }
 }

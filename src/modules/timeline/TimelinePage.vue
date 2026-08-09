@@ -618,11 +618,15 @@ watch(selectedPageSize, (size) => {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  box-sizing: border-box;
+  flex: 0 0 64px;
+  min-height: 64px;
   padding: 0.8rem;
   border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
   border-radius: 8px;
   background: var(--dashboard-surface, #ffffff);
   box-shadow: var(--dashboard-shadow, 0 18px 50px rgba(28, 27, 27, 0.08));
+  overflow: hidden;
 }
 
 .timeline-actions {
@@ -666,9 +670,13 @@ watch(selectedPageSize, (size) => {
 
 .query-panel {
   display: flex;
-  flex-wrap: wrap;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   gap: 10px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .category-modal label {
@@ -845,14 +853,16 @@ watch(selectedPageSize, (size) => {
 
 .events-section {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 156px minmax(0, 1fr);
   gap: 1rem;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .category-nav-area {
-  height: calc(100vh - 448px);
+  height: 100%;
+  min-height: 0;
   overflow-y: auto;
   padding: 0.75rem;
   border: 1px solid var(--dashboard-border-soft, rgba(196, 199, 199, 0.56));
@@ -862,7 +872,8 @@ watch(selectedPageSize, (size) => {
 }
 
 .event-list-area {
-  height: calc(100vh - 448px);
+  height: 100%;
+  min-height: 0;
   overflow-y: auto;
   border-radius: 8px;
 }
@@ -896,8 +907,8 @@ watch(selectedPageSize, (size) => {
 }
 
 .timeline-modal {
-  width: min(100%, 560px);
-  max-height: min(86vh, 680px);
+  width: min(100%, 720px);
+  max-height: min(84vh, 640px);
   overflow-y: auto;
 }
 
