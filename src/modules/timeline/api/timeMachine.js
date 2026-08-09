@@ -78,6 +78,16 @@ export function createCardDTO(card = {}) {
   }
 }
 
+export function createCardQueryDTO(card = {}) {
+  return {
+    categoryId: card.categoryId ?? null,
+    deleted: card.deleted ?? 0,
+    pageNum: card.pageNum ?? 1,
+    pageSize: card.pageSize ?? 25,
+    exactDate: card.exactDate ?? '',
+  }
+}
+
 export function addTimeCategory(categoryDTO) {
   return postJson(TIMELINE_API.categoryAdd, createCategoryDTO(categoryDTO), 'Add category failed.')
 }
@@ -115,5 +125,5 @@ export function deleteTimeCard(cardDTO) {
 }
 
 export function queryTimeCards(cardDTO = {}) {
-  return postJson(TIMELINE_API.cardQuery, createCardDTO(cardDTO), 'Query cards failed.')
+  return postJson(TIMELINE_API.cardQuery, createCardQueryDTO(cardDTO), 'Query cards failed.')
 }

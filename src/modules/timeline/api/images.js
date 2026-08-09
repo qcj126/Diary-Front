@@ -1,9 +1,5 @@
 import { API_BASE, TIMELINE_API } from '../../../api/index.js'
 
-let carouselImageUrlCache = null
-let carouselImageUrlRequest = null
-const carouselImageUrlCacheTtl = 10 * 60 * 1000
-
 function parseApiPayload(text) {
   if (!text) return null
   try {
@@ -92,19 +88,7 @@ export async function queryTimelineImageUrls(imageIds) {
 }
 
 export async function queryCarouselImageUrls() {
-  if (carouselImageUrlCache && Date.now() < carouselImageUrlCache.expiresAt) {
-    return [...carouselImageUrlCache.urls]
-  }
-
-  if (carouselImageUrlRequest) {
-    return carouselImageUrlRequest
-  }
-
-  carouselImageUrlRequest = queryCarouselImageUrlsFromApi().finally(() => {
-    carouselImageUrlRequest = null
-  })
-
-  return carouselImageUrlRequest
+  return queryCarouselImageUrlsFromApi()
 }
 
 async function queryCarouselImageUrlsFromApi() {
@@ -116,12 +100,6 @@ async function queryCarouselImageUrlsFromApi() {
 
   const images = getResponseData(data)
   const urls = Array.isArray(images) ? images.map(normalizeCarouselImageUrl).filter(Boolean) : []
-  if (urls.length) {
-    carouselImageUrlCache = {
-      urls,
-      expiresAt: Date.now() + carouselImageUrlCacheTtl,
-    }
-  }
   return [...urls]
 }
 

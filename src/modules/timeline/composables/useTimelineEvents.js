@@ -282,7 +282,6 @@ export function useTimelineEvents() {
     categoryKey = selectedCategory.value,
     nextPageIndex = 1,
     nextPageSize = pageSize,
-    daysAgo = null,
     exactDate = '',
     append = false,
   } = {}) {
@@ -290,12 +289,10 @@ export function useTimelineEvents() {
     cardQueryToken = token
     const categoryId = getCategoryIdByKey(categoryKey)
     const result = await queryTimeCards({
-      userId: readUserId(),
       categoryId,
       deleted: 0,
-      pageIndex: nextPageIndex,
+      pageNum: nextPageIndex,
       pageSize: nextPageSize,
-      daysAgo,
       exactDate,
     })
     if (token !== cardQueryToken) return
@@ -325,8 +322,8 @@ export function useTimelineEvents() {
   async function refreshTimeline() {
     loading.value = true
     error.value = ''
+    void refreshCarouselImages()
     try {
-      await refreshCarouselImages()
       await refreshCategories()
       await refreshCards()
     } catch (caught) {

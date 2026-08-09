@@ -176,6 +176,7 @@ const props = defineProps({
 const emit = defineEmits(['save', 'close', 'delete'])
 
 const isEditing = ref(false)
+const editingFromDetail = ref(false)
 const showDeleteConfirm = ref(false)
 const pendingDeleteId = ref('')
 const isUploadingImage = ref(false)
@@ -373,6 +374,7 @@ async function handlePhotoUpload(event) {
 function handleSave() {
   if (!validateRequiredFields()) return
   emit('save', { ...draft })
+  editingFromDetail.value = false
   isEditing.value = false
 }
 
@@ -393,6 +395,7 @@ function cancelDelete() {
 }
 
 function startEditing() {
+  editingFromDetail.value = true
   isEditing.value = true
 }
 
@@ -403,12 +406,13 @@ function cancelEditing() {
   clearValidationErrors()
   resetDraft()
 
-  if (isCreating.value) {
-    emit('close')
+  if (editingFromDetail.value) {
+    editingFromDetail.value = false
+    isEditing.value = false
     return
   }
 
-  isEditing.value = false
+  emit('close')
 }
 
 watch(
@@ -418,6 +422,7 @@ watch(
     isUploadingImage.value = false
     imageUploadError.value = ''
     clearValidationErrors()
+    editingFromDetail.value = false
     isEditing.value = props.startInEdit
 
     if (category && !event) {
