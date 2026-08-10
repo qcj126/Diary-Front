@@ -12,6 +12,12 @@
         </div>
 
         <nav class="category-menu">
+          <div class="category-row" :class="{ active: activeCategory === null }">
+            <button type="button" class="menu-item category-select-button" @click="selectCategory(null)">
+              <span class="material-symbols-outlined">restaurant_menu</span>
+              <span>全部</span>
+            </button>
+          </div>
           <div
             v-for="category in categories"
             :key="category.key"
@@ -23,7 +29,7 @@
               <span v-else class="material-symbols-outlined">{{ category.icon }}</span>
               <span>{{ category.label }}</span>
             </button>
-            <label v-if="category.id !== null" class="category-check" :aria-label="`选择${category.label}`">
+            <label class="category-check" :aria-label="`选择${category.label}`">
               <input
                 type="checkbox"
                 :checked="selectedCategoryIds.includes(category.id)"
@@ -62,11 +68,11 @@
                 <span class="material-symbols-outlined">add</span>
                 增
               </button>
-              <button type="button" @click="requestDeleteCategories">
+              <button type="button" :disabled="recipeSaving || recipeDeleting" @click="requestDeleteRecipes">
                 <span class="material-symbols-outlined">delete</span>
                 删
               </button>
-              <button type="button" @click="requestUpdateCategory">
+              <button type="button" @click="requestUpdateRecipe">
                 <span class="material-symbols-outlined">edit</span>
                 改
               </button>
@@ -96,11 +102,11 @@
           <RecipeDetailPage
             v-if="selectedRecipe"
             :recipe="selectedRecipe"
-            :categories="recipeCategories"
+            :categories="categories"
             :saving="recipeSaving"
             @close="closeRecipeDetail"
             @save="saveRecipe"
-            @delete="removeRecipe"
+            @delete="requestDeleteRecipe"
           />
 
           <div v-else>
@@ -122,12 +128,20 @@
 
             <div class="timeline-container">
               <section class="day-section">
-                <div class="day-header">
-                  <div class="day-badge today">今天</div>
-                  <h2 class="day-date">{{ todayData.date }}</h2>
-                </div>
-
-                <div v-for="recipe in todayData.recipes" :key="recipe.id" class="timeline-entry">
+                <div
+                  v-for="recipe in recipes"
+                  :key="recipe.id"
+                  class="timeline-entry"
+                  :class="{ selected: isRecipeSelected(recipe) }"
+                >
+                  <label class="recipe-record-check" :aria-label="`选择食谱${recipe.title}`">
+                    <input
+                      type="checkbox"
+                      :checked="isRecipeSelected(recipe)"
+                      @change="toggleRecipeSelection(recipe)"
+                    />
+                    <span></span>
+                  </label>
                   <RecipeCard
                     :meal-type="recipe.mealType"
                     :duration="recipe.duration"
@@ -142,7 +156,7 @@
                   />
                 </div>
 
-                <div v-if="!todayData.recipes.length && !recipeLoading" class="recipe-empty-card">
+                <div v-if="!recipes.length && !recipeLoading" class="recipe-empty-card">
                   暂时还没有食谱。点击左侧“添加新食谱”创建一条，或确认后端 /recipe/query 是否已有数据。
                 </div>
               </section>
@@ -231,6 +245,28 @@
         </footer>
       </section>
     </div>
+
+    <div v-if="deleteRecipeDialogOpen" class="modal-backdrop" @click.self="closeDeleteRecipeDialog">
+      <section class="category-dialog message-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-recipe-title">
+        <header class="dialog-header">
+          <h2 id="delete-recipe-title">删除食谱</h2>
+          <button class="dialog-icon-button" type="button" :disabled="recipeDeleting" @click="closeDeleteRecipeDialog">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </header>
+
+        <p class="dialog-message">确定删除选中的 {{ pendingRecipeDeletes.length }} 条食谱记录吗？</p>
+
+        <footer class="dialog-actions split">
+          <button class="dialog-secondary-button" type="button" :disabled="recipeDeleting" @click="closeDeleteRecipeDialog">
+            取消
+          </button>
+          <button class="dialog-primary-button danger" type="button" :disabled="recipeDeleting" @click="confirmDeleteRecipes">
+            {{ recipeDeleting ? '删除中...' : '确认删除' }}
+          </button>
+        </footer>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -243,7 +279,6 @@ import {
   addRecipe,
   deleteRecipe,
   deleteRecipeCategories,
-  normalizeRecipe,
   queryRecipeIcons,
   queryRecipeCategories,
   queryRecipes,
@@ -251,12 +286,13 @@ import {
   updateRecipeCategory,
 } from './api/recipe.js'
 
-const todayData = ref({ date: '今天', isToday: true, recipes: [] })
-const categories = ref([{ key: 'all', label: '全部', icon: 'restaurant_menu', value: null, id: null }])
+const recipes = ref([])
+const categories = ref([])
 const selectedRecipe = ref(null)
 const currentView = ref('timeline')
 const recipeLoading = ref(false)
 const recipeSaving = ref(false)
+const recipeDeleting = ref(false)
 const categorySaving = ref(false)
 const categoryDeleting = ref(false)
 const iconLoading = ref(false)
@@ -266,6 +302,7 @@ const keyword = ref('')
 const recipeQueryPanelOpen = ref(false)
 const activeCategory = ref(null)
 const redHeart = ref(0)
+const selectedRecipeIds = ref([])
 const selectedCategoryIds = ref([])
 const categoryDialogOpen = ref(false)
 const categoryDialogMode = ref('add')
@@ -273,6 +310,8 @@ const categoryDialogError = ref('')
 const categoryAlertOpen = ref(false)
 const categoryAlertMessage = ref('请选择分类')
 const deleteCategoryDialogOpen = ref(false)
+const deleteRecipeDialogOpen = ref(false)
+const pendingRecipeDeletes = ref([])
 const categoryDraft = ref({
   categoryId: null,
   label: '',
@@ -280,17 +319,8 @@ const categoryDraft = ref({
   icon: '',
 })
 const categoryIcons = ref([])
-const RECIPE_MENU_NAME = '厨房创食记'
 
 const isWideView = computed(() => !!selectedRecipe.value)
-const recipeCategories = computed(() => categories.value.filter((category) => category.id !== null))
-
-const formatToday = () =>
-  new Intl.DateTimeFormat('zh-CN', {
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  }).format(new Date())
 
 function showNotice(message) {
   recipeNotice.value = message
@@ -307,20 +337,18 @@ async function loadRecipes() {
     const result = await queryRecipes({
       pageIndex: 1,
       pageSize: 20,
-      category: activeCategory.value,
+      categoryNum: activeCategory.value,
       redHeart: redHeart.value,
       keyword: keyword.value,
     })
 
-    todayData.value = {
-      date: formatToday(),
-      isToday: true,
-      recipes: result.records,
-    }
+    recipes.value = result.records
+    const visibleRecipeIds = new Set(result.records.map(recipeKey))
+    selectedRecipeIds.value = selectedRecipeIds.value.filter((id) => visibleRecipeIds.has(id))
   } catch (error) {
     console.error(error)
     recipeError.value = error instanceof Error ? error.message : '食谱加载失败'
-    todayData.value = { date: formatToday(), isToday: true, recipes: [] }
+    recipes.value = []
   } finally {
     recipeLoading.value = false
   }
@@ -333,10 +361,7 @@ function isIconUrl(icon) {
 async function loadCategories() {
   try {
     const result = await queryRecipeCategories()
-    categories.value = [
-      { key: 'all', label: '全部', icon: 'restaurant_menu', value: null, id: null },
-      ...result,
-    ]
+    categories.value = result
     selectedCategoryIds.value = selectedCategoryIds.value.filter((id) =>
       result.some((category) => String(category.id) === String(id)),
     )
@@ -379,11 +404,100 @@ function requestDeleteCategories() {
 function resetRecipeQuery() {
   keyword.value = ''
   redHeart.value = 0
+  activeCategory.value = null
   loadRecipes()
 }
 
 function toggleRedHeartQuery() {
   redHeart.value = redHeart.value === 1 ? 0 : 1
+}
+
+function recipeKey(recipe) {
+  return String(recipe?.recipeId ?? recipe?.id ?? '')
+}
+
+function isRecipeSelected(recipe) {
+  return selectedRecipeIds.value.includes(recipeKey(recipe))
+}
+
+function toggleRecipeSelection(recipe) {
+  const id = recipeKey(recipe)
+  if (!id) return
+  selectedRecipeIds.value = selectedRecipeIds.value.includes(id)
+    ? selectedRecipeIds.value.filter((item) => item !== id)
+    : [...selectedRecipeIds.value, id]
+}
+
+function selectedRecipes() {
+  const selectedIds = new Set(selectedRecipeIds.value)
+  return recipes.value.filter((recipe) => selectedIds.has(recipeKey(recipe)))
+}
+
+function requestUpdateRecipe() {
+  const records = selectedRecipes()
+  if (!records.length) {
+    categoryAlertMessage.value = '请选择一条食谱记录'
+    categoryAlertOpen.value = true
+    return
+  }
+  if (records.length > 1) {
+    categoryAlertMessage.value = '修改时只能选择一条食谱记录'
+    categoryAlertOpen.value = true
+    return
+  }
+  openRecipeDetail(records[0])
+}
+
+function requestDeleteRecipes() {
+  const records = selectedRecipes()
+  if (!records.length) {
+    categoryAlertMessage.value = '请选择要删除的食谱记录'
+    categoryAlertOpen.value = true
+    return
+  }
+  pendingRecipeDeletes.value = records
+  deleteRecipeDialogOpen.value = true
+}
+
+function requestDeleteRecipe(recipe) {
+  if (!recipeKey(recipe)) return
+  pendingRecipeDeletes.value = [recipe]
+  deleteRecipeDialogOpen.value = true
+}
+
+function closeDeleteRecipeDialog() {
+  if (recipeDeleting.value) return
+  deleteRecipeDialogOpen.value = false
+  pendingRecipeDeletes.value = []
+}
+
+async function confirmDeleteRecipes() {
+  const records = [...pendingRecipeDeletes.value]
+  if (!records.length) {
+    closeDeleteRecipeDialog()
+    return
+  }
+
+  recipeDeleting.value = true
+  recipeError.value = ''
+  try {
+    await Promise.all(records.map((recipe) => deleteRecipe(recipe.recipeId ?? recipe.id)))
+    const deletedIds = new Set(records.map(recipeKey))
+    selectedRecipeIds.value = selectedRecipeIds.value.filter((id) => !deletedIds.has(id))
+    if (selectedRecipe.value && deletedIds.has(recipeKey(selectedRecipe.value))) {
+      selectedRecipe.value = null
+      currentView.value = 'timeline'
+    }
+    deleteRecipeDialogOpen.value = false
+    pendingRecipeDeletes.value = []
+    showNotice('食谱已删除')
+    await loadRecipes()
+  } catch (error) {
+    console.error(error)
+    recipeError.value = error instanceof Error ? error.message : '删除食谱失败'
+  } finally {
+    recipeDeleting.value = false
+  }
 }
 
 function getSelectedEditableCategory() {
@@ -485,7 +599,7 @@ async function loadCategoryIcons(selectDefault = true) {
   categoryDialogError.value = ''
 
   try {
-    categoryIcons.value = await queryRecipeIcons(RECIPE_MENU_NAME)
+    categoryIcons.value = await queryRecipeIcons()
     const firstIcon = categoryIcons.value[0]
     if (selectDefault && firstIcon) selectCategoryIcon(firstIcon)
   } catch (error) {
@@ -559,12 +673,12 @@ async function saveCategory() {
 }
 
 function updateFavorite(recipeId, isFavorite) {
-  const recipe = todayData.value.recipes.find((item) => item.id === recipeId)
+  const recipe = recipes.value.find((item) => item.id === recipeId)
   if (recipe) recipe.isFavorite = isFavorite
 }
 
 function toggleIngredient(recipeId, ingredientIndex) {
-  const recipe = todayData.value.recipes.find((item) => item.id === recipeId)
+  const recipe = recipes.value.find((item) => item.id === recipeId)
   if (recipe && recipe.ingredients[ingredientIndex]) {
     recipe.ingredients[ingredientIndex].checked = !recipe.ingredients[ingredientIndex].checked
   }
@@ -582,18 +696,11 @@ function closeRecipeDetail() {
 
 function createDraftRecipe() {
   currentView.value = 'detail'
-  selectedRecipe.value = normalizeRecipe({
-    title: '新食谱',
-    description: '',
-    category: activeCategory.value ?? recipeCategories.value[0]?.value ?? null,
-    mealType: 3,
-    difficulty: 1,
-    cookingTime: 30,
-    servings: 1,
-    status: 1,
+  selectedRecipe.value = {
+    category: activeCategory.value ?? categories.value[0]?.value ?? null,
     ingredients: [],
     steps: [],
-  })
+  }
 }
 
 async function saveRecipe(recipe) {
@@ -611,31 +718,11 @@ async function saveRecipe(recipe) {
 
     selectedRecipe.value = null
     currentView.value = 'timeline'
+    selectedRecipeIds.value = []
     await loadRecipes()
   } catch (error) {
     console.error(error)
     recipeError.value = error instanceof Error ? error.message : '保存食谱失败'
-  } finally {
-    recipeSaving.value = false
-  }
-}
-
-async function removeRecipe(recipe) {
-  if (!recipe.recipeId) return
-  if (!window.confirm(`确定删除“${recipe.title}”吗？`)) return
-
-  recipeSaving.value = true
-  recipeError.value = ''
-
-  try {
-    await deleteRecipe(recipe.recipeId)
-    selectedRecipe.value = null
-    currentView.value = 'timeline'
-    showNotice('食谱已删除')
-    await loadRecipes()
-  } catch (error) {
-    console.error(error)
-    recipeError.value = error instanceof Error ? error.message : '删除食谱失败'
   } finally {
     recipeSaving.value = false
   }
@@ -976,17 +1063,20 @@ onMounted(async () => {
 }
 
 .timeline-container {
+  --timeline-axis-x: 24px;
+  --timeline-entry-indent: 48px;
   position: relative;
 }
 
 .timeline-container::before {
   content: '';
   position: absolute;
-  left: 24px;
+  left: var(--timeline-axis-x);
   top: 0;
   bottom: 0;
   width: 2px;
   background-color: #dcc1b9;
+  transform: translateX(-50%);
   z-index: 0;
 }
 
@@ -1028,8 +1118,47 @@ onMounted(async () => {
 }
 
 .timeline-entry {
-  margin-left: 48px;
+  position: relative;
+  margin-left: var(--timeline-entry-indent);
   margin-bottom: 24px;
+}
+
+.recipe-record-check {
+  position: absolute;
+  left: calc(var(--timeline-axis-x) - var(--timeline-entry-indent));
+  top: 24px;
+  transform: translateX(-50%);
+  z-index: 3;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.recipe-record-check input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.recipe-record-check span {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #9a4024;
+  border-radius: 50%;
+  background: #fff8f6;
+  transition: background-color 0.16s ease, transform 0.16s ease;
+}
+
+.recipe-record-check input:checked + span {
+  background: #9a4024;
+  transform: scale(1.08);
+}
+
+.timeline-entry.selected :deep(.recipe-card) {
+  box-shadow: 0 0 0 2px rgba(154, 64, 36, 0.28), 0 10px 28px rgba(82, 45, 35, 0.12);
 }
 
 .recipe-status-card,
@@ -1221,6 +1350,10 @@ onMounted(async () => {
   color: #ffffff;
 }
 
+.dialog-primary-button.danger {
+  background: #b42318;
+}
+
 .dialog-primary-button:disabled {
   cursor: not-allowed;
   opacity: 0.68;
@@ -1283,6 +1416,11 @@ onMounted(async () => {
   .recipe-status-card,
   .recipe-empty-card {
     margin-left: 0;
+  }
+
+  .recipe-record-check {
+    left: 12px;
+    transform: none;
   }
 
   .timeline-container::before {

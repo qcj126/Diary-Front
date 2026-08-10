@@ -173,22 +173,24 @@ function normalizeRecipeIconUrl(path) {
 
 function normalizeRecipeCategory(raw = {}, index = 0) {
   const id = raw.id ?? raw.categoryId ?? raw.value
-  const label = raw.categoryName ?? raw.label ?? raw.name ?? '未命名分类'
+  const categoryNum = raw.categoryNum ?? raw.categoryNo ?? raw.value ?? id
+  const label = raw.categoryName ?? raw.label ?? raw.name ?? ''
   const iconId = raw.iconId ?? raw.iconID ?? raw.icon?.id ?? null
   const iconUrl = normalizeRecipeIconUrl(
     raw.iconUrl ?? raw.iconURL ?? raw.iconPath ?? raw.iconFileName ?? raw.fileName ?? raw.icon?.url ?? raw.icon?.iconUrl,
   )
-  const icon = iconUrl || (raw.categoryIcon ?? raw.icon ?? 'restaurant')
+  const icon = iconUrl || (raw.categoryIcon ?? raw.icon ?? '')
 
   return {
     ...raw,
     id,
+    categoryNum,
     key: String(id ?? raw.key ?? `category_${index}`),
     label,
     icon,
     iconId,
     iconUrl,
-    value: id,
+    value: categoryNum,
     sort: Number(raw.sort ?? index + 1),
   }
 }
@@ -198,7 +200,7 @@ function normalizeRecipeIcon(raw = {}, index = 0) {
   const iconUrl = normalizeRecipeIconUrl(
     raw.iconUrl ?? raw.iconURL ?? raw.url ?? raw.path ?? raw.iconPath ?? raw.iconFileName ?? raw.fileName,
   )
-  const label = raw.iconName ?? raw.name ?? raw.label ?? raw.manuName ?? `图标 ${index + 1}`
+  const label = raw.iconName ?? raw.name ?? raw.label ?? raw.manuName ?? ''
 
   return {
     ...raw,
@@ -206,7 +208,7 @@ function normalizeRecipeIcon(raw = {}, index = 0) {
     iconId: id,
     label,
     iconUrl,
-    icon: iconUrl || (raw.icon ?? raw.code ?? 'category'),
+    icon: iconUrl || (raw.icon ?? raw.code ?? ''),
   }
 }
 
@@ -270,21 +272,24 @@ export function normalizeRecipe(raw = {}) {
   const ingredients = toList(raw.ingredients).map(normalizeIngredient)
   const rawSteps = toList(raw.rawSteps ?? raw.steps).map(normalizeStepObject)
   const cookingTime = Number(raw.cookingTime ?? 0)
-  const difficulty = Number(raw.difficulty ?? 1)
-  const coverImg = raw.coverImg || raw.imageUrl || raw.detail?.heroImageUrl || '/stitch_timeline_glow.png'
-  const imageId = raw.imageId ?? raw.imageID ?? raw.coverImg ?? ''
+  const difficulty = toNumberOrNull(raw.difficultyValue ?? raw.difficulty)
+  const coverImg = raw.coverImg || raw.imageUrl || raw.detail?.heroImageUrl || ''
+  const imageId = raw.imageId ?? raw.imageID ?? ''
   const description = raw.description || raw.story || ''
+  const categoryNum = raw.categoryNum ?? raw.category ?? null
 
   return {
     ...raw,
     id: raw.id ?? raw.recipeId,
     recipeId: raw.recipeId ?? raw.id,
+    categoryNum,
+    category: categoryNum,
     imageId,
-    mealType: MEAL_TYPE_LABELS[raw.mealType] ?? raw.mealType ?? '未分类',
+    mealType: raw.mealTypeName ?? raw.mealTypeLabel ?? MEAL_TYPE_LABELS[raw.mealType] ?? raw.mealType ?? '',
     mealTypeValue: raw.mealType ?? raw.mealTypeValue ?? null,
     difficultyValue: raw.difficultyValue ?? difficulty,
     duration: cookingTime ? `${cookingTime} 分钟` : '未填写',
-    title: raw.title ?? '未命名食谱',
+    title: raw.title ?? '',
     imageUrl: coverImg,
     coverImg,
     ingredients,
@@ -295,13 +300,13 @@ export function normalizeRecipe(raw = {}) {
       description,
       prepTime: raw.prepTime ? `${raw.prepTime} 分钟` : '未填写',
       cookTime: cookingTime ? `${cookingTime} 分钟` : '未填写',
-      difficulty: DIFFICULTY_LABELS[difficulty] ?? String(difficulty),
-      servings: raw.servings ?? '未填写',
+      difficulty: raw.difficultyName ?? raw.difficultyLabel ?? DIFFICULTY_LABELS[difficulty] ?? '',
+      servings: raw.familyMember ?? raw.servings ?? '未填写',
       heroImageUrl: coverImg,
       nutrition: toList(raw.nutrition),
       ingredients: ingredients.map(ingredientText).filter(Boolean),
       instructions: rawSteps.map(normalizeInstruction),
-      category: raw.categoryName ?? raw.category ?? '未分类',
+      category: raw.categoryName ?? categoryNum ?? '未分类',
       story: raw.story ?? '',
     },
   }
@@ -343,11 +348,11 @@ export function createRecipeDTO(recipe = {}) {
     title: recipe.title ?? '',
     imageId: String(recipe.imageId ?? '').trim(),
     description: recipe.description ?? recipe.detail?.description ?? '',
-    category: toNumberOrNull(recipe.category),
+    categoryNum: toNumberOrNull(recipe.categoryNum ?? recipe.category),
     mealType: toNumberOrNull(recipe.mealTypeValue ?? recipe.mealType),
     difficulty: toNumberOrNull(recipe.difficultyValue ?? recipe.difficulty),
     cookingTime: toNumberOrNull(recipe.cookingTime),
-    servings: toNumberOrNull(recipe.servings),
+    familyMember: toNumberOrNull(recipe.familyMember ?? recipe.servings),
     story: recipe.story ?? recipe.detail?.story ?? '',
     ingredients,
     steps,
@@ -388,7 +393,7 @@ export async function queryRecipes(params = {}) {
     {
       pageIndex: params.pageIndex ?? 1,
       pageSize: params.pageSize ?? 10,
-      category: params.category ?? null,
+      categoryNum: params.categoryNum ?? params.category ?? null,
       mealType: params.mealType ?? null,
       difficulty: params.difficulty ?? null,
       redHeart: params.redHeart ?? 0,
@@ -429,8 +434,8 @@ export function updateRecipeCategory(category) {
   )
 }
 
-export async function queryRecipeIcons(manuName) {
-  const payload = await postJson(RECIPE_API.queryIcons, { manuName }, '查询图标失败')
+export async function queryRecipeIcons() {
+  const payload = await postJson(RECIPE_API.queryIcons, {}, '查询图标失败')
   return toPayloadList(payload).map(normalizeRecipeIcon)
 }
 

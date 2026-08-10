@@ -2,7 +2,10 @@
   <div class="recipe-card">
     <div class="card-content">
       <div class="image-section">
-        <img :src="imageUrl" :alt="title" class="recipe-image" />
+        <img v-if="imageUrl" :src="imageUrl" :alt="title" class="recipe-image" />
+        <div v-else class="recipe-image-placeholder" aria-hidden="true">
+          <span class="material-symbols-outlined">no_photography</span>
+        </div>
         <div class="favorite-btn-wrapper">
           <button
             class="favorite-btn"
@@ -171,6 +174,20 @@ const viewRecipe = () => {
   height: 100%;
   object-fit: cover;
   transition: transform 0.5s;
+}
+
+.recipe-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #efe7e3;
+  color: #9b7b70;
+}
+
+.recipe-image-placeholder .material-symbols-outlined {
+  font-size: 42px;
 }
 
 .recipe-card:hover .recipe-image {

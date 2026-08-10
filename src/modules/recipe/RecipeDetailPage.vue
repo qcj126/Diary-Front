@@ -38,6 +38,7 @@
           <label class="field">
             <span>餐别</span>
             <select v-model.number="draft.mealTypeValue">
+              <option :value="null" disabled>请选择餐别</option>
               <option :value="1">早餐</option>
               <option :value="2">午餐</option>
               <option :value="3">晚餐</option>
@@ -48,6 +49,7 @@
           <label class="field">
             <span>难度</span>
             <select v-model.number="draft.difficultyValue">
+              <option :value="null" disabled>请选择难度</option>
               <option :value="1">简单</option>
               <option :value="2">中等</option>
               <option :value="3">困难</option>
@@ -206,10 +208,10 @@ function cloneRecipe(recipe) {
     coverImg: recipe.coverImg ?? recipe.imageUrl ?? recipe.detail?.heroImageUrl ?? '',
     description: recipe.description ?? recipe.detail?.description ?? '',
     category: recipe.category ?? props.categories[0]?.value ?? null,
-    mealTypeValue: recipe.mealTypeValue ?? 3,
-    difficultyValue: recipe.difficultyValue ?? recipe.difficulty ?? 1,
+    mealTypeValue: recipe.mealTypeValue ?? null,
+    difficultyValue: recipe.difficultyValue ?? recipe.difficulty ?? null,
     cookingTime: recipe.cookingTime ?? null,
-    servings: recipe.servings ?? recipe.detail?.servings ?? 1,
+    servings: recipe.familyMember ?? recipe.servings ?? recipe.detail?.servings ?? null,
     story: recipe.story ?? recipe.detail?.story ?? '',
   }
 }
@@ -300,7 +302,10 @@ function handleSave() {
   emit('save', {
     ...draft.value,
     imageId: String(draft.value.imageId ?? '').trim(),
-    servings: Number(draft.value.servings ?? 1),
+    servings:
+      draft.value.servings === '' || draft.value.servings === null || draft.value.servings === undefined
+        ? null
+        : Number(draft.value.servings),
     ingredients: ingredients.value.map((item, index) => ({
       name: item.name,
       quantity: item.quantity,
