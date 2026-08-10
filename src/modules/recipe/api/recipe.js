@@ -1,7 +1,6 @@
 import { API_BASE, RECIPE_API } from '../../../api/index.js'
 import { getAuthSession } from '../../auth/session.js'
 
-export const CATEGORY_LABELS = ['家常', '西餐', '甜点', '汤粥', '其他']
 export const MEAL_TYPE_LABELS = {
   1: '早餐',
   2: '午餐',
@@ -156,11 +155,29 @@ const toNumberOrNull = (value) => {
   return Number.isFinite(numberValue) ? numberValue : null
 }
 
+function normalizeRecipeIconUrl(path) {
+  const value = String(path ?? '').trim()
+  if (!value) return ''
+  if (/^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
+    return value
+  }
+
+  const normalized = value.replaceAll('\\', '/')
+  const iconDirectoryIndex = normalized.toLowerCase().lastIndexOf('/icon/')
+  const fileName = iconDirectoryIndex >= 0
+    ? normalized.slice(iconDirectoryIndex + '/icon/'.length)
+    : normalized.replace(/^\/?(?:file\/)?icon\//i, '').replace(/^\/+/, '')
+
+  return fileName ? encodeURI(`${API_BASE}/file/icon/${fileName}`) : ''
+}
+
 function normalizeRecipeCategory(raw = {}, index = 0) {
   const id = raw.id ?? raw.categoryId ?? raw.value
   const label = raw.categoryName ?? raw.label ?? raw.name ?? '未命名分类'
   const iconId = raw.iconId ?? raw.iconID ?? raw.icon?.id ?? null
-  const iconUrl = raw.iconUrl ?? raw.iconURL ?? raw.iconPath ?? raw.icon?.url ?? raw.icon?.iconUrl ?? ''
+  const iconUrl = normalizeRecipeIconUrl(
+    raw.iconUrl ?? raw.iconURL ?? raw.iconPath ?? raw.iconFileName ?? raw.fileName ?? raw.icon?.url ?? raw.icon?.iconUrl,
+  )
   const icon = iconUrl || (raw.categoryIcon ?? raw.icon ?? 'restaurant')
 
   return {
@@ -178,7 +195,9 @@ function normalizeRecipeCategory(raw = {}, index = 0) {
 
 function normalizeRecipeIcon(raw = {}, index = 0) {
   const id = raw.id ?? raw.iconId ?? raw.iconID ?? raw.value
-  const iconUrl = raw.iconUrl ?? raw.iconURL ?? raw.url ?? raw.path ?? raw.iconPath ?? ''
+  const iconUrl = normalizeRecipeIconUrl(
+    raw.iconUrl ?? raw.iconURL ?? raw.url ?? raw.path ?? raw.iconPath ?? raw.iconFileName ?? raw.fileName,
+  )
   const label = raw.iconName ?? raw.name ?? raw.label ?? raw.manuName ?? `图标 ${index + 1}`
 
   return {
@@ -282,7 +301,7 @@ export function normalizeRecipe(raw = {}) {
       nutrition: toList(raw.nutrition),
       ingredients: ingredients.map(ingredientText).filter(Boolean),
       instructions: rawSteps.map(normalizeInstruction),
-      category: CATEGORY_LABELS[raw.category] ?? raw.category ?? '未分类',
+      category: raw.categoryName ?? raw.category ?? '未分类',
       story: raw.story ?? '',
     },
   }

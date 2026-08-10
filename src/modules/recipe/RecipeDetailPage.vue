@@ -28,11 +28,10 @@
           <label class="field">
             <span>分类</span>
             <select v-model.number="draft.category">
-              <option :value="0">家常</option>
-              <option :value="1">西餐</option>
-              <option :value="2">甜点</option>
-              <option :value="3">汤粥</option>
-              <option :value="4">其他</option>
+              <option v-if="!categories.length" :value="null" disabled>暂无分类</option>
+              <option v-for="category in categories" :key="category.key" :value="category.value">
+                {{ category.label }}
+              </option>
             </select>
           </label>
 
@@ -175,6 +174,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  categories: {
+    type: Array,
+    default: () => [],
+  },
   saving: {
     type: Boolean,
     default: false,
@@ -202,7 +205,7 @@ function cloneRecipe(recipe) {
     imageId: recipe.imageId ?? '',
     coverImg: recipe.coverImg ?? recipe.imageUrl ?? recipe.detail?.heroImageUrl ?? '',
     description: recipe.description ?? recipe.detail?.description ?? '',
-    category: recipe.category ?? 0,
+    category: recipe.category ?? props.categories[0]?.value ?? null,
     mealTypeValue: recipe.mealTypeValue ?? 3,
     difficultyValue: recipe.difficultyValue ?? recipe.difficulty ?? 1,
     cookingTime: recipe.cookingTime ?? null,

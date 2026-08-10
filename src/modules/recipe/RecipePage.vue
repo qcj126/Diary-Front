@@ -96,6 +96,7 @@
           <RecipeDetailPage
             v-if="selectedRecipe"
             :recipe="selectedRecipe"
+            :categories="recipeCategories"
             :saving="recipeSaving"
             @close="closeRecipeDetail"
             @save="saveRecipe"
@@ -169,19 +170,17 @@
           <span>图标</span>
           <div v-if="iconLoading" class="icon-picker-status">图标加载中...</div>
           <div v-else-if="!categoryIcons.length" class="icon-picker-status">暂无可选图标</div>
-          <div v-else class="icon-grid">
-            <button
-              v-for="icon in categoryIcons"
-              :key="icon.id ?? icon.label"
-              type="button"
-              class="icon-option"
-              :class="{ active: String(categoryDraft.iconId) === String(icon.id) }"
-              :title="icon.label"
-              @click="selectCategoryIcon(icon)"
-            >
-              <img v-if="isIconUrl(icon.icon)" :src="icon.icon" alt="" />
-              <span v-else class="material-symbols-outlined">{{ icon.icon }}</span>
-            </button>
+          <div v-else class="icon-select-row">
+            <select v-model="categoryDraft.iconId" class="icon-select" @change="selectCategoryIconById">
+              <option value="" disabled>请选择图标</option>
+              <option v-for="icon in categoryIcons" :key="icon.id ?? icon.label" :value="icon.id">
+                {{ icon.label }}
+              </option>
+            </select>
+            <span v-if="categoryDraft.icon" class="selected-icon-preview" aria-hidden="true">
+              <img v-if="isIconUrl(categoryDraft.icon)" :src="categoryDraft.icon" alt="" />
+              <span v-else class="material-symbols-outlined">{{ categoryDraft.icon }}</span>
+            </span>
           </div>
         </fieldset>
 
@@ -251,15 +250,9 @@ import {
   updateRecipe,
   updateRecipeCategory,
 } from './api/recipe.js'
-import { RECIPE_DATA, RECIPE_CATEGORIES } from './mock/recipeData.js'
 
-const todayData = ref(RECIPE_DATA.today)
-const categories = ref(
-  RECIPE_CATEGORIES.map((category) => ({
-    ...category,
-    id: category.value,
-  })),
-)
+const todayData = ref({ date: '今天', isToday: true, recipes: [] })
+const categories = ref([{ key: 'all', label: '全部', icon: 'restaurant_menu', value: null, id: null }])
 const selectedRecipe = ref(null)
 const currentView = ref('timeline')
 const recipeLoading = ref(false)
@@ -290,6 +283,7 @@ const categoryIcons = ref([])
 const RECIPE_MENU_NAME = '厨房创食记'
 
 const isWideView = computed(() => !!selectedRecipe.value)
+const recipeCategories = computed(() => categories.value.filter((category) => category.id !== null))
 
 const formatToday = () =>
   new Intl.DateTimeFormat('zh-CN', {
@@ -325,11 +319,8 @@ async function loadRecipes() {
     }
   } catch (error) {
     console.error(error)
-    recipeError.value =
-      error instanceof Error
-        ? `${error.message}，当前显示本地示例数据。`
-        : '食谱加载失败，当前显示本地示例数据。'
-    todayData.value = { ...RECIPE_DATA.today, date: formatToday() }
+    recipeError.value = error instanceof Error ? error.message : '食谱加载失败'
+    todayData.value = { date: formatToday(), isToday: true, recipes: [] }
   } finally {
     recipeLoading.value = false
   }
@@ -342,8 +333,6 @@ function isIconUrl(icon) {
 async function loadCategories() {
   try {
     const result = await queryRecipeCategories()
-    if (!result.length) return
-
     categories.value = [
       { key: 'all', label: '全部', icon: 'restaurant_menu', value: null, id: null },
       ...result,
@@ -359,7 +348,7 @@ async function loadCategories() {
     }
   } catch (error) {
     console.error(error)
-    recipeError.value = error instanceof Error ? `${error.message}，当前显示本地分类。` : '分类加载失败，当前显示本地分类。'
+    recipeError.value = error instanceof Error ? error.message : '分类加载失败'
   }
 }
 
@@ -516,6 +505,11 @@ function selectCategoryIcon(icon) {
   }
 }
 
+function selectCategoryIconById() {
+  const icon = categoryIcons.value.find((item) => String(item.id) === String(categoryDraft.value.iconId))
+  if (icon) selectCategoryIcon(icon)
+}
+
 async function saveCategory() {
   const label = categoryDraft.value.label.trim()
   const iconId = categoryDraft.value.iconId
@@ -591,7 +585,7 @@ function createDraftRecipe() {
   selectedRecipe.value = normalizeRecipe({
     title: '新食谱',
     description: '',
-    category: activeCategory.value ?? 0,
+    category: activeCategory.value ?? recipeCategories.value[0]?.value ?? null,
     mealType: 3,
     difficulty: 1,
     cookingTime: 30,
@@ -689,7 +683,7 @@ onMounted(async () => {
 }
 
 .category-image-icon,
-.icon-option img {
+.selected-icon-preview img {
   width: 24px;
   height: 24px;
   object-fit: contain;
@@ -1150,32 +1144,35 @@ onMounted(async () => {
   line-height: 18px;
 }
 
-.icon-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
-  gap: 8px;
-  max-height: 168px;
-  overflow-y: auto;
-  padding: 2px;
+.icon-select-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.icon-option {
-  width: 44px;
-  height: 44px;
+.icon-select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(220, 193, 185, 0.9);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1d1b1a;
+  font: inherit;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.selected-icon-preview {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
   border: 1px solid rgba(220, 193, 185, 0.9);
   border-radius: 8px;
   background: #ffffff;
   color: #7a2f16;
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.icon-option.active {
-  border-color: #9a4024;
-  background: #f3ecea;
-  box-shadow: inset 0 0 0 2px rgba(154, 64, 36, 0.16);
 }
 
 .dialog-error {

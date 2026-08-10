@@ -59,7 +59,7 @@ export const RECIPE_API = {
   deleteCategory: `${API_BASE}/recipe/delete/category`,
   uploadImages: `${API_BASE}/file/upload/images`,
   queryImageUrls: `${API_BASE}/file/query/images/urls`,
-  queryIcons: `${API_BASE}/icon/query`,
+  queryIcons: `${API_BASE}/file/icon/query`,
 }
 
 export const API_ENDPOINTS = {
