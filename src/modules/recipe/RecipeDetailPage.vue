@@ -27,7 +27,7 @@
 
           <label class="field">
             <span>分类</span>
-            <select v-model.number="draft.category">
+            <select v-model.number="draft.categoryNum">
               <option v-if="!categories.length" :value="null" disabled>暂无分类</option>
               <option v-for="category in categories" :key="category.key" :value="category.value">
                 {{ category.label }}
@@ -63,7 +63,7 @@
 
           <label class="field">
             <span>人数</span>
-            <input v-model.number="draft.servings" type="number" min="1" step="1" />
+            <input v-model.number="draft.familyMember" type="number" min="1" step="1" />
           </label>
         </div>
 
@@ -207,11 +207,11 @@ function cloneRecipe(recipe) {
     imageId: recipe.imageId ?? '',
     coverImg: recipe.coverImg ?? recipe.imageUrl ?? recipe.detail?.heroImageUrl ?? '',
     description: recipe.description ?? recipe.detail?.description ?? '',
-    category: recipe.category ?? props.categories[0]?.value ?? null,
+    categoryNum: recipe.categoryNum ?? props.categories[0]?.value ?? null,
     mealTypeValue: recipe.mealTypeValue ?? null,
     difficultyValue: recipe.difficultyValue ?? recipe.difficulty ?? null,
     cookingTime: recipe.cookingTime ?? null,
-    servings: recipe.familyMember ?? recipe.servings ?? recipe.detail?.servings ?? null,
+    familyMember: recipe.familyMember ?? recipe.detail?.familyMember ?? null,
     story: recipe.story ?? recipe.detail?.story ?? '',
   }
 }
@@ -302,10 +302,12 @@ function handleSave() {
   emit('save', {
     ...draft.value,
     imageId: String(draft.value.imageId ?? '').trim(),
-    servings:
-      draft.value.servings === '' || draft.value.servings === null || draft.value.servings === undefined
+    familyMember:
+      draft.value.familyMember === '' ||
+      draft.value.familyMember === null ||
+      draft.value.familyMember === undefined
         ? null
-        : Number(draft.value.servings),
+        : Number(draft.value.familyMember),
     ingredients: ingredients.value.map((item, index) => ({
       name: item.name,
       quantity: item.quantity,

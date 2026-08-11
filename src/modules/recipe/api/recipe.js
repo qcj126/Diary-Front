@@ -273,6 +273,7 @@ export function normalizeRecipe(raw = {}) {
   const rawSteps = toList(raw.rawSteps ?? raw.steps).map(normalizeStepObject)
   const cookingTime = Number(raw.cookingTime ?? 0)
   const difficulty = toNumberOrNull(raw.difficultyValue ?? raw.difficulty)
+  const redHeart = Number(raw.redHeart ?? raw.isFavorite ?? 0) === 1 ? 1 : 0
   const coverImg = raw.coverImg || raw.imageUrl || raw.detail?.heroImageUrl || ''
   const imageId = raw.imageId ?? raw.imageID ?? ''
   const description = raw.description || raw.story || ''
@@ -283,7 +284,7 @@ export function normalizeRecipe(raw = {}) {
     id: raw.id ?? raw.recipeId,
     recipeId: raw.recipeId ?? raw.id,
     categoryNum,
-    category: categoryNum,
+    familyMember: raw.familyMember ?? null,
     imageId,
     mealType: raw.mealTypeName ?? raw.mealTypeLabel ?? MEAL_TYPE_LABELS[raw.mealType] ?? raw.mealType ?? '',
     mealTypeValue: raw.mealType ?? raw.mealTypeValue ?? null,
@@ -295,13 +296,14 @@ export function normalizeRecipe(raw = {}) {
     ingredients,
     rawSteps,
     steps: rawSteps.map(normalizeStep),
-    isFavorite: Boolean(raw.isFavorite),
+    redHeart,
+    isFavorite: redHeart === 1,
     detail: {
       description,
       prepTime: raw.prepTime ? `${raw.prepTime} 分钟` : '未填写',
       cookTime: cookingTime ? `${cookingTime} 分钟` : '未填写',
       difficulty: raw.difficultyName ?? raw.difficultyLabel ?? DIFFICULTY_LABELS[difficulty] ?? '',
-      servings: raw.familyMember ?? raw.servings ?? '未填写',
+      familyMember: raw.familyMember ?? '未填写',
       heroImageUrl: coverImg,
       nutrition: toList(raw.nutrition),
       ingredients: ingredients.map(ingredientText).filter(Boolean),
@@ -348,11 +350,12 @@ export function createRecipeDTO(recipe = {}) {
     title: recipe.title ?? '',
     imageId: String(recipe.imageId ?? '').trim(),
     description: recipe.description ?? recipe.detail?.description ?? '',
-    categoryNum: toNumberOrNull(recipe.categoryNum ?? recipe.category),
+    categoryNum: toNumberOrNull(recipe.categoryNum),
     mealType: toNumberOrNull(recipe.mealTypeValue ?? recipe.mealType),
     difficulty: toNumberOrNull(recipe.difficultyValue ?? recipe.difficulty),
     cookingTime: toNumberOrNull(recipe.cookingTime),
-    familyMember: toNumberOrNull(recipe.familyMember ?? recipe.servings),
+    familyMember: toNumberOrNull(recipe.familyMember),
+    redHeart: Number(recipe.redHeart) === 1 ? 1 : 0,
     story: recipe.story ?? recipe.detail?.story ?? '',
     ingredients,
     steps,
@@ -393,7 +396,7 @@ export async function queryRecipes(params = {}) {
     {
       pageIndex: params.pageIndex ?? 1,
       pageSize: params.pageSize ?? 10,
-      categoryNum: params.categoryNum ?? params.category ?? null,
+      categoryNum: params.categoryNum ?? null,
       mealType: params.mealType ?? null,
       difficulty: params.difficulty ?? null,
       redHeart: params.redHeart ?? 0,

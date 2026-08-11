@@ -30,9 +30,9 @@
 
       <form v-if="queryPanelOpen" class="query-panel" @submit.prevent="loadGoals(true)">
         <input v-model.trim="filters.creator" type="text" placeholder="创建人" />
-        <select v-model.number="filters.category">
-          <option :value="1">全部</option>
-          <option v-for="(category, index) in categories" :key="category" :value="index + 2">{{ category }}</option>
+        <select v-model="filters.category">
+          <option value="">全部</option>
+          <option v-for="category in categories" :key="category" :value="category">{{ category }}</option>
         </select>
         <input v-model.trim="filters.title" type="text" placeholder="标题" />
         <input v-model.number="filters.recentDays" type="number" min="0" placeholder="最近X天" />
@@ -493,7 +493,7 @@ const STATIC_GOALS = [
 
 const filters = reactive({
   creator: '',
-  category: 1,
+  category: '',
   title: '',
   recentDays: null,
   exactDate: '',
@@ -527,18 +527,14 @@ function circledIndex(index) {
 const filteredGoals = computed(() =>
   goals.value.filter((goal) => {
     const creatorHit = !filters.creator || goal.creator.includes(filters.creator)
-    const categoryHit = filters.category === 1 || goal.category === categoryLabelFromValue(filters.category)
+    const categoryHit = !filters.category || goal.category === filters.category
     const titleHit = !filters.title || goal.title.includes(filters.title)
     const recentHit = !Number(filters.recentDays) || goal.daysSinceUpdate <= Number(filters.recentDays)
-    const exactDateHit = !filters.exactDate || datePart(goal.ddl) === filters.exactDate
+    const exactDateHit = !filters.exactDate || datePart(goal.createdAt) === filters.exactDate
     const ddlHit = matchesDdlStatus(goal.ddl, filters.ddl)
     return creatorHit && categoryHit && titleHit && recentHit && exactDateHit && ddlHit
   }),
 )
-
-function categoryLabelFromValue(value) {
-  return categories[Number(value) - 2] ?? ''
-}
 
 function matchesDdlStatus(value, status) {
   if (status === 1) return true
@@ -598,10 +594,10 @@ function subKey(goal, sub) {
   return `${goal.id}-${sub.id ?? sub.name}`
 }
 
-async function loadGoals(showSuccess = false) {
+async function loadGoals(showSuccess = false, queryFilters = filters) {
   loading.value = true
   try {
-    const nextGoals = await queryGoals(filters)
+    const nextGoals = await queryGoals(queryFilters)
     goals.value = nextGoals
     const ids = nextGoals.map((goal) => goal.id)
     selectedIds.value = selectedIds.value.filter((id) => ids.includes(id))
@@ -739,7 +735,7 @@ async function saveSubGoals() {
 
 async function resetFilters() {
   filters.creator = ''
-  filters.category = 1
+  filters.category = ''
   filters.title = ''
   filters.recentDays = null
   filters.exactDate = ''
@@ -911,7 +907,7 @@ async function saveGoal() {
 }
 
 onMounted(() => {
-  loadGoals()
+  loadGoals(false, {})
 })
 </script>
 

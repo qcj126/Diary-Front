@@ -150,7 +150,8 @@
                     :ingredients="recipe.ingredients"
                     :steps="recipe.steps"
                     :is-favorite="recipe.isFavorite"
-                    @update:is-favorite="(val) => updateFavorite(recipe.id, val)"
+                    :favorite-saving="isFavoriteSaving(recipe)"
+                    @update:is-favorite="(val) => updateFavorite(recipe, val)"
                     @toggle-ingredient="(index) => toggleIngredient(recipe.id, index)"
                     @viewRecipe="openRecipeDetail(recipe)"
                   />
@@ -292,6 +293,7 @@ const selectedRecipe = ref(null)
 const currentView = ref('timeline')
 const recipeLoading = ref(false)
 const recipeSaving = ref(false)
+const favoriteSavingIds = ref(new Set())
 const recipeDeleting = ref(false)
 const categorySaving = ref(false)
 const categoryDeleting = ref(false)
@@ -672,9 +674,38 @@ async function saveCategory() {
   }
 }
 
-function updateFavorite(recipeId, isFavorite) {
-  const recipe = recipes.value.find((item) => item.id === recipeId)
-  if (recipe) recipe.isFavorite = isFavorite
+function isFavoriteSaving(recipe) {
+  return favoriteSavingIds.value.has(recipeKey(recipe))
+}
+
+async function updateFavorite(recipe, isFavorite) {
+  const id = recipeKey(recipe)
+  if (!id || favoriteSavingIds.value.has(id)) return
+
+  const previousRedHeart = Number(recipe.redHeart) === 1 ? 1 : 0
+  const previousIsFavorite = recipe.isFavorite
+  const nextRedHeart = isFavorite ? 1 : 0
+  favoriteSavingIds.value = new Set([...favoriteSavingIds.value, id])
+  recipe.redHeart = nextRedHeart
+  recipe.isFavorite = isFavorite
+  recipeError.value = ''
+
+  try {
+    await updateRecipe({
+      ...recipe,
+      redHeart: nextRedHeart,
+      steps: recipe.rawSteps ?? recipe.steps,
+    })
+  } catch (error) {
+    console.error(error)
+    recipe.redHeart = previousRedHeart
+    recipe.isFavorite = previousIsFavorite
+    recipeError.value = error instanceof Error ? error.message : '红心状态更新失败'
+  } finally {
+    const nextSavingIds = new Set(favoriteSavingIds.value)
+    nextSavingIds.delete(id)
+    favoriteSavingIds.value = nextSavingIds
+  }
 }
 
 function toggleIngredient(recipeId, ingredientIndex) {
@@ -697,7 +728,7 @@ function closeRecipeDetail() {
 function createDraftRecipe() {
   currentView.value = 'detail'
   selectedRecipe.value = {
-    category: activeCategory.value ?? categories.value[0]?.value ?? null,
+    categoryNum: activeCategory.value ?? categories.value[0]?.value ?? null,
     ingredients: [],
     steps: [],
   }

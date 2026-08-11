@@ -11,6 +11,7 @@
             class="favorite-btn"
             :class="{ 'is-favorite': isFavorite }"
             type="button"
+            :disabled="favoriteSaving"
             @click="toggleFavorite"
           >
             <span class="material-symbols-outlined" :data-weight="isFavorite ? 'fill' : 'regular'">
@@ -113,12 +114,17 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  favoriteSaving: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:isFavorite', 'toggleIngredient', 'viewRecipe'])
 const isCooked = ref(false)
 
 const toggleFavorite = () => {
+  if (props.favoriteSaving) return
   emit('update:isFavorite', !props.isFavorite)
 }
 
@@ -218,6 +224,11 @@ const viewRecipe = () => {
 .favorite-btn.is-favorite {
   color: #ff0000;
   transform: scale(1.08);
+}
+
+.favorite-btn:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .favorite-btn.is-favorite .material-symbols-outlined {

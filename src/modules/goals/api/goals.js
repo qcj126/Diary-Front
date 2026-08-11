@@ -150,11 +150,11 @@ export async function queryGoals(filters = {}) {
     compactObject({
       userId: filters.userId ?? null,
       creator: filters.creator ?? '',
-      category: filters.category ?? 1,
+      category: filters.category ?? '',
       title: filters.title ?? '',
       recentDays: filters.recentDays ?? null,
       exactDate: filters.exactDate ?? '',
-      ddl: filters.ddl ?? 1,
+      ddl: filters.ddl ?? null,
     }),
     '查询阶段目标失败',
   )
