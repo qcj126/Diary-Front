@@ -1,6 +1,7 @@
 <template>
-  <LoveDashboard v-if="loggedIn" />
+  <LoveDashboard />
 
+  <!-- 登录功能临时注释：需要恢复时，将上面的 <LoveDashboard /> 改回 <LoveDashboard v-if="loggedIn" />，并取消下方登录页注释。
   <div v-else class="app-root">
     <div class="bg-effects" aria-hidden="true">
       <span class="mesh-blob mesh-blob-a" />
@@ -66,21 +67,23 @@
 
     </main>
   </div>
+  -->
 </template>
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import LoginForm from './modules/auth/components/LoginForm.vue'
-import RegisterForm from './modules/auth/components/RegisterForm.vue'
-import ResetPasswordForm from './modules/auth/components/ResetPasswordForm.vue'
-import { hasAuthSession } from './modules/auth/session.js'
+// import LoginForm from './modules/auth/components/LoginForm.vue'
+// import RegisterForm from './modules/auth/components/RegisterForm.vue'
+// import ResetPasswordForm from './modules/auth/components/ResetPasswordForm.vue'
+// import { hasAuthSession } from './modules/auth/session.js'
 import LoveDashboard from './modules/love-dashboard/LoveDashboard.vue'
 
 const BUBBLE_COUNT = 10
 const bubbles = ref([])
 const page = ref('login')
 const loginNotice = ref('')
-const loggedIn = ref(hasAuthSession())
+const loggedIn = ref(true)
+// const loggedIn = ref(hasAuthSession())
 let bubbleFrame = 0
 let lastBubbleTime = 0
 
@@ -148,6 +151,8 @@ function clampBubblesToViewport() {
 }
 
 onMounted(() => {
+  if (loggedIn.value) return
+
   bubbles.value = Array.from({ length: BUBBLE_COUNT }, (_, index) => createBubble(index))
   lastBubbleTime = performance.now()
   bubbleFrame = requestAnimationFrame(moveBubbles)
