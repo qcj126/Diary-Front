@@ -13,6 +13,7 @@
         @navigate="active = $event"
       />
       <TimelinePage v-else-if="active === 'timeline'" />
+      <LoveRecordsPage v-else-if="active === 'dates'" @back="active = 'home'" />
       <DietPage v-else-if="active === 'diet'" />
       <RecipePage v-else-if="active === 'diary'" />
       <GoalsPage v-else-if="active === 'wishlist'" />
@@ -33,6 +34,7 @@ import SidebarNav from './components/SidebarNav.vue'
 import HomeOverview from '../homepage/HomePage.vue'
 import PlaceholderPanel from './components/panels/PlaceholderPanel.vue'
 import TimelinePage from '../timeline/TimelinePage.vue'
+import LoveRecordsPage from '../love-records/LoveRecordsPage.vue'
 import DietPage from '../diet/DietPage.vue'
 import RecipePage from '../recipe/RecipePage.vue'
 import GoalsPage from '../goals/GoalsPage.vue'

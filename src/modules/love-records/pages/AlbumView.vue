@@ -1,0 +1,16 @@
+<template>
+  <section class="album-view"><header><div><p>PHOTO WALL</p><h1>我们的相册墙 <small>共 {{ visiblePhotos.length }} 张</small></h1></div><label>年份<select v-model="year"><option value="全部">全部年份</option><option v-for="item in years" :key="item" :value="item">{{ item }} 年</option></select></label></header><div class="photo-grid"><button v-for="photo in visiblePhotos" :key="photo.key" type="button" @click="$emit('open', photo.record.id)"><div><img :src="photo.image" :alt="photo.record.title"><span v-if="photo.index > 0">{{ photo.index + 1 }}</span></div><strong>{{ photo.record.title }}</strong><small>{{ photo.record.date }}</small></button></div></section>
+</template>
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import type { LoveRecord } from '../types/records'
+const props = defineProps<{ records: LoveRecord[] }>()
+defineEmits<{ open: [id: string] }>()
+const year = ref<string>('全部')
+const years = computed(() => [...new Set(props.records.map((item) => item.date.slice(0, 4)))].sort().reverse())
+const visiblePhotos = computed(() => props.records.filter((item) => year.value === '全部' || item.date.startsWith(year.value)).flatMap((record) => record.images.map((image, index) => ({ key: `${record.id}-${index}`, record, image, index }))))
+</script>
+<style scoped>
+.album-view{padding:26px 28px 40px}.album-view>header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px}.album-view header p{margin:0 0 3px;color:#ff657d;font-size:8px;font-weight:800;letter-spacing:.15em}.album-view h1{margin:0;color:#4b393a;font-size:19px}.album-view h1 small{margin-left:8px;color:#ad9b98;font-size:9px;font-weight:500}.album-view label{display:flex;align-items:center;gap:7px;color:#9d8987;font-size:9px}.album-view select{padding:7px 28px 7px 9px;border:1px solid #eaded8;border-radius:8px;color:#665354;background:#fff;font:9px inherit}.photo-grid{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:14px;animation:fade-in .3s ease}.photo-grid button{padding:0;border:0;background:transparent;text-align:left;cursor:pointer}.photo-grid button>div{position:relative;aspect-ratio:1;overflow:hidden;border-radius:11px;background:#eee4df;box-shadow:0 3px 12px rgba(60,41,40,.06);transition:.2s}.photo-grid img{width:100%;height:100%;object-fit:cover;transition:.3s}.photo-grid button:hover>div{transform:translateY(-3px);box-shadow:0 13px 25px rgba(69,42,41,.15)}.photo-grid button:hover img{transform:scale(1.04)}.photo-grid button div span{position:absolute;right:7px;top:7px;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;color:#fff;background:rgba(48,33,34,.56);font-size:8px}.photo-grid strong,.photo-grid small{display:block}.photo-grid strong{margin-top:7px;color:#604e4f;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.photo-grid small{margin-top:2px;color:#af9c99;font-size:8px}@keyframes fade-in{from{opacity:0}to{opacity:1}}@media(max-width:1250px){.photo-grid{grid-template-columns:repeat(4,minmax(110px,1fr))}}
+.album-view header p{font-size:10px}.album-view h1 small{font-size:11px}.album-view label,.album-view select{font-size:11px}.photo-grid button div span{font-size:10px}.photo-grid small{font-size:10px}
+</style>
