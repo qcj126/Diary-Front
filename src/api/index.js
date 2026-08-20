@@ -1,10 +1,12 @@
 export {
   API_BASE,
   API_ENDPOINTS,
+  AI_API,
   AUTH_API,
   GOAL_API,
   ICON_API,
   LOVE_DASHBOARD_API,
   RECIPE_API,
+  SYS_INFO_API,
   TIMELINE_API,
 } from './endpoints.js'

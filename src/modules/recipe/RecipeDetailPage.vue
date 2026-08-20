@@ -57,13 +57,29 @@
           </label>
 
           <label class="field">
-            <span>烹饪时长（分钟）</span>
-            <input v-model.number="draft.cookingTime" type="number" min="0" />
+            <span>人数</span>
+            <input v-model.number="draft.familyMember" type="number" min="1" step="1" />
           </label>
 
           <label class="field">
-            <span>人数</span>
-            <input v-model.number="draft.familyMember" type="number" min="1" step="1" />
+            <span>烹饪方式</span>
+            <select v-model="draft.cookWay" :disabled="systemInfoLoading && !cookWayOptions.length">
+              <option value="" disabled>{{ systemInfoLoading ? '烹饪方式加载中...' : '请选择烹饪方式' }}</option>
+              <option v-if="draft.cookWay && !hasCookWay(draft.cookWay)" :value="draft.cookWay">
+                {{ draft.cookWay }}
+              </option>
+              <option v-for="cookWay in cookWayOptions" :key="cookWay.id" :value="cookWay.name">
+                {{ cookWay.name }}
+              </option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>烹饪时长</span>
+            <span class="input-with-unit">
+              <input v-model.number="draft.cookingTime" type="number" min="0" />
+              <span>分钟</span>
+            </span>
           </label>
         </div>
 
@@ -75,12 +91,20 @@
 
           <div class="field">
             <span>食谱图片</span>
-            <label class="upload-box">
-              <input type="file" accept="image/*" :disabled="imageUploading" @change="handleImageChange" />
-              <span class="material-symbols-outlined">add_photo_alternate</span>
-              <strong>{{ imageUploading ? '上传中...' : draft.imageId ? '可重新上传图片' : '选择图片上传' }}</strong>
+            <label class="upload-box" :class="{ 'has-image': draft.coverImg }">
+              <input
+                type="file"
+                accept="image/*"
+                aria-label="上传食谱图片"
+                :disabled="imageUploading"
+                @change="handleImageChange"
+              />
+              <img v-if="draft.coverImg" :src="draft.coverImg" alt="食谱图片预览" />
+              <span class="upload-prompt">
+                <span class="material-symbols-outlined">add_photo_alternate</span>
+                <strong>{{ imageUploading ? '上传中...' : draft.coverImg ? '重新上传图片' : '选择图片上传' }}</strong>
+              </span>
             </label>
-            <p v-if="draft.imageId" class="image-id">图片ID：{{ draft.imageId }}</p>
             <p v-if="imageError" class="form-error">{{ imageError }}</p>
           </div>
 
@@ -96,24 +120,79 @@
       <article class="list-panel">
         <div class="ingredient-header row-header">
           <span></span>
+          <span>食材分类</span>
           <span>食材名</span>
           <span>用量</span>
           <span>是否主料</span>
           <span></span>
         </div>
+        <p v-if="systemInfoLoading" class="system-info-status">正在加载食材和烹饪方式...</p>
+        <p v-else-if="systemInfoError" class="system-info-status error">{{ systemInfoError }}</p>
         <div class="entry-list">
           <div v-for="(ingredient, index) in ingredients" :key="ingredient.uid" class="ingredient-row">
             <span class="ingredient-index">{{ index + 1 }}</span>
             <label class="field compact-field">
-              <input v-model.trim="ingredient.name" type="text" aria-label="食材名" placeholder="五花肉" />
+              <select
+                v-model="ingredient.category"
+                aria-label="食材分类"
+                :disabled="systemInfoLoading && !ingredientCategories.length"
+                @change="loadIngredientOptions(ingredient)"
+              >
+                <option value="" disabled>请选择分类</option>
+                <option
+                  v-for="category in ingredientCategories"
+                  :key="category.id"
+                  :value="category.category"
+                >
+                  {{ category.categoryName }}
+                </option>
+              </select>
+            </label>
+            <label class="field compact-field">
+              <span class="ingredient-picker">
+                <img
+                  v-if="selectedIngredientOption(ingredient)?.iconUrl"
+                  :src="selectedIngredientOption(ingredient).iconUrl"
+                  :alt="`${ingredient.name}图标`"
+                />
+                <select
+                  v-model="ingredient.name"
+                  aria-label="食材名"
+                  :disabled="!ingredient.category || ingredient.optionsLoading"
+                >
+                  <option value="" disabled>
+                    {{ ingredient.optionsLoading ? '食材加载中...' : ingredient.category ? '请选择食材' : '请先选择分类' }}
+                  </option>
+                  <option
+                    v-if="ingredient.name && !hasIngredientOption(ingredient, ingredient.name)"
+                    :value="ingredient.name"
+                  >
+                    {{ ingredient.name }}（当前）
+                  </option>
+                  <option
+                    v-for="option in ingredient.availableIngredients"
+                    :key="option.id"
+                    :value="option.name"
+                  >
+                    {{ option.name }}
+                  </option>
+                </select>
+              </span>
+              <small v-if="ingredient.optionsError" class="ingredient-field-error">
+                {{ ingredient.optionsError }}
+              </small>
             </label>
             <label class="field compact-field">
               <input v-model.trim="ingredient.quantity" type="text" aria-label="用量" placeholder="500g" />
             </label>
             <label class="field compact-field">
-              <select v-model.number="ingredient.isMain" aria-label="是否主料">
-                <option :value="1">1</option>
-                <option :value="0">0</option>
+              <select
+                v-model.number="ingredient.isMain"
+                aria-label="是否主料"
+                @change="loadIngredientOptions(ingredient)"
+              >
+                <option :value="1">主料</option>
+                <option :value="0">配料</option>
               </select>
             </label>
             <div class="row-meta">
@@ -168,8 +247,13 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
-import { uploadRecipeImages } from './api/recipe.js'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  queryCookWays,
+  queryIngredientCategories,
+  queryIngredients,
+  uploadRecipeImages,
+} from './api/recipe.js'
 
 const props = defineProps({
   recipe: {
@@ -193,6 +277,11 @@ const ingredients = ref([])
 const steps = ref([])
 const imageUploading = ref(false)
 const imageError = ref('')
+const ingredientCategories = ref([])
+const cookWayOptions = ref([])
+const systemInfoLoading = ref(false)
+const systemInfoError = ref('')
+let imagePreviewObjectUrl = ''
 let rowId = 0
 
 function nextRowId() {
@@ -212,12 +301,29 @@ function cloneRecipe(recipe) {
     difficultyValue: recipe.difficultyValue ?? recipe.difficulty ?? null,
     cookingTime: recipe.cookingTime ?? null,
     familyMember: recipe.familyMember ?? recipe.detail?.familyMember ?? null,
+    cookWay: recipe.cookWay ?? '',
     story: recipe.story ?? recipe.detail?.story ?? '',
   }
 }
 
+function releaseImagePreview() {
+  if (!imagePreviewObjectUrl) return
+  URL.revokeObjectURL(imagePreviewObjectUrl)
+  imagePreviewObjectUrl = ''
+}
+
 function emptyIngredient() {
-  return { uid: nextRowId(), name: '', quantity: '', isMain: 0 }
+  return {
+    uid: nextRowId(),
+    category: '',
+    name: '',
+    quantity: '',
+    isMain: 1,
+    availableIngredients: [],
+    optionsLoading: false,
+    optionsError: '',
+    requestId: 0,
+  }
 }
 
 function emptyStep() {
@@ -227,9 +333,14 @@ function emptyStep() {
 function formatIngredients(recipe) {
   const rows = (recipe.ingredients ?? []).map((item) => ({
     uid: nextRowId(),
+    category: typeof item === 'string' ? '' : item?.category ?? '',
     name: typeof item === 'string' ? item : item?.name ?? '',
     quantity: typeof item === 'string' ? '' : item?.quantity ?? item?.amount ?? '',
     isMain: Number(typeof item === 'string' ? 0 : item?.isMain ?? 0),
+    availableIngredients: [],
+    optionsLoading: false,
+    optionsError: '',
+    requestId: 0,
   }))
   return rows.length ? rows : [emptyIngredient()]
 }
@@ -258,6 +369,60 @@ function removeIngredient(index) {
   if (ingredients.value.length > 1) ingredients.value.splice(index, 1)
 }
 
+function hasCookWay(name) {
+  return cookWayOptions.value.some((item) => item.name === name)
+}
+
+function hasIngredientOption(ingredient, name) {
+  return ingredient.availableIngredients.some((item) => item.name === name)
+}
+
+function selectedIngredientOption(ingredient) {
+  return ingredient.availableIngredients.find((item) => item.name === ingredient.name)
+}
+
+async function loadSystemInfoOptions() {
+  systemInfoLoading.value = true
+  systemInfoError.value = ''
+
+  try {
+    const [categoriesResult, cookWaysResult] = await Promise.all([
+      queryIngredientCategories(),
+      queryCookWays(),
+    ])
+    ingredientCategories.value = categoriesResult.filter((item) => item.category)
+    cookWayOptions.value = cookWaysResult.filter((item) => item.name)
+  } catch (error) {
+    systemInfoError.value = error instanceof Error ? error.message : '系统信息加载失败'
+  } finally {
+    systemInfoLoading.value = false
+  }
+}
+
+async function loadIngredientOptions(ingredient, resetName = true) {
+  ingredient.requestId += 1
+  const requestId = ingredient.requestId
+  ingredient.optionsError = ''
+  ingredient.availableIngredients = []
+  if (resetName) ingredient.name = ''
+  if (!ingredient.category) return
+
+  ingredient.optionsLoading = true
+  try {
+    const result = await queryIngredients({
+      category: ingredient.category,
+      isMain: ingredient.isMain,
+    })
+    if (ingredient.requestId === requestId) ingredient.availableIngredients = result.filter((item) => item.name)
+  } catch (error) {
+    if (ingredient.requestId === requestId) {
+      ingredient.optionsError = error instanceof Error ? error.message : '食材加载失败'
+    }
+  } finally {
+    if (ingredient.requestId === requestId) ingredient.optionsLoading = false
+  }
+}
+
 function addStepAfter(index) {
   steps.value.splice(index + 1, 0, emptyStep())
 }
@@ -276,10 +441,12 @@ async function handleImageChange(event) {
 
   try {
     const [imageId] = await uploadRecipeImages([file])
+    releaseImagePreview()
+    imagePreviewObjectUrl = URL.createObjectURL(file)
     draft.value.imageId = imageId
+    draft.value.coverImg = imagePreviewObjectUrl
   } catch (error) {
     imageError.value = error instanceof Error ? error.message : '图片上传失败'
-    draft.value.imageId = ''
   } finally {
     imageUploading.value = false
     event.target.value = ''
@@ -289,13 +456,20 @@ async function handleImageChange(event) {
 watch(
   () => props.recipe,
   (next) => {
+    releaseImagePreview()
     draft.value = cloneRecipe(next)
     ingredients.value = formatIngredients(next)
+    ingredients.value.forEach((ingredient) => {
+      if (ingredient.category) loadIngredientOptions(ingredient, false)
+    })
     steps.value = formatSteps(next)
     imageError.value = ''
   },
   { immediate: true },
 )
+
+onBeforeUnmount(releaseImagePreview)
+onMounted(loadSystemInfoOptions)
 
 
 function handleSave() {
@@ -416,7 +590,7 @@ function handleDelete() {
 }
 
 .top-fields {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
 }
 
 .top-fields .field > span {
@@ -466,8 +640,7 @@ function handleDelete() {
   line-height: 1.7;
 }
 
-.story-fields textarea,
-.story-fields .upload-box {
+.story-fields textarea {
   min-height: 150px;
   height: 150px;
 }
@@ -477,7 +650,11 @@ function handleDelete() {
 }
 
 .upload-box {
-  min-height: 78px;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  min-height: 150px;
+  overflow: hidden;
   border: 1px dashed rgba(154, 64, 36, 0.55);
   border-radius: 8px;
   background: rgba(255, 248, 246, 0.92);
@@ -485,8 +662,34 @@ function handleDelete() {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
   cursor: pointer;
+}
+
+.upload-box img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.upload-prompt {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+.upload-box.has-image .upload-prompt {
+  align-self: flex-end;
+  width: 100%;
+  border-radius: 0;
+  background: rgba(29, 27, 26, 0.7);
+  color: #ffffff;
 }
 
 .upload-box input {
@@ -497,24 +700,39 @@ function handleDelete() {
   pointer-events: none;
 }
 
-.image-id,
 .form-error {
   margin: 0;
   font-size: 13px;
-}
-
-.image-id {
-  color: #576a4d;
 }
 
 .form-error {
   color: #b42318;
 }
 
+.input-with-unit {
+  position: relative;
+  display: block;
+  font-weight: 700;
+}
+
+.input-with-unit input {
+  padding-right: 52px;
+}
+
+.input-with-unit > span {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  color: #7a625c;
+  font-size: 13px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 
 .content-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
 }
 
@@ -571,7 +789,7 @@ function handleDelete() {
 }
 
 .ingredient-header {
-  grid-template-columns: 34px minmax(112px, 0.9fr) minmax(92px, 0.72fr) minmax(86px, 0.54fr) 84px;
+  grid-template-columns: 34px minmax(94px, 0.72fr) minmax(112px, 0.9fr) minmax(92px, 0.68fr) minmax(86px, 0.54fr) 84px;
 }
 
 .step-header {
@@ -590,7 +808,7 @@ function handleDelete() {
 }
 
 .ingredient-row {
-  grid-template-columns: 34px minmax(112px, 0.9fr) minmax(92px, 0.72fr) minmax(86px, 0.54fr) 84px;
+  grid-template-columns: 34px minmax(94px, 0.72fr) minmax(112px, 0.9fr) minmax(92px, 0.68fr) minmax(86px, 0.54fr) 84px;
   padding-inline: 14px;
 }
 
@@ -611,6 +829,44 @@ function handleDelete() {
 }
 
 .compact-field {
+  min-width: 0;
+}
+
+.system-info-status {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f3ecea;
+  color: #7a625c;
+  font-size: 13px;
+}
+
+.system-info-status.error,
+.ingredient-field-error {
+  color: #b42318;
+}
+
+.ingredient-field-error {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ingredient-picker {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.ingredient-picker img {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.ingredient-picker select {
   min-width: 0;
 }
 

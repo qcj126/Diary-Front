@@ -80,6 +80,10 @@
                 <span class="material-symbols-outlined">search</span>
                 查
               </button>
+              <button type="button" class="nutrition-analysis-button" @click="requestNutritionAnalysis">
+                <span class="material-symbols-outlined">nutrition</span>
+                营养分析
+              </button>
             </div>
 
             <form v-if="recipeQueryPanelOpen" class="search-row" @submit.prevent="loadRecipes">
@@ -268,6 +272,84 @@
         </footer>
       </section>
     </div>
+
+    <div v-if="nutritionDialogOpen" class="modal-backdrop" @click.self="closeNutritionDialog">
+      <section
+        class="category-dialog nutrition-analysis-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="nutrition-analysis-title"
+      >
+        <header class="dialog-header">
+          <div>
+            <p class="dialog-kicker">AI 营养分析</p>
+            <h2 id="nutrition-analysis-title">{{ nutritionTarget?.title || '已选食谱' }}</h2>
+          </div>
+          <button
+            class="dialog-icon-button"
+            type="button"
+            :disabled="nutritionSubmitting"
+            @click="closeNutritionDialog"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </header>
+
+        <div class="nutrition-summary-row">
+          <span>烹饪方式</span>
+          <strong>{{ nutritionTarget?.cookWay || '未填写' }}</strong>
+        </div>
+
+        <section class="nutrition-materials-panel" aria-labelledby="nutrition-materials-title">
+          <div class="nutrition-section-title">
+            <h3 id="nutrition-materials-title">食材列表</h3>
+            <span>{{ nutritionMaterialList.length }} 种</span>
+          </div>
+          <div v-if="nutritionMaterialList.length" class="nutrition-material-grid">
+            <div class="nutrition-material-head" aria-hidden="true">
+              <span>食材</span>
+              <span>用量</span>
+            </div>
+            <div class="nutrition-material-rows">
+              <div v-for="material in nutritionMaterialList" :key="material.key" class="nutrition-material-row">
+                <div class="nutrition-material-box">{{ material.name }}</div>
+                <div class="nutrition-material-box quantity-box">{{ material.quantity }}</div>
+              </div>
+            </div>
+          </div>
+          <p v-else class="nutrition-empty">该食谱尚未填写食材</p>
+        </section>
+
+        <label class="dialog-field nutrition-ai-field">
+          <span>选择 AI</span>
+          <select v-model.number="nutritionAiType">
+            <option :value="1">qwen3.7-plus</option>
+          </select>
+        </label>
+
+        <p v-if="nutritionError" class="dialog-error">{{ nutritionError }}</p>
+
+        <footer class="dialog-actions split">
+          <button
+            class="dialog-secondary-button"
+            type="button"
+            :disabled="nutritionSubmitting"
+            @click="closeNutritionDialog"
+          >
+            取消
+          </button>
+          <button
+            class="dialog-primary-button nutrition-submit-button"
+            type="button"
+            :disabled="nutritionSubmitting"
+            @click="submitSelectedRecipeAnalysis"
+          >
+            <span class="material-symbols-outlined">auto_awesome</span>
+            {{ nutritionSubmitting ? '提交中...' : '一键分析' }}
+          </button>
+        </footer>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -283,6 +365,7 @@ import {
   queryRecipeIcons,
   queryRecipeCategories,
   queryRecipes,
+  submitNutritionAnalysis,
   updateRecipe,
   updateRecipeCategory,
 } from './api/recipe.js'
@@ -314,6 +397,12 @@ const categoryAlertMessage = ref('请选择分类')
 const deleteCategoryDialogOpen = ref(false)
 const deleteRecipeDialogOpen = ref(false)
 const pendingRecipeDeletes = ref([])
+const nutritionDialogOpen = ref(false)
+const nutritionTarget = ref(null)
+const nutritionAiType = ref(1)
+const nutritionSubmitting = ref(false)
+const nutritionError = ref('')
+const nutritionClientRequestId = ref('')
 const categoryDraft = ref({
   categoryId: null,
   label: '',
@@ -323,6 +412,22 @@ const categoryDraft = ref({
 const categoryIcons = ref([])
 
 const isWideView = computed(() => !!selectedRecipe.value)
+const nutritionMaterialList = computed(() => {
+  const occurrences = new Map()
+
+  return (nutritionTarget.value?.ingredients ?? [])
+    .map((ingredient, index) => {
+      const name = String(typeof ingredient === 'string' ? ingredient : ingredient?.name ?? '').trim()
+      if (!name) return null
+      const quantity = String(
+        typeof ingredient === 'string' ? '' : ingredient?.quantity ?? ingredient?.amount ?? '',
+      ).trim() || '适量'
+      const occurrence = (occurrences.get(name) ?? 0) + 1
+      occurrences.set(name, occurrence)
+      return { key: `${name}-${occurrence}-${index}`, name, quantity }
+    })
+    .filter(Boolean)
+})
 
 function showNotice(message) {
   recipeNotice.value = message
@@ -433,6 +538,106 @@ function toggleRecipeSelection(recipe) {
 function selectedRecipes() {
   const selectedIds = new Set(selectedRecipeIds.value)
   return recipes.value.filter((recipe) => selectedIds.has(recipeKey(recipe)))
+}
+
+function createClientRequestId() {
+  const now = new Date()
+  const date = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('')
+  const randomValues = new Uint32Array(1)
+  let randomNumber
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(randomValues)
+    randomNumber = randomValues[0]
+  } else {
+    randomNumber = Math.floor(Math.random() * 0xffffffff)
+  }
+  const sequence = String((randomNumber % 999999) + 1).padStart(6, '0')
+  return `web-${date}-${sequence}`
+}
+
+function requestNutritionAnalysis() {
+  const records = selectedRecipes()
+  if (!records.length) {
+    categoryAlertMessage.value = '请选择您要分析的食谱~'
+    categoryAlertOpen.value = true
+    return
+  }
+  if (records.length > 1) {
+    categoryAlertMessage.value = '营养分析时只能选择一条食谱记录'
+    categoryAlertOpen.value = true
+    return
+  }
+
+  nutritionTarget.value = records[0]
+  nutritionAiType.value = 1
+  nutritionClientRequestId.value = createClientRequestId()
+  nutritionError.value = ''
+  nutritionDialogOpen.value = true
+}
+
+function closeNutritionDialog() {
+  if (nutritionSubmitting.value) return
+  nutritionDialogOpen.value = false
+  nutritionTarget.value = null
+  nutritionError.value = ''
+  nutritionClientRequestId.value = ''
+}
+
+function buildNutritionMaterials() {
+  return nutritionMaterialList.value.reduce((materials, material) => {
+    materials[material.name] = materials[material.name]
+      ? `${materials[material.name]}、${material.quantity}`
+      : material.quantity
+    return materials
+  }, {})
+}
+
+async function submitSelectedRecipeAnalysis() {
+  const target = nutritionTarget.value
+  const universalId = target?.recipeId ?? target?.id
+  const cookWay = String(target?.cookWay ?? '').trim()
+  const materials = buildNutritionMaterials()
+
+  if (!universalId) {
+    nutritionError.value = '未找到食谱主键，请刷新后重试'
+    return
+  }
+  if (!cookWay) {
+    nutritionError.value = '该食谱尚未填写烹饪方式，请先修改食谱'
+    return
+  }
+  if (!Object.keys(materials).length) {
+    nutritionError.value = '该食谱尚未填写食材，请先修改食谱'
+    return
+  }
+
+  nutritionSubmitting.value = true
+  nutritionError.value = ''
+
+  try {
+    const result = await submitNutritionAnalysis({
+      clientRequestId: nutritionClientRequestId.value,
+      aiType: Number(nutritionAiType.value),
+      aiApplication: 1,
+      flag: 'RECIPE',
+      universalId,
+      cookWay,
+      materials,
+    })
+    const taskId = result?.taskId
+    nutritionSubmitting.value = false
+    closeNutritionDialog()
+    showNotice(taskId ? `营养分析任务已提交（${taskId}）` : '营养分析任务已提交')
+  } catch (error) {
+    console.error(error)
+    nutritionError.value = error instanceof Error ? error.message : '营养分析任务提交失败'
+  } finally {
+    nutritionSubmitting.value = false
+  }
 }
 
 function requestUpdateRecipe() {
@@ -729,6 +934,7 @@ function createDraftRecipe() {
   currentView.value = 'detail'
   selectedRecipe.value = {
     categoryNum: activeCategory.value ?? categories.value[0]?.value ?? null,
+    cookWay: '',
     ingredients: [],
     steps: [],
   }
@@ -1099,6 +1305,11 @@ onMounted(async () => {
   position: relative;
 }
 
+.recipe-actions .nutrition-analysis-button {
+  background: #eef2e8;
+  color: #3f5936;
+}
+
 .timeline-container::before {
   content: '';
   position: absolute;
@@ -1274,7 +1485,8 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-.dialog-field input {
+.dialog-field input,
+.dialog-field select {
   width: 100%;
   border: 1px solid rgba(220, 193, 185, 0.9);
   border-radius: 8px;
@@ -1308,6 +1520,128 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.nutrition-analysis-dialog {
+  width: min(620px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.dialog-kicker {
+  margin: 0 0 3px;
+  color: #9a4024;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.nutrition-summary-row,
+.nutrition-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.nutrition-summary-row {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #f3ecea;
+  color: #56423d;
+  font-size: 14px;
+}
+
+.nutrition-summary-row strong {
+  color: #7a2f16;
+}
+
+.nutrition-materials-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.nutrition-section-title h3,
+.nutrition-empty {
+  margin: 0;
+}
+
+.nutrition-section-title h3 {
+  color: #1d1b1a;
+  font-size: 15px;
+}
+
+.nutrition-section-title > span {
+  color: #7a625c;
+  font-size: 13px;
+}
+
+.nutrition-material-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.nutrition-material-head,
+.nutrition-material-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.72fr);
+  gap: 12px;
+}
+
+.nutrition-material-head {
+  padding: 0 2px;
+  color: #56423d;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.nutrition-material-rows {
+  display: grid;
+  max-height: 230px;
+  gap: 10px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.nutrition-material-box {
+  min-width: 0;
+  padding: 11px 14px;
+  overflow: hidden;
+  border: 1px solid rgba(220, 193, 185, 0.86);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #56423d;
+  font-size: 14px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nutrition-material-box.quantity-box {
+  color: #576a4d;
+  font-weight: 800;
+}
+
+.nutrition-empty {
+  padding: 18px;
+  border: 1px dashed rgba(220, 193, 185, 0.9);
+  border-radius: 8px;
+  color: #7a625c;
+  text-align: center;
+}
+
+.nutrition-ai-field select {
+  cursor: pointer;
+}
+
+.nutrition-submit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.nutrition-submit-button .material-symbols-outlined {
+  font-size: 19px;
 }
 
 .icon-select {

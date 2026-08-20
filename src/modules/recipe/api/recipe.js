@@ -1,4 +1,4 @@
-import { API_BASE, RECIPE_API } from '../../../api/index.js'
+import { AI_API, API_BASE, RECIPE_API, SYS_INFO_API } from '../../../api/index.js'
 import { getAuthSession } from '../../auth/session.js'
 
 export const MEAL_TYPE_LABELS = {
@@ -12,7 +12,6 @@ export const DIFFICULTY_LABELS = {
   2: '中等',
   3: '困难',
 }
-
 function authHeaders(contentType = 'application/json') {
   const session = getAuthSession()
   const headers = contentType ? { 'Content-Type': contentType } : {}
@@ -135,6 +134,16 @@ async function postJson(url, body, fallback) {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(body),
+  })
+  const data = parseApiPayload(await res.text())
+  assertApiSuccess(res, data, fallback)
+  return responseData(data)
+}
+
+async function getJson(url, fallback) {
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: authHeaders(null),
   })
   const data = parseApiPayload(await res.text())
   assertApiSuccess(res, data, fallback)
@@ -285,6 +294,7 @@ export function normalizeRecipe(raw = {}) {
     recipeId: raw.recipeId ?? raw.id,
     categoryNum,
     familyMember: raw.familyMember ?? null,
+    cookWay: String(raw.cookWay ?? '').trim(),
     imageId,
     mealType: raw.mealTypeName ?? raw.mealTypeLabel ?? MEAL_TYPE_LABELS[raw.mealType] ?? raw.mealType ?? '',
     mealTypeValue: raw.mealType ?? raw.mealTypeValue ?? null,
@@ -355,6 +365,7 @@ export function createRecipeDTO(recipe = {}) {
     difficulty: toNumberOrNull(recipe.difficultyValue ?? recipe.difficulty),
     cookingTime: toNumberOrNull(recipe.cookingTime),
     familyMember: toNumberOrNull(recipe.familyMember),
+    cookWay: String(recipe.cookWay ?? '').trim(),
     redHeart: Number(recipe.redHeart) === 1 ? 1 : 0,
     story: recipe.story ?? recipe.detail?.story ?? '',
     ingredients,
@@ -456,4 +467,49 @@ export function deleteRecipe(recipeId) {
 
 export function deleteRecipeCategories(ids) {
   return postJson(RECIPE_API.deleteCategory, { ids }, '删除分类失败')
+}
+
+export async function queryIngredientCategories() {
+  const payload = await getJson(SYS_INFO_API.ingredientCategories, '查询食材分类失败')
+  return toPayloadList(payload).map((item, index) => ({
+    ...item,
+    id: item?.id ?? item?.category ?? index,
+    category: String(item?.category ?? '').trim(),
+    categoryName: String(item?.categoryName ?? item?.name ?? '').trim(),
+  }))
+}
+
+export async function queryIngredients({ category, isMain } = {}) {
+  const payload = await postJson(
+    SYS_INFO_API.ingredients,
+    {
+      category: String(category ?? '').trim(),
+      isMain: toNumberOrNull(isMain),
+    },
+    '查询食材失败',
+  )
+
+  return toPayloadList(payload).map((item, index) => ({
+    ...item,
+    id: item?.id ?? `${category}_${index}`,
+    name: String(item?.name ?? '').trim(),
+    category: String(item?.category ?? category ?? '').trim(),
+    categoryName: String(item?.categoryName ?? '').trim(),
+    isMain: Number(item?.isMain ?? isMain ?? 0),
+    iconUrl: normalizeRecipeIconUrl(item?.iconPath ?? item?.iconFileName ?? item?.iconName),
+  }))
+}
+
+export async function queryCookWays() {
+  const payload = await getJson(SYS_INFO_API.cookWays, '查询烹饪方式失败')
+  return toPayloadList(payload).map((item, index) => ({
+    ...item,
+    id: item?.id ?? item?.name ?? index,
+    name: String(item?.name ?? '').trim(),
+    description: String(item?.description ?? '').trim(),
+  }))
+}
+
+export function submitNutritionAnalysis(payload) {
+  return postJson(AI_API.tasks, payload, '营养分析任务提交失败')
 }

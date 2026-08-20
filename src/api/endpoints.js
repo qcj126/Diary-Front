@@ -62,6 +62,16 @@ export const RECIPE_API = {
   queryIcons: `${API_BASE}/file/icon/query`,
 }
 
+export const SYS_INFO_API = {
+  ingredientCategories: `${API_BASE}/sys/info/ingredients/category`,
+  ingredients: `${API_BASE}/sys/info/ingredients`,
+  cookWays: `${API_BASE}/sys/info/cook-ways`,
+}
+
+export const AI_API = {
+  tasks: `${API_BASE}/ai/tasks`,
+}
+
 export const API_ENDPOINTS = {
   auth: AUTH_API,
   loveDashboard: LOVE_DASHBOARD_API,
@@ -69,4 +79,6 @@ export const API_ENDPOINTS = {
   icon: ICON_API,
   goal: GOAL_API,
   recipe: RECIPE_API,
+  sysInfo: SYS_INFO_API,
+  ai: AI_API,
 }
