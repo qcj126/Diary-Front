@@ -20,76 +20,120 @@
 
       <div class="form-grid">
         <div class="top-fields">
-          <label class="field">
-            <span>标题</span>
-            <input v-model.trim="draft.title" type="text" placeholder="例如：红烧肉" />
-          </label>
+            <label class="field compact-control">
+              <span class="field-heading"><span>标题</span></span>
+              <input v-model.trim="draft.title" type="text" placeholder="例如：红烧肉" />
+            </label>
 
-          <label class="field">
-            <span>分类</span>
-            <select v-model.number="draft.categoryNum">
-              <option v-if="!categories.length" :value="null" disabled>暂无分类</option>
-              <option v-for="category in categories" :key="category.key" :value="category.value">
-                {{ category.label }}
-              </option>
-            </select>
-          </label>
+            <label class="field compact-control">
+              <span class="field-heading">
+                <span>分类</span>
+                <button type="button" class="field-control-button" aria-label="展开分类" @click.prevent.stop="openSelectPicker">
+                  <span class="material-symbols-outlined">arrow_drop_down</span>
+                </button>
+              </span>
+              <select v-model.number="draft.categoryNum">
+                <option v-if="!categories.length" :value="null" disabled>暂无分类</option>
+                <option v-for="category in categories" :key="category.key" :value="category.value">
+                  {{ category.label }}
+                </option>
+              </select>
+            </label>
 
-          <label class="field">
-            <span>餐别</span>
-            <select v-model.number="draft.mealTypeValue">
-              <option :value="null" disabled>请选择餐别</option>
-              <option :value="1">早餐</option>
-              <option :value="2">午餐</option>
-              <option :value="3">晚餐</option>
-              <option :value="4">夜宵</option>
-            </select>
-          </label>
+            <label class="field compact-control">
+              <span class="field-heading">
+                <span>餐别</span>
+                <button type="button" class="field-control-button" aria-label="展开餐别" @click.prevent.stop="openSelectPicker">
+                  <span class="material-symbols-outlined">arrow_drop_down</span>
+                </button>
+              </span>
+              <select v-model.number="draft.mealTypeValue">
+                <option :value="null" disabled>请选择餐别</option>
+                <option :value="1">早餐</option>
+                <option :value="2">午餐</option>
+                <option :value="3">晚餐</option>
+                <option :value="4">夜宵</option>
+              </select>
+            </label>
 
-          <label class="field">
-            <span>难度</span>
-            <select v-model.number="draft.difficultyValue">
-              <option :value="null" disabled>请选择难度</option>
-              <option :value="1">简单</option>
-              <option :value="2">中等</option>
-              <option :value="3">困难</option>
-            </select>
-          </label>
+            <label class="field compact-control">
+              <span class="field-heading">
+                <span>难度</span>
+                <button type="button" class="field-control-button" aria-label="展开难度" @click.prevent.stop="openSelectPicker">
+                  <span class="material-symbols-outlined">arrow_drop_down</span>
+                </button>
+              </span>
+              <select v-model.number="draft.difficultyValue">
+                <option :value="null" disabled>请选择难度</option>
+                <option :value="1">简单</option>
+                <option :value="2">中等</option>
+                <option :value="3">困难</option>
+              </select>
+            </label>
 
-          <label class="field">
-            <span>人数</span>
-            <input v-model.number="draft.familyMember" type="number" min="1" step="1" />
-          </label>
+            <label class="field compact-control numeric-control">
+              <span class="field-heading">
+                <span>人数</span>
+                <span class="number-actions">
+                  <button type="button" aria-label="减少人数" @click.prevent.stop="adjustNumber('familyMember', -1, 1)">
+                    <span class="material-symbols-outlined">remove</span>
+                  </button>
+                  <button type="button" aria-label="增加人数" @click.prevent.stop="adjustNumber('familyMember', 1, 1)">
+                    <span class="material-symbols-outlined">add</span>
+                  </button>
+                </span>
+              </span>
+              <input v-model.number="draft.familyMember" type="number" min="1" step="1" />
+            </label>
 
-          <label class="field">
-            <span>烹饪方式</span>
-            <select v-model="draft.cookWay" :disabled="systemInfoLoading && !cookWayOptions.length">
-              <option value="" disabled>{{ systemInfoLoading ? '烹饪方式加载中...' : '请选择烹饪方式' }}</option>
-              <option v-if="draft.cookWay && !hasCookWay(draft.cookWay)" :value="draft.cookWay">
-                {{ draft.cookWay }}
-              </option>
-              <option v-for="cookWay in cookWayOptions" :key="cookWay.id" :value="cookWay.name">
-                {{ cookWay.name }}
-              </option>
-            </select>
-          </label>
+            <label class="field compact-control">
+              <span class="field-heading">
+                <span>烹饪</span>
+                <button type="button" class="field-control-button" aria-label="展开烹饪方式" @click.prevent.stop="openSelectPicker">
+                  <span class="material-symbols-outlined">arrow_drop_down</span>
+                </button>
+              </span>
+              <select v-model="draft.cookWay" :disabled="systemInfoLoading && !cookWayOptions.length">
+                <option value="" disabled>{{ systemInfoLoading ? '烹饪方式加载中...' : '请选择烹饪方式' }}</option>
+                <option v-if="draft.cookWay && !hasCookWay(draft.cookWay)" :value="draft.cookWay">
+                  {{ draft.cookWay }}
+                </option>
+                <option v-for="cookWay in cookWayOptions" :key="cookWay.id" :value="cookWay.name">
+                  {{ cookWay.name }}
+                </option>
+              </select>
+            </label>
 
-          <label class="field">
-            <span>烹饪时长</span>
-            <span class="input-with-unit">
+            <label class="field compact-control numeric-control">
+              <span class="field-heading">
+                <span>时长</span>
+                <span class="number-actions">
+                  <button type="button" aria-label="减少时长" @click.prevent.stop="adjustNumber('cookingTime', -1, 0)">
+                    <span class="material-symbols-outlined">remove</span>
+                  </button>
+                  <button type="button" aria-label="增加时长" @click.prevent.stop="adjustNumber('cookingTime', 1, 0)">
+                    <span class="material-symbols-outlined">add</span>
+                  </button>
+                </span>
+              </span>
               <input v-model.number="draft.cookingTime" type="number" min="0" />
-              <span>分钟</span>
-            </span>
-          </label>
+            </label>
         </div>
 
-        <div class="story-fields">
-          <label class="field">
-            <span>简介</span>
-            <textarea v-model.trim="draft.description" rows="3" placeholder="写一点这道菜的味道和来历" />
-          </label>
+        <div class="story-layout">
+          <div class="story-fields">
+            <label class="field">
+              <span>简介</span>
+              <textarea v-model.trim="draft.description" rows="3" placeholder="写一点这道菜的味道和来历" />
+            </label>
 
-          <div class="field">
+            <label class="field">
+              <span>情感故事</span>
+              <textarea v-model.trim="draft.story" rows="3" placeholder="可选，用来记录这道菜背后的故事" />
+            </label>
+          </div>
+
+          <div class="field image-field">
             <span>食谱图片</span>
             <label class="upload-box" :class="{ 'has-image': draft.coverImg }">
               <input
@@ -107,11 +151,6 @@
             </label>
             <p v-if="imageError" class="form-error">{{ imageError }}</p>
           </div>
-
-          <label class="field">
-            <span>情感故事</span>
-            <textarea v-model.trim="draft.story" rows="3" placeholder="可选，用来记录这道菜背后的故事" />
-          </label>
         </div>
       </div>
     </header>
@@ -120,33 +159,54 @@
       <article class="list-panel">
         <div class="ingredient-header row-header">
           <span></span>
+          <span>是否主料</span>
           <span>食材分类</span>
           <span>食材名</span>
           <span>用量</span>
-          <span>是否主料</span>
           <span></span>
         </div>
-        <p v-if="systemInfoLoading" class="system-info-status">正在加载食材和烹饪方式...</p>
+        <p v-if="systemInfoLoading" class="system-info-status">正在加载烹饪方式...</p>
         <p v-else-if="systemInfoError" class="system-info-status error">{{ systemInfoError }}</p>
         <div class="entry-list">
           <div v-for="(ingredient, index) in ingredients" :key="ingredient.uid" class="ingredient-row">
             <span class="ingredient-index">{{ index + 1 }}</span>
             <label class="field compact-field">
               <select
+                v-model.number="ingredient.isMain"
+                aria-label="是否主料"
+                @change="handleIngredientMainChange(ingredient)"
+              >
+                <option :value="1">主料</option>
+                <option :value="0">配料</option>
+              </select>
+            </label>
+            <label class="field compact-field">
+              <select
                 v-model="ingredient.category"
                 aria-label="食材分类"
-                :disabled="systemInfoLoading && !ingredientCategories.length"
+                @pointerdown="loadIngredientCategories(ingredient)"
                 @change="loadIngredientOptions(ingredient)"
               >
-                <option value="" disabled>请选择分类</option>
+                <option value="" disabled>
+                  {{ ingredient.categoryOptionsLoading ? '正在加载分类...' : '请选择分类' }}
+                </option>
                 <option
-                  v-for="category in ingredientCategories"
+                  v-if="ingredient.category && !hasIngredientCategoryOption(ingredient, ingredient.category)"
+                  :value="ingredient.category"
+                >
+                  {{ ingredient.category }}（当前）
+                </option>
+                <option
+                  v-for="category in ingredientCategoryOptions(ingredient)"
                   :key="category.id"
                   :value="category.category"
                 >
                   {{ category.categoryName }}
                 </option>
               </select>
+              <small v-if="ingredient.categoryOptionsError" class="ingredient-field-error">
+                {{ ingredient.categoryOptionsError }}
+              </small>
             </label>
             <label class="field compact-field">
               <span class="ingredient-picker">
@@ -184,16 +244,6 @@
             </label>
             <label class="field compact-field">
               <input v-model.trim="ingredient.quantity" type="text" aria-label="用量" placeholder="500g" />
-            </label>
-            <label class="field compact-field">
-              <select
-                v-model.number="ingredient.isMain"
-                aria-label="是否主料"
-                @change="loadIngredientOptions(ingredient)"
-              >
-                <option :value="1">主料</option>
-                <option :value="0">配料</option>
-              </select>
             </label>
             <div class="row-meta">
               <div class="row-actions">
@@ -277,7 +327,7 @@ const ingredients = ref([])
 const steps = ref([])
 const imageUploading = ref(false)
 const imageError = ref('')
-const ingredientCategories = ref([])
+const ingredientCategoriesByMain = ref({})
 const cookWayOptions = ref([])
 const systemInfoLoading = ref(false)
 const systemInfoError = ref('')
@@ -323,6 +373,9 @@ function emptyIngredient() {
     optionsLoading: false,
     optionsError: '',
     requestId: 0,
+    categoryOptionsLoading: false,
+    categoryOptionsError: '',
+    categoryRequestId: 0,
   }
 }
 
@@ -341,6 +394,9 @@ function formatIngredients(recipe) {
     optionsLoading: false,
     optionsError: '',
     requestId: 0,
+    categoryOptionsLoading: false,
+    categoryOptionsError: '',
+    categoryRequestId: 0,
   }))
   return rows.length ? rows : [emptyIngredient()]
 }
@@ -381,22 +437,82 @@ function selectedIngredientOption(ingredient) {
   return ingredient.availableIngredients.find((item) => item.name === ingredient.name)
 }
 
+function openSelectPicker(event) {
+  const select = event.currentTarget.closest('.field')?.querySelector('select')
+  if (!select || select.disabled) return
+
+  select.focus()
+  try {
+    if (typeof select.showPicker === 'function') select.showPicker()
+    else select.click()
+  } catch {
+    select.click()
+  }
+}
+
+function adjustNumber(field, delta, minimum) {
+  const current = Number(draft.value[field])
+  const base = Number.isFinite(current) ? current : minimum
+  draft.value[field] = Math.max(minimum, base + delta)
+}
+
+function ingredientCategoryOptions(ingredient) {
+  return ingredientCategoriesByMain.value[ingredient.isMain] ?? []
+}
+
+function hasIngredientCategoryOption(ingredient, category) {
+  return ingredientCategoryOptions(ingredient).some((item) => item.category === category)
+}
+
 async function loadSystemInfoOptions() {
   systemInfoLoading.value = true
   systemInfoError.value = ''
 
   try {
-    const [categoriesResult, cookWaysResult] = await Promise.all([
-      queryIngredientCategories(),
-      queryCookWays(),
-    ])
-    ingredientCategories.value = categoriesResult.filter((item) => item.category)
-    cookWayOptions.value = cookWaysResult.filter((item) => item.name)
+    const result = await queryCookWays()
+    cookWayOptions.value = result.filter((item) => item.name)
   } catch (error) {
     systemInfoError.value = error instanceof Error ? error.message : '系统信息加载失败'
   } finally {
     systemInfoLoading.value = false
   }
+}
+
+async function loadIngredientCategories(ingredient) {
+  if (ingredient.isMain !== 0 && ingredient.isMain !== 1) return
+
+  ingredient.categoryRequestId += 1
+  const requestId = ingredient.categoryRequestId
+  ingredient.categoryOptionsLoading = true
+  ingredient.categoryOptionsError = ''
+
+  try {
+    const result = await queryIngredientCategories(ingredient.isMain)
+    if (ingredient.categoryRequestId === requestId) {
+      ingredientCategoriesByMain.value = {
+        ...ingredientCategoriesByMain.value,
+        [ingredient.isMain]: result.filter((item) => item.category),
+      }
+    }
+  } catch (error) {
+    if (ingredient.categoryRequestId === requestId) {
+      ingredient.categoryOptionsError = error instanceof Error ? error.message : '食材分类加载失败'
+    }
+  } finally {
+    if (ingredient.categoryRequestId === requestId) ingredient.categoryOptionsLoading = false
+  }
+}
+
+function handleIngredientMainChange(ingredient) {
+  ingredient.categoryRequestId += 1
+  ingredient.categoryOptionsLoading = false
+  ingredient.categoryOptionsError = ''
+  ingredient.requestId += 1
+  ingredient.optionsLoading = false
+  ingredient.optionsError = ''
+  ingredient.category = ''
+  ingredient.name = ''
+  ingredient.availableIngredients = []
 }
 
 async function loadIngredientOptions(ingredient, resetName = true) {
@@ -581,25 +697,107 @@ function handleDelete() {
 .form-grid {
   display: grid;
   gap: 16px;
-}
-
-.top-fields,
-.story-fields {
-  display: grid;
-  gap: 16px;
+  min-width: 0;
 }
 
 .top-fields {
-  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: start;
+  gap: 8px;
 }
 
-.top-fields .field > span {
+.top-fields .compact-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.top-fields .field-heading {
+  display: flex;
+  width: 100%;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.top-fields .compact-control > input,
+.top-fields .compact-control > select {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  text-align-last: center;
+}
+
+.top-fields .compact-control > input::placeholder {
   text-align: center;
 }
 
+.top-fields .compact-control > select {
+  appearance: none;
+  background-image: none;
+}
+
+.top-fields .compact-control > select::-ms-expand {
+  display: none;
+}
+
+.top-fields .numeric-control > input {
+  appearance: textfield;
+}
+
+.top-fields .numeric-control > input::-webkit-inner-spin-button,
+.top-fields .numeric-control > input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.field-control-button,
+.number-actions button {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(154, 64, 36, 0.34);
+  border-radius: 6px;
+  background: rgba(255, 248, 246, 0.94);
+  color: #7a2f16;
+  cursor: pointer;
+}
+
+.field-control-button:hover,
+.number-actions button:hover {
+  border-color: rgba(154, 64, 36, 0.72);
+  background: #f6e3dd;
+}
+
+.field-control-button .material-symbols-outlined,
+.number-actions .material-symbols-outlined {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.number-actions {
+  display: inline-flex;
+  gap: 3px;
+}
+
 .story-fields {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: start;
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  min-height: 300px;
+}
+
+.story-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.75fr) minmax(280px, 1.25fr);
+  gap: 16px;
+  align-items: stretch;
 }
 
 .story-fields .field {
@@ -641,19 +839,26 @@ function handleDelete() {
 }
 
 .story-fields textarea {
-  min-height: 150px;
-  height: 150px;
+  min-height: 126px;
+  height: 100%;
+  resize: none;
 }
 
-.story-fields textarea {
-  resize: none;
+.image-field {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  height: 100%;
+}
+
+.image-field > span {
+  text-align: center;
 }
 
 .upload-box {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
-  min-height: 150px;
+  height: 100%;
+  min-height: 370px;
   overflow: hidden;
   border: 1px dashed rgba(154, 64, 36, 0.55);
   border-radius: 8px;
@@ -789,7 +994,7 @@ function handleDelete() {
 }
 
 .ingredient-header {
-  grid-template-columns: 34px minmax(94px, 0.72fr) minmax(112px, 0.9fr) minmax(92px, 0.68fr) minmax(86px, 0.54fr) 84px;
+  grid-template-columns: 34px minmax(86px, 0.54fr) minmax(94px, 0.72fr) minmax(112px, 0.9fr) minmax(92px, 0.68fr) 84px;
 }
 
 .step-header {
@@ -808,7 +1013,7 @@ function handleDelete() {
 }
 
 .ingredient-row {
-  grid-template-columns: 34px minmax(94px, 0.72fr) minmax(112px, 0.9fr) minmax(92px, 0.68fr) minmax(86px, 0.54fr) 84px;
+  grid-template-columns: 34px minmax(86px, 0.54fr) minmax(94px, 0.72fr) minmax(112px, 0.9fr) minmax(92px, 0.68fr) 84px;
   padding-inline: 14px;
 }
 
@@ -925,15 +1130,36 @@ function handleDelete() {
 }
 
 @media (max-width: 1180px) {
+  .story-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .top-fields {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .image-field .upload-box {
+    min-height: 320px;
+  }
+
   .content-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 820px) {
-  .top-fields,
+  .top-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .story-fields {
-    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    min-height: 0;
+  }
+
+  .story-fields textarea {
+    min-height: 140px;
+    height: 140px;
   }
 
   .ingredient-row,

@@ -15,10 +15,14 @@
       <TimelinePage v-else-if="active === 'timeline'" />
       <LoveRecordsPage v-else-if="active === 'dates'" @back="active = 'home'" />
       <DietPage v-else-if="active === 'diet'" />
-      <RecipePage v-else-if="active === 'diary'" />
+      <RecipePage v-else-if="active === 'diary'" @preview-ai-result="openAiResultPreview" />
       <GoalsPage v-else-if="active === 'wishlist'" />
       <LifeThoughtsPage v-else-if="active === 'board'" />
       <LedgerPage v-else-if="active === 'ledger'" />
+      <AiResultsPage
+        v-else-if="active === 'ai-results'"
+        :initial-task-id="aiResultTaskId"
+      />
       <IconLibraryPage v-else-if="active === 'icons'" />
       <PlaceholderPanel
         v-else
@@ -39,11 +43,13 @@ import DietPage from '../diet/DietPage.vue'
 import RecipePage from '../recipe/RecipePage.vue'
 import GoalsPage from '../goals/GoalsPage.vue'
 import LedgerPage from '../ledger/LedgerPage.vue'
+import AiResultsPage from '../ai-results/AiResultsPage.vue'
 import LifeThoughtsPage from '../life-thoughts/LifeThoughtsPage.vue'
 import IconLibraryPage from '../icons/IconLibraryPage.vue'
 import { LOVE_SECTIONS } from './constants/sections.js'
 
 const active = ref('home')
+const aiResultTaskId = ref('')
 const sections = LOVE_SECTIONS
 const THEME_STORAGE_KEY = 'diary-love-theme'
 const THEME_TRANSITION_MS = 2000
@@ -54,6 +60,11 @@ let transitionTimer = 0
 
 const currentLabel = computed(() => sections.find((x) => x.key === active.value)?.label ?? '')
 const isNightMode = computed(() => theme.value === 'night')
+
+function openAiResultPreview(taskId) {
+  aiResultTaskId.value = String(taskId ?? '').trim()
+  if (aiResultTaskId.value) active.value = 'ai-results'
+}
 
 function toggleTheme() {
   const nextTheme = isNightMode.value ? 'day' : 'night'

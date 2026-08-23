@@ -70,6 +70,8 @@ export const SYS_INFO_API = {
 
 export const AI_API = {
   tasks: `${API_BASE}/ai/tasks`,
+  taskStatus: (taskId) => `${API_BASE}/ai/tasks/${encodeURIComponent(taskId)}`,
+  taskResult: (taskId) => `${API_BASE}/ai/tasks/${encodeURIComponent(taskId)}/result`,
 }
 
 export const API_ENDPOINTS = {

@@ -87,7 +87,7 @@
 
         <p v-if="formError" class="dialog-error">{{ formError }}</p>
 
-        <footer class="dialog-actions">
+        <footer class="dialog-actions split">
           <button class="secondary-button" type="button" @click="closeForm">取消</button>
           <button class="primary-button" type="submit" :disabled="saving">
             {{ saving ? '保存中...' : '保存' }}
@@ -209,10 +209,19 @@ function closeForm() {
   formError.value = ''
 }
 
+function fileNameWithoutExtension(fileName) {
+  const lastDotIndex = fileName.lastIndexOf('.')
+  return lastDotIndex > 0 ? fileName.slice(0, lastDotIndex) : fileName
+}
+
 function handleFileChange(event) {
   const [file] = Array.from(event.target.files || [])
   draft.file = file || null
   draft.fileName = file?.name || ''
+
+  if (!editingIcon.value && file) {
+    draft.iconName = fileNameWithoutExtension(file.name)
+  }
 }
 
 async function saveIcon() {

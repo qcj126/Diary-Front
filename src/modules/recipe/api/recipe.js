@@ -469,8 +469,15 @@ export function deleteRecipeCategories(ids) {
   return postJson(RECIPE_API.deleteCategory, { ids }, '删除分类失败')
 }
 
-export async function queryIngredientCategories() {
-  const payload = await getJson(SYS_INFO_API.ingredientCategories, '查询食材分类失败')
+export async function queryIngredientCategories(isMain) {
+  const params = new URLSearchParams()
+  const normalizedIsMain = toNumberOrNull(isMain)
+  if (normalizedIsMain !== null) params.set('isMain', String(normalizedIsMain))
+
+  const payload = await getJson(
+    `${SYS_INFO_API.ingredientCategories}?${params.toString()}`,
+    '查询食材分类失败',
+  )
   return toPayloadList(payload).map((item, index) => ({
     ...item,
     id: item?.id ?? item?.category ?? index,

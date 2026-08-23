@@ -32,7 +32,7 @@
             <label class="category-check" :aria-label="`选择${category.label}`">
               <input
                 type="checkbox"
-                :checked="selectedCategoryIds.includes(category.id)"
+                :checked="selectedCategoryIds.includes(String(category.id))"
                 @change="toggleCategorySelection(category.id)"
               />
               <span></span>
@@ -83,6 +83,10 @@
               <button type="button" class="nutrition-analysis-button" @click="requestNutritionAnalysis">
                 <span class="material-symbols-outlined">nutrition</span>
                 营养分析
+              </button>
+              <button type="button" class="result-preview-button" @click="previewNutritionResult">
+                <span class="material-symbols-outlined">preview</span>
+                结果预览
               </button>
             </div>
 
@@ -172,7 +176,7 @@
     </div>
 
     <div v-if="categoryDialogOpen" class="modal-backdrop" @click.self="closeCategoryDialog">
-      <form class="category-dialog" @submit.prevent="saveCategory">
+      <form class="category-dialog category-editor-dialog" @submit.prevent="saveCategory">
         <header class="dialog-header">
           <h2>{{ categoryDialogMode === 'edit' ? '修改分类' : '添加新分类' }}</h2>
           <button class="dialog-icon-button" type="button" @click="closeCategoryDialog">
@@ -180,28 +184,58 @@
           </button>
         </header>
 
-        <label class="dialog-field">
-          <span>分类名称</span>
-          <input v-model.trim="categoryDraft.label" type="text" placeholder="例如：轻食" />
-        </label>
+        <div class="category-form-row">
+          <label class="dialog-field">
+            <span>分类名称</span>
+            <input v-model.trim="categoryDraft.label" type="text" placeholder="例如：轻食" />
+          </label>
 
-        <fieldset class="dialog-field icon-picker">
-          <span>图标</span>
-          <div v-if="iconLoading" class="icon-picker-status">图标加载中...</div>
-          <div v-else-if="!categoryIcons.length" class="icon-picker-status">暂无可选图标</div>
-          <div v-else class="icon-select-row">
-            <select v-model="categoryDraft.iconId" class="icon-select" @change="selectCategoryIconById">
-              <option value="" disabled>请选择图标</option>
-              <option v-for="icon in categoryIcons" :key="icon.id ?? icon.label" :value="icon.id">
-                {{ icon.label }}
-              </option>
-            </select>
-            <span v-if="categoryDraft.icon" class="selected-icon-preview" aria-hidden="true">
-              <img v-if="isIconUrl(categoryDraft.icon)" :src="categoryDraft.icon" alt="" />
-              <span v-else class="material-symbols-outlined">{{ categoryDraft.icon }}</span>
-            </span>
+          <div class="dialog-field icon-picker">
+            <span>图标</span>
+            <button
+              class="icon-select-trigger"
+              type="button"
+              :aria-expanded="iconMenuOpen"
+              aria-haspopup="listbox"
+              @click="iconMenuOpen = !iconMenuOpen"
+            >
+              <span class="icon-trigger-preview" aria-hidden="true">
+                <img v-if="isIconUrl(categoryDraft.icon)" :src="categoryDraft.icon" alt="" />
+                <span v-else-if="categoryDraft.icon" class="material-symbols-outlined">{{ categoryDraft.icon }}</span>
+                <span v-else class="material-symbols-outlined">image</span>
+              </span>
+              <span>{{ selectedCategoryIcon?.label || categoryDraft.iconLabel || '请选择图标' }}</span>
+              <span class="material-symbols-outlined dropdown-arrow">arrow_drop_down</span>
+            </button>
+
+            <div v-if="iconMenuOpen" class="icon-dropdown" role="listbox" aria-label="图标列表">
+              <div class="icon-dropdown-header" aria-hidden="true">
+                <span>图标</span>
+                <span>名称</span>
+              </div>
+              <div v-if="iconLoading" class="icon-picker-status">图标加载中...</div>
+              <div v-else-if="!categoryIcons.length" class="icon-picker-status">暂无可选图标</div>
+              <div v-else class="icon-option-list">
+                <button
+                  v-for="icon in categoryIcons"
+                  :key="icon.id ?? icon.label"
+                  class="icon-option"
+                  :class="{ selected: String(icon.id) === String(categoryDraft.iconId) }"
+                  type="button"
+                  role="option"
+                  :aria-selected="String(icon.id) === String(categoryDraft.iconId)"
+                  @click="selectCategoryIcon(icon)"
+                >
+                  <span class="icon-option-preview" aria-hidden="true">
+                    <img v-if="isIconUrl(icon.icon)" :src="icon.icon" alt="" />
+                    <span v-else class="material-symbols-outlined">{{ icon.icon || 'image' }}</span>
+                  </span>
+                  <span>{{ icon.label || '未命名图标' }}</span>
+                </button>
+              </div>
+            </div>
           </div>
-        </fieldset>
+        </div>
 
         <div v-if="categoryDialogError" class="dialog-error">{{ categoryDialogError }}</div>
 
@@ -369,6 +403,9 @@ import {
   updateRecipe,
   updateRecipeCategory,
 } from './api/recipe.js'
+import { loadTrackedAiTasks, saveTrackedAiTask } from '../ai-results/taskStore.js'
+
+const emit = defineEmits(['preview-ai-result'])
 
 const recipes = ref([])
 const categories = ref([])
@@ -408,10 +445,15 @@ const categoryDraft = ref({
   label: '',
   iconId: '',
   icon: '',
+  iconLabel: '',
 })
 const categoryIcons = ref([])
+const iconMenuOpen = ref(false)
 
 const isWideView = computed(() => !!selectedRecipe.value)
+const selectedCategoryIcon = computed(() =>
+  categoryIcons.value.find((icon) => String(icon.id) === String(categoryDraft.value.iconId)) ?? null,
+)
 const nutritionMaterialList = computed(() => {
   const occurrences = new Map()
 
@@ -492,8 +534,8 @@ function selectCategory(value) {
 }
 
 function toggleCategorySelection(categoryId) {
-  const id = Number(categoryId)
-  if (!Number.isFinite(id)) return
+  const id = String(categoryId ?? '').trim()
+  if (!id) return
   selectedCategoryIds.value = selectedCategoryIds.value.includes(id)
     ? selectedCategoryIds.value.filter((item) => item !== id)
     : [...selectedCategoryIds.value, id]
@@ -579,6 +621,33 @@ function requestNutritionAnalysis() {
   nutritionDialogOpen.value = true
 }
 
+function previewNutritionResult() {
+  const records = selectedRecipes()
+  if (!records.length) {
+    categoryAlertMessage.value = '请选择您要预览分析结果的食谱~'
+    categoryAlertOpen.value = true
+    return
+  }
+  if (records.length > 1) {
+    categoryAlertMessage.value = '结果预览时只能选择一条食谱记录'
+    categoryAlertOpen.value = true
+    return
+  }
+
+  const target = records[0]
+  const universalId = target?.recipeId ?? target?.id
+  const task = loadTrackedAiTasks()
+    .filter((item) => item.flag === 'RECIPE' && String(item.universalId) === String(universalId))
+    .sort((a, b) => String(b.submittedAt ?? '').localeCompare(String(a.submittedAt ?? '')))[0]
+  if (!task?.taskId) {
+    categoryAlertMessage.value = '该食谱暂无可预览的AI分析任务，请先提交营养分析'
+    categoryAlertOpen.value = true
+    return
+  }
+
+  emit('preview-ai-result', task.taskId)
+}
+
 function closeNutritionDialog() {
   if (nutritionSubmitting.value) return
   nutritionDialogOpen.value = false
@@ -629,6 +698,18 @@ async function submitSelectedRecipeAnalysis() {
       materials,
     })
     const taskId = result?.taskId
+    if (taskId) {
+      saveTrackedAiTask({
+        taskId,
+        status: result?.status || 'PENDING',
+        flag: 'RECIPE',
+        aiApplication: 1,
+        aiType: Number(nutritionAiType.value),
+        universalId,
+        clientRequestId: nutritionClientRequestId.value,
+        title: target?.title || '食谱营养分析',
+      })
+    }
     nutritionSubmitting.value = false
     closeNutritionDialog()
     showNotice(taskId ? `营养分析任务已提交（${taskId}）` : '营养分析任务已提交')
@@ -738,8 +819,10 @@ async function requestUpdateCategory() {
     label: category.label ?? '',
     iconId: category.iconId ?? '',
     icon: category.icon ?? '',
+    iconLabel: category.iconName ?? category.iconLabel ?? '',
   }
   categoryDialogError.value = ''
+  iconMenuOpen.value = false
   categoryDialogOpen.value = true
   await loadCategoryIcons(false)
 }
@@ -789,8 +872,10 @@ async function addCategory() {
     label: '',
     iconId: '',
     icon: '',
+    iconLabel: '',
   }
   categoryDialogError.value = ''
+  iconMenuOpen.value = false
   categoryDialogOpen.value = true
   await loadCategoryIcons(true)
 }
@@ -799,6 +884,7 @@ function closeCategoryDialog() {
   if (categorySaving.value) return
   categoryDialogOpen.value = false
   categoryDialogError.value = ''
+  iconMenuOpen.value = false
 }
 
 async function loadCategoryIcons(selectDefault = true) {
@@ -823,12 +909,9 @@ function selectCategoryIcon(icon) {
     ...categoryDraft.value,
     iconId: icon.id,
     icon: icon.icon,
+    iconLabel: icon.label,
   }
-}
-
-function selectCategoryIconById() {
-  const icon = categoryIcons.value.find((item) => String(item.id) === String(categoryDraft.value.iconId))
-  if (icon) selectCategoryIcon(icon)
+  iconMenuOpen.value = false
 }
 
 async function saveCategory() {
@@ -1006,8 +1089,7 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.category-image-icon,
-.selected-icon-preview img {
+.category-image-icon {
   width: 24px;
   height: 24px;
   object-fit: contain;
@@ -1310,6 +1392,11 @@ onMounted(async () => {
   color: #3f5936;
 }
 
+.recipe-actions .result-preview-button {
+  background: #eee9fb;
+  color: #644a9c;
+}
+
 .timeline-container::before {
   content: '';
   position: absolute;
@@ -1450,6 +1537,17 @@ onMounted(async () => {
   gap: 16px;
 }
 
+.category-editor-dialog {
+  width: min(620px, 100%);
+}
+
+.category-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
 .dialog-header {
   display: flex;
   align-items: center;
@@ -1497,6 +1595,7 @@ onMounted(async () => {
 }
 
 .icon-picker {
+  position: relative;
   margin: 0;
   padding: 0;
   border: none;
@@ -1516,10 +1615,141 @@ onMounted(async () => {
   line-height: 18px;
 }
 
-.icon-select-row {
-  display: flex;
+.icon-select-trigger {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 20px;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
+  width: 100%;
+  min-height: 46px;
+  padding: 7px 10px;
+  border: 1px solid rgba(220, 193, 185, 0.9);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1d1b1a;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.icon-select-trigger:hover,
+.icon-select-trigger[aria-expanded='true'] {
+  border-color: rgba(154, 64, 36, 0.62);
+  box-shadow: 0 0 0 3px rgba(154, 64, 36, 0.08);
+}
+
+.icon-select-trigger > span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.icon-trigger-preview,
+.icon-option-preview {
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #f9f2f0;
+  color: #7a2f16;
+}
+
+.icon-trigger-preview {
+  width: 30px;
+  height: 30px;
+}
+
+.icon-trigger-preview img,
+.icon-option-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.icon-trigger-preview .material-symbols-outlined,
+.icon-option-preview .material-symbols-outlined {
+  font-size: 21px;
+}
+
+.dropdown-arrow {
+  font-size: 20px;
+  transition: transform 0.18s ease;
+}
+
+.icon-select-trigger[aria-expanded='true'] .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.icon-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 120;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(220, 193, 185, 0.95);
+  border-radius: 10px;
+  background: #fffdfc;
+  box-shadow: 0 18px 40px rgba(50, 47, 46, 0.2);
+}
+
+.icon-dropdown-header,
+.icon-option {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.icon-dropdown-header {
+  min-height: 38px;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(220, 193, 185, 0.72);
+  background: #f7edeb;
+  color: #7a625c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.icon-dropdown-header span:last-child,
+.icon-option > span:last-child {
+  text-align: right;
+}
+
+.icon-option-list {
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.icon-option {
+  width: 100%;
+  min-height: 50px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #1d1b1a;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.icon-option:hover {
+  background: #fbf1ee;
+}
+
+.icon-option.selected {
+  border-color: rgba(154, 64, 36, 0.3);
+  background: #f6e3dd;
+  color: #7a2f16;
+}
+
+.icon-option-preview {
+  width: 36px;
+  height: 36px;
+  justify-self: start;
 }
 
 .nutrition-analysis-dialog {
@@ -1644,31 +1874,6 @@ onMounted(async () => {
   font-size: 19px;
 }
 
-.icon-select {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid rgba(220, 193, 185, 0.9);
-  border-radius: 8px;
-  background: #ffffff;
-  color: #1d1b1a;
-  font: inherit;
-  padding: 12px 14px;
-  cursor: pointer;
-}
-
-.selected-icon-preview {
-  width: 46px;
-  height: 46px;
-  flex: 0 0 46px;
-  border: 1px solid rgba(220, 193, 185, 0.9);
-  border-radius: 8px;
-  background: #ffffff;
-  color: #7a2f16;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .dialog-error {
   color: #b42318;
   font-size: 13px;
@@ -1790,6 +1995,16 @@ onMounted(async () => {
 
   .timeline-container::before {
     display: none;
+  }
+
+  .category-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .icon-dropdown {
+    right: auto;
+    left: 0;
+    width: 100%;
   }
 }
 </style>

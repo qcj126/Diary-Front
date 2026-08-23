@@ -123,7 +123,9 @@ defineEmits(['update:modelValue', 'toggle-theme'])
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-height: 0;
   gap: 4px;
+  overflow-y: auto;
 }
 
 .nav-item {
@@ -268,6 +270,7 @@ defineEmits(['update:modelValue', 'toggle-theme'])
     flex-direction: row;
     flex: none;
     overflow-x: auto;
+    overflow-y: hidden;
     padding-bottom: 4px;
   }
 
