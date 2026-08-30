@@ -11,6 +11,9 @@ export interface GeoPoint {
 
 export interface LoveRecord {
   id: string
+  coupleId?: string
+  creatorUserId?: string
+  locationId?: string | null
   title: string
   date: string
   content: string
@@ -21,17 +24,31 @@ export interface LoveRecord {
   tags: string[]
   category: RecordCategory
   important: boolean
+  sort?: number
+  imageRefs?: Array<{ relationId: string; imageId: string; url: string }>
+  moodRefs?: Array<{ relationId: string; moodId: string; name: Mood }>
+  tagRefs?: Array<{ relationId: string; tagId: string; name: string }>
 }
 
 export interface Anniversary {
   id: string
+  coupleId?: string
+  creatorUserId?: string
   name: string
   date: string
+  repeatType?: number
+  remindDays?: number
+  pinned?: boolean
+  sort?: number
 }
 
 export interface RelationshipInfo {
+  id?: string
+  ownerUserId?: string
+  partnerUserId?: string | null
   startDate: string
   partnerName: string
+  status?: number
   anniversaries: Anniversary[]
 }
 

@@ -2,7 +2,7 @@ import { API_BASE, ICON_API } from '../../../api/index.js'
 import { getAuthSession } from '../../auth/session.js'
 
 const DEFAULT_USER_ID = 10000
-const ICON_STATIC_PREFIX = '/file/icon'
+const ICON_STATIC_PREFIX = '/sys/info/icon'
 
 function authHeaders(contentType = 'application/json') {
   const session = getAuthSession()

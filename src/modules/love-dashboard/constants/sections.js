@@ -8,5 +8,5 @@ export const LOVE_SECTIONS = [
   { key: 'ledger', label: '账目', icon: 'payments' },
   { key: 'diet', label: '饮食记录', icon: 'restaurant' },
   { key: 'ai-results', label: 'AI分析结果', icon: 'neurology' },
-  { key: 'icons', label: '图标库', icon: 'category' },
+  { key: 'system-database', label: '系统数据库', icon: 'database' },
 ]

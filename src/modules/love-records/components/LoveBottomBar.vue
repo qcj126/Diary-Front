@@ -1,5 +1,5 @@
 <template>
-  <footer class="love-footer"><span>{{ year }}年</span><i /><span>共 <b>{{ stats.records }}</b> 条记录</span><i /><span>去过 <b>{{ stats.locations }}</b> 个地方</span><i /><span>拍了 <b>{{ stats.photos }}</b> 张照片</span><i /><span>最常去 <b>{{ stats.favoriteLocation }}</b></span><span class="sync"><span class="material-symbols-outlined">cloud_done</span>本地数据已保存</span></footer>
+  <footer class="love-footer"><span>{{ year }}年</span><i /><span>共 <b>{{ stats.records }}</b> 条记录</span><i /><span>去过 <b>{{ stats.locations }}</b> 个地方</span><i /><span>拍了 <b>{{ stats.photos }}</b> 张照片</span><i /><span>最常去 <b>{{ stats.favoriteLocation }}</b></span><span class="sync"><span class="material-symbols-outlined">cloud_done</span>服务端数据已同步</span></footer>
 </template>
 <script setup lang="ts">
 defineProps<{ year: number; stats: { records: number; locations: number; photos: number; favoriteLocation: string } }>()

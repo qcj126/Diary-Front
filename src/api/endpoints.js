@@ -9,13 +9,65 @@ export const AUTH_API = {
 }
 
 export const LOVE_DASHBOARD_API = {
-  timelineEvents: `${API_BASE}/love/timeline/events`,
-  timelineCategories: `${API_BASE}/love/timeline/categories`,
-  homeData: `${API_BASE}/love/home/data`,
-  diary: `${API_BASE}/love/diary`,
-  photos: `${API_BASE}/love/photos`,
-  wishlist: `${API_BASE}/love/wishlist`,
-  stats: `${API_BASE}/love/stats`,
+  couples: {
+    add: `${API_BASE}/love/add/couples`,
+    query: `${API_BASE}/love/query/couples`,
+    update: `${API_BASE}/love/update/couples`,
+    delete: (id) => `${API_BASE}/love/delete/couples/${encodeURIComponent(id)}`,
+  },
+  anniversaries: {
+    add: `${API_BASE}/love/add/anniversaries`,
+    query: (coupleId) => `${API_BASE}/love/query/anniversaries/${encodeURIComponent(coupleId)}`,
+    update: `${API_BASE}/love/update/anniversaries`,
+    delete: (id) => `${API_BASE}/love/delete/anniversaries/${encodeURIComponent(id)}`,
+  },
+  locations: {
+    add: `${API_BASE}/love/add/locations`,
+    query: (coupleId) => `${API_BASE}/love/query/locations/${encodeURIComponent(coupleId)}`,
+    update: `${API_BASE}/love/update/locations`,
+    delete: (id) => `${API_BASE}/love/delete/locations/${encodeURIComponent(id)}`,
+  },
+  records: {
+    add: `${API_BASE}/love/add/records`,
+    query: `${API_BASE}/love/query/records`,
+    detail: (id) => `${API_BASE}/love/query/records/${encodeURIComponent(id)}`,
+    update: `${API_BASE}/love/update/records`,
+    delete: (id) => `${API_BASE}/love/delete/records/${encodeURIComponent(id)}`,
+  },
+  recordImages: {
+    add: `${API_BASE}/love/add/record-images`,
+    query: (recordId) => `${API_BASE}/love/query/record-images/${encodeURIComponent(recordId)}`,
+    update: `${API_BASE}/love/update/record-images`,
+    delete: (id) => `${API_BASE}/love/delete/record-images/${encodeURIComponent(id)}`,
+  },
+  moods: {
+    add: `${API_BASE}/love/add/moods`,
+    query: `${API_BASE}/love/query/moods`,
+    update: `${API_BASE}/love/update/moods`,
+    delete: (id) => `${API_BASE}/love/delete/moods/${encodeURIComponent(id)}`,
+  },
+  recordMoods: {
+    add: `${API_BASE}/love/add/record-moods`,
+    query: (recordId) => `${API_BASE}/love/query/record-moods/${encodeURIComponent(recordId)}`,
+    update: `${API_BASE}/love/update/record-moods`,
+    delete: (id) => `${API_BASE}/love/delete/record-moods/${encodeURIComponent(id)}`,
+  },
+  tags: {
+    add: `${API_BASE}/love/add/tags`,
+    query: (coupleId) => `${API_BASE}/love/query/tags/${encodeURIComponent(coupleId)}`,
+    update: `${API_BASE}/love/update/tags`,
+    delete: (id) => `${API_BASE}/love/delete/tags/${encodeURIComponent(id)}`,
+  },
+  recordTags: {
+    add: `${API_BASE}/love/add/record-tags`,
+    query: (recordId) => `${API_BASE}/love/query/record-tags/${encodeURIComponent(recordId)}`,
+    update: `${API_BASE}/love/update/record-tags`,
+    delete: (id) => `${API_BASE}/love/delete/record-tags/${encodeURIComponent(id)}`,
+  },
+  files: {
+    uploadImages: `${API_BASE}/file/upload/images`,
+    queryImageUrls: `${API_BASE}/file/query/images/urls`,
+  },
 }
 
 export const TIMELINE_API = {
@@ -33,10 +85,11 @@ export const TIMELINE_API = {
 }
 
 export const ICON_API = {
-  add: `${API_BASE}/file/icon/add`,
-  query: `${API_BASE}/file/icon/query`,
-  update: `${API_BASE}/file/icon/update`,
-  delete: `${API_BASE}/file/icon/delete`,
+  add: `${API_BASE}/sys/info/icon/add`,
+  query: `${API_BASE}/sys/info/icon/query`,
+  update: `${API_BASE}/sys/info/icon/update`,
+  delete: `${API_BASE}/sys/info/icon/delete`,
+  file: (fileName) => `${API_BASE}/sys/info/icon/${encodeURIComponent(fileName)}`,
 }
 
 export const GOAL_API = {
@@ -59,12 +112,20 @@ export const RECIPE_API = {
   deleteCategory: `${API_BASE}/recipe/delete/category`,
   uploadImages: `${API_BASE}/file/upload/images`,
   queryImageUrls: `${API_BASE}/file/query/images/urls`,
-  queryIcons: `${API_BASE}/file/icon/query`,
+  queryIcons: `${API_BASE}/sys/info/icon/query`,
+}
+
+export const DIET_API = {
+  add: `${API_BASE}/diet/add`,
+  query: `${API_BASE}/diet/query`,
+  update: `${API_BASE}/diet/update`,
+  delete: `${API_BASE}/diet/delete`,
 }
 
 export const SYS_INFO_API = {
   ingredientCategories: `${API_BASE}/sys/info/ingredients/category`,
   ingredients: `${API_BASE}/sys/info/ingredients`,
+  addIngredient: `${API_BASE}/sys/info/ingredients/add`,
   cookWays: `${API_BASE}/sys/info/cook-ways`,
 }
 
@@ -80,6 +141,7 @@ export const API_ENDPOINTS = {
   timeline: TIMELINE_API,
   icon: ICON_API,
   goal: GOAL_API,
+  diet: DIET_API,
   recipe: RECIPE_API,
   sysInfo: SYS_INFO_API,
   ai: AI_API,

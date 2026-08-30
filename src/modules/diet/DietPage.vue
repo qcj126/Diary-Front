@@ -8,15 +8,15 @@
 
     <section class="toolbar">
       <div class="actions">
-        <button type="button" class="primary">
+        <button type="button" class="primary" @click="openAddDialog">
           <span class="material-symbols-outlined">add</span>
           增
         </button>
-        <button type="button">
+        <button type="button" :disabled="!selectedMeal || loading" @click="removeSelectedMeal">
           <span class="material-symbols-outlined">delete</span>
           删
         </button>
-        <button type="button">
+        <button type="button" :disabled="!selectedMeal || loading" @click="openEditDialog">
           <span class="material-symbols-outlined">edit</span>
           改
         </button>
@@ -24,20 +24,20 @@
           <span class="material-symbols-outlined">search</span>
           查
         </button>
-        <button type="button">
+        <button type="button" :disabled="!meals.length" @click="exportCsv">
           <span class="material-symbols-outlined">ios_share</span>
           导出
         </button>
       </div>
 
-      <form v-if="queryPanelOpen" class="query-panel" @submit.prevent>
+      <form v-if="queryPanelOpen" class="query-panel" @submit.prevent="loadMeals">
         <div class="segment-buttons" aria-label="饮食记录时间范围">
           <button
             v-for="seg in segments"
             :key="seg.key"
             :class="['seg-btn', { active: seg.key === activeSegment }]"
             type="button"
-            @click="activeSegment = seg.key"
+            @click="selectSegment(seg.key)"
           >
             {{ seg.label }}
           </button>
@@ -47,10 +47,14 @@
           <span class="material-symbols-outlined">search</span>
           <input v-model="search" type="text" placeholder="筛选餐次、菜名或备注" />
         </label>
-        <button type="submit">查询</button>
+        <button type="submit" :disabled="loading">{{ loading ? '查询中' : '查询' }}</button>
         <button type="button" @click="resetQuery">重置</button>
       </form>
     </section>
+
+    <p v-if="notice.message" :class="['operation-notice', notice.type]" role="status">
+      {{ notice.message }}
+    </p>
 
     <main class="diet-main">
       <section class="timeline-area">
@@ -59,20 +63,87 @@
             <h2>餐食轨迹</h2>
           </div>
         </div>
-        <DietTimeline :meals="filteredMeals" />
+        <DietTimeline :meals="filteredMeals" :selected-id="selectedId" @select="selectMeal" />
       </section>
 
       <section class="summary-area">
         <DietSummaryPanel :meals="filteredMeals" />
       </section>
     </main>
+
+    <div v-if="dialogOpen" class="dialog-backdrop" role="presentation">
+      <section class="diet-dialog" role="dialog" aria-modal="true" :aria-labelledby="'diet-dialog-title'">
+        <div class="dialog-head">
+          <h2 id="diet-dialog-title">{{ dialogMode === 'add' ? '新增饮食记录' : '修改饮食记录' }}</h2>
+          <button type="button" class="icon-button" aria-label="关闭" @click="closeDialog">×</button>
+        </div>
+
+        <form class="diet-form" @submit.prevent="saveMeal">
+          <label class="field wide">
+            <span>食物名称</span>
+            <input v-model.trim="form.foodName" maxlength="200" required placeholder="例如：香煎三文鱼能量碗" />
+          </label>
+          <label class="field">
+            <span>食用时间</span>
+            <input v-model="form.eatTime" type="datetime-local" required />
+          </label>
+          <label class="field">
+            <span>餐别</span>
+            <select v-model.number="form.mealType" required>
+              <option v-for="option in mealTypeOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <label class="field">
+            <span>用餐地点</span>
+            <select v-model="form.location" required>
+              <option value="home">在家吃</option>
+              <option value="outside">在外吃</option>
+            </select>
+          </label>
+          <label v-for="nutrient in nutrientFields" :key="nutrient.key" class="field">
+            <span>{{ nutrient.label }}</span>
+            <input
+              v-model.number="form[nutrient.key]"
+              type="number"
+              min="0"
+              :step="nutrient.step"
+              required
+            />
+          </label>
+          <label class="field wide">
+            <span>图片地址</span>
+            <input v-model.trim="form.imageUrl" maxlength="1000" type="url" placeholder="https://..." />
+          </label>
+          <label class="field wide">
+            <span>备注</span>
+            <textarea v-model.trim="form.note" maxlength="500" rows="3" placeholder="食材、口味或当时的感受"></textarea>
+          </label>
+
+          <div class="dialog-actions wide">
+            <button type="button" @click="closeDialog">取消</button>
+            <button type="submit" class="primary" :disabled="saving">
+              {{ saving ? '保存中…' : '保存' }}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import DietTimeline from './DietTimeline.vue'
 import DietSummaryPanel from './DietSummaryPanel.vue'
+import {
+  addDietRecord,
+  currentDietUserId,
+  deleteDietRecord,
+  queryDietRecords,
+  updateDietRecord,
+} from './api/diet.js'
 
 const segments = [
   { key: 'all', label: '全部' },
@@ -85,77 +156,36 @@ const segments = [
 const activeSegment = ref('all')
 const search = ref('')
 const queryPanelOpen = ref(false)
+const meals = ref([])
+const selectedId = ref(null)
+const loading = ref(false)
+const saving = ref(false)
+const dialogOpen = ref(false)
+const dialogMode = ref('add')
+const notice = ref({ type: '', message: '' })
 
-const meals = ref([
-  {
-    id: 1,
-    type: 'breakfast',
-    period: '早餐',
-    time: '08:30',
-    recordedAt: '2026-08-07 08:30:16',
-    place: 'home',
-    name: '牛油果吐司与温泉蛋',
-    desc: '全麦吐司、牛油果泥、水波蛋与少量黑胡椒，清爽但有满足感。',
-    kcal: 420,
-    protein: 18,
-    carbs: 45,
-    fat: 15,
-    sodium: 420,
-    sugar: 6,
-    img: 'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    id: 2,
-    type: 'lunch',
-    period: '午餐',
-    time: '12:15',
-    recordedAt: '2026-08-07 12:15:42',
-    place: 'outside',
-    name: '香煎三文鱼藜麦能量碗',
-    desc: '三文鱼、藜麦、羽衣甘蓝与南瓜，蛋白和纤维都很充足。',
-    kcal: 580,
-    protein: 32,
-    carbs: 50,
-    fat: 20,
-    sodium: 610,
-    sugar: 9,
-    img: 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    id: 3,
-    type: 'snack',
-    period: '加餐',
-    time: '15:45',
-    recordedAt: '2026-08-07 15:45:08',
-    place: 'home',
-    name: '希腊酸奶配蓝莓',
-    desc: '无糖酸奶加蓝莓和少量坚果，控制嘴馋也补一点蛋白。',
-    kcal: 150,
-    protein: 8,
-    carbs: 18,
-    fat: 4,
-    sodium: 70,
-    sugar: 12,
-    img: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    id: 4,
-    type: 'dinner',
-    period: '晚餐',
-    time: '19:20',
-    recordedAt: '2026-08-07 19:20:33',
-    place: 'outside',
-    name: '香草鸡胸与烤时蔬',
-    desc: '迷迭香鸡胸、烤胡萝卜、西兰花和土豆，热量控制得比较均衡。',
-    kcal: 460,
-    protein: 36,
-    carbs: 34,
-    fat: 14,
-    sodium: 520,
-    sugar: 8,
-    img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80',
-  },
-])
+const mealTypeOptions = [
+  { value: 10, label: '早餐' },
+  { value: 15, label: '早加餐' },
+  { value: 20, label: '午餐' },
+  { value: 25, label: '午加餐' },
+  { value: 30, label: '晚餐' },
+  { value: 35, label: '夜宵' },
+]
+
+const nutrientFields = [
+  { key: 'calories', label: '热量（kcal）', step: 1 },
+  { key: 'protein', label: '蛋白质（g）', step: 0.1 },
+  { key: 'carbohydrate', label: '碳水（g）', step: 0.1 },
+  { key: 'fat', label: '脂肪（g）', step: 0.1 },
+  { key: 'sugar', label: '糖（g）', step: 0.1 },
+  { key: 'sodium', label: '钠（mg）', step: 0.1 },
+]
+
+const form = ref(createEmptyForm())
+const selectedMeal = computed(() =>
+  meals.value.find((meal) => String(meal.id) === String(selectedId.value)) || null,
+)
 
 const filteredMeals = computed(() => {
   const keyword = search.value.trim().toLowerCase()
@@ -172,7 +202,194 @@ const filteredMeals = computed(() => {
 function resetQuery() {
   activeSegment.value = 'all'
   search.value = ''
+  loadMeals()
 }
+
+function selectSegment(key) {
+  activeSegment.value = key
+  loadMeals()
+}
+
+function selectMeal(meal) {
+  selectedId.value = String(meal.id) === String(selectedId.value) ? null : meal.id
+}
+
+async function loadMeals() {
+  loading.value = true
+  setNotice('', '')
+  try {
+    meals.value = await queryDietRecords({
+      userId: currentDietUserId(),
+      keyword: search.value,
+      ...dateRange(activeSegment.value),
+    })
+    if (!selectedMeal.value) selectedId.value = null
+  } catch (error) {
+    setNotice('error', error.message || '查询饮食记录失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+function openAddDialog() {
+  dialogMode.value = 'add'
+  form.value = createEmptyForm()
+  dialogOpen.value = true
+}
+
+function openEditDialog() {
+  if (!selectedMeal.value) return
+  const meal = selectedMeal.value
+  dialogMode.value = 'edit'
+  form.value = {
+    id: meal.id,
+    userId: meal.userId,
+    eatTime: String(meal.eatTime || '').slice(0, 16),
+    mealType: meal.mealType,
+    foodName: meal.name,
+    calories: meal.kcal,
+    protein: meal.protein,
+    carbohydrate: meal.carbs,
+    fat: meal.fat,
+    sugar: meal.sugar,
+    sodium: meal.sodium,
+    location: meal.place,
+    note: meal.desc,
+    imageUrl: meal.img,
+  }
+  dialogOpen.value = true
+}
+
+function closeDialog() {
+  if (!saving.value) dialogOpen.value = false
+}
+
+async function saveMeal() {
+  saving.value = true
+  try {
+    const action = dialogMode.value === 'add' ? addDietRecord : updateDietRecord
+    await action(form.value)
+    dialogOpen.value = false
+    await loadMeals()
+    setNotice('success', dialogMode.value === 'add' ? '饮食记录已新增' : '饮食记录已修改')
+  } catch (error) {
+    setNotice('error', error.message || '保存饮食记录失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function removeSelectedMeal() {
+  const meal = selectedMeal.value
+  if (!meal || !window.confirm(`确定删除“${meal.name}”吗？`)) return
+  loading.value = true
+  try {
+    await deleteDietRecord(meal.id)
+    selectedId.value = null
+    await loadMeals()
+    setNotice('success', '饮食记录已删除')
+  } catch (error) {
+    setNotice('error', error.message || '删除饮食记录失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+function createEmptyForm() {
+  const now = new Date()
+  return {
+    id: null,
+    userId: currentDietUserId(),
+    eatTime: toDateTimeInput(now),
+    mealType: defaultMealType(now.getHours()),
+    foodName: '',
+    calories: 0,
+    protein: 0,
+    carbohydrate: 0,
+    fat: 0,
+    sugar: 0,
+    sodium: 0,
+    location: 'home',
+    note: '',
+    imageUrl: '',
+  }
+}
+
+function defaultMealType(hour) {
+  if (hour < 10) return 10
+  if (hour < 11) return 15
+  if (hour < 14) return 20
+  if (hour < 17) return 25
+  if (hour < 22) return 30
+  return 35
+}
+
+function dateRange(segment) {
+  if (segment === 'all' || segment === 'habit') return {}
+  const now = new Date()
+  let start = new Date(now)
+  let end = new Date(now)
+
+  if (segment === 'today') {
+    start.setHours(0, 0, 0, 0)
+    end.setHours(23, 59, 59, 999)
+  } else if (segment === 'week') {
+    const mondayOffset = (now.getDay() + 6) % 7
+    start.setDate(now.getDate() - mondayOffset)
+    start.setHours(0, 0, 0, 0)
+    end.setDate(start.getDate() + 6)
+    end.setHours(23, 59, 59, 999)
+  } else if (segment === 'month') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+  }
+  return { startTime: toApiDateTime(start), endTime: toApiDateTime(end) }
+}
+
+function toDateTimeInput(date) {
+  return toApiDateTime(date).slice(0, 16)
+}
+
+function toApiDateTime(date) {
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+function setNotice(type, message) {
+  notice.value = { type, message }
+}
+
+function exportCsv() {
+  const headers = ['食用时间', '餐别', '食物名称', '地点', '热量', '蛋白质', '碳水', '脂肪', '糖', '钠', '备注']
+  const rows = meals.value.map((meal) => [
+    meal.recordedAt,
+    meal.period,
+    meal.name,
+    meal.place === 'outside' ? '在外' : '在家',
+    meal.kcal,
+    meal.protein,
+    meal.carbs,
+    meal.fat,
+    meal.sugar,
+    meal.sodium,
+    meal.desc,
+  ])
+  const csv = [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
+  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `饮食记录-${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function csvCell(value) {
+  let text = String(value ?? '')
+  if (/^[=+\-@]/.test(text)) text = `'${text}`
+  return `"${text.replaceAll('"', '""')}"`
+}
+
+onMounted(loadMeals)
 
 </script>
 
@@ -266,6 +483,30 @@ button {
 
 button:hover {
   transform: translateY(-1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+  transform: none;
+}
+
+.operation-notice {
+  margin: -4px 0 0;
+  padding: 9px 13px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.operation-notice.success {
+  color: #315b25;
+  background: rgba(212, 233, 197, 0.85);
+}
+
+.operation-notice.error {
+  color: #8d2f22;
+  background: rgba(255, 219, 209, 0.9);
 }
 
 .actions button,
@@ -392,6 +633,122 @@ button:hover {
   overflow: hidden;
 }
 
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(28, 27, 27, 0.38);
+  backdrop-filter: blur(5px);
+}
+
+.diet-dialog {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 20px;
+  background: #fffaf8;
+  border: 1px solid rgba(220, 193, 185, 0.9);
+  box-shadow: 0 28px 80px rgba(50, 47, 46, 0.24);
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.dialog-head h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.icon-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f1edec;
+  color: #56423d;
+  font-size: 24px;
+}
+
+.diet-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field.wide,
+.dialog-actions.wide {
+  grid-column: 1 / -1;
+}
+
+.field span {
+  color: #56423d;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.field input,
+.field select,
+.field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(220, 193, 185, 0.92);
+  border-radius: 11px;
+  outline: none;
+  padding: 9px 12px;
+  background: #fff;
+  color: #1d1b1a;
+  font: inherit;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: #9a4024;
+  box-shadow: 0 0 0 3px rgba(154, 64, 36, 0.1);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 5px;
+}
+
+.dialog-actions button {
+  min-width: 92px;
+  min-height: 40px;
+  border-radius: 11px;
+  padding: 0 16px;
+  background: #f1edec;
+  color: #444748;
+  font-weight: 800;
+}
+
+.dialog-actions .primary {
+  background: #1c1b1b;
+  color: #fff;
+}
+
 @media (max-width: 1280px) {
   .diet-main {
     grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.9fr);
@@ -447,6 +804,15 @@ button:hover {
   .query-panel button,
   .seg-btn {
     flex: 1 1 auto;
+  }
+
+  .diet-form {
+    grid-template-columns: 1fr;
+  }
+
+  .field.wide,
+  .dialog-actions.wide {
+    grid-column: auto;
   }
 }
 </style>

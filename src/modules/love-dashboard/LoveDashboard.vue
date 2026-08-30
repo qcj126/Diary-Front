@@ -23,7 +23,7 @@
         v-else-if="active === 'ai-results'"
         :initial-task-id="aiResultTaskId"
       />
-      <IconLibraryPage v-else-if="active === 'icons'" />
+      <SystemDatabasePage v-else-if="active === 'system-database'" />
       <PlaceholderPanel
         v-else
         :title="currentLabel"
@@ -45,7 +45,7 @@ import GoalsPage from '../goals/GoalsPage.vue'
 import LedgerPage from '../ledger/LedgerPage.vue'
 import AiResultsPage from '../ai-results/AiResultsPage.vue'
 import LifeThoughtsPage from '../life-thoughts/LifeThoughtsPage.vue'
-import IconLibraryPage from '../icons/IconLibraryPage.vue'
+import SystemDatabasePage from '../system-database/SystemDatabasePage.vue'
 import { LOVE_SECTIONS } from './constants/sections.js'
 
 const active = ref('home')

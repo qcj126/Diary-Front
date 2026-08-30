@@ -37,13 +37,12 @@ watch(() => props.record, reset, { immediate: true })
 function toggleMood(mood: Mood): void { draft.moods = draft.moods.includes(mood) ? draft.moods.filter((item) => item !== mood) : [...draft.moods, mood] }
 function addTag(): void { const value = tagInput.value.replace(/^#/, '').trim(); if (value && !draft.tags.includes(value)) draft.tags.push(value); tagInput.value = '' }
 async function readFiles(files: File[]): Promise<void> { for (const file of files.slice(0, 8 - draft.images.length)) { if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) continue; draft.images.push(await fileToDataUrl(file)) } }
-// 将本地图片转成 Data URL，既能即时预览，也会随 JSON 数据一同留在当前设备。
+// Data URL 只用于即时预览；保存时由 API 层转换回文件并上传到 diary-file。
 function fileToDataUrl(file: File): Promise<string> { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file) }) }
 function onFiles(event: Event): void { const input = event.target as HTMLInputElement; void readFiles(Array.from(input.files ?? [])); input.value = '' }
 function onDrop(event: DragEvent): void { dragging.value = false; void readFiles(Array.from(event.dataTransfer?.files ?? [])) }
 function chooseMapPoint(): void { if (!draft.location) draft.location = '新选择的地点' }
 function submit(): void {
-  if (!draft.images.length) draft.images.push('https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=1000&q=82')
   // reactive 会返回 Proxy，逐字段构造普通对象后再交给业务层保存。
   emit('save', {
     id: draft.id,

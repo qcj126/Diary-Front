@@ -175,9 +175,9 @@ function normalizeRecipeIconUrl(path) {
   const iconDirectoryIndex = normalized.toLowerCase().lastIndexOf('/icon/')
   const fileName = iconDirectoryIndex >= 0
     ? normalized.slice(iconDirectoryIndex + '/icon/'.length)
-    : normalized.replace(/^\/?(?:file\/)?icon\//i, '').replace(/^\/+/, '')
+    : normalized.replace(/^\/?(?:(?:file|sys\/info)\/)?icon\//i, '').replace(/^\/+/, '')
 
-  return fileName ? encodeURI(`${API_BASE}/file/icon/${fileName}`) : ''
+  return fileName ? encodeURI(`${API_BASE}/sys/info/icon/${fileName}`) : ''
 }
 
 function normalizeRecipeCategory(raw = {}, index = 0) {

@@ -16,7 +16,7 @@ import {
 } from '../api/timeMachine.js'
 
 const CATEGORY_COLORS = Object.keys(COLOR_MAP)
-const ICON_STATIC_PREFIX = '/file/icon'
+const ICON_STATIC_PREFIX = '/sys/info/icon'
 
 function readUserId() {
   return GLOBAL_USER_ID

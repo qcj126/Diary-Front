@@ -8,7 +8,16 @@
       <div class="column-timeline">
         <div class="timeline-line" aria-hidden="true" />
 
-        <article v-for="meal in group.items" :key="meal.id" class="timeline-entry">
+        <article
+          v-for="meal in group.items"
+          :key="meal.id"
+          :class="['timeline-entry', { selected: String(meal.id) === String(selectedId) }]"
+          role="button"
+          tabindex="0"
+          @click="emit('select', meal)"
+          @keydown.enter="emit('select', meal)"
+          @keydown.space.prevent="emit('select', meal)"
+        >
           <div class="time-dot" aria-hidden="true" />
 
           <div class="meal-card" :class="{ outside: group.key === 'outside' }">
@@ -50,7 +59,13 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  selectedId: {
+    type: [String, Number],
+    default: null,
+  },
 })
+
+const emit = defineEmits(['select'])
 
 const mealGroups = computed(() => [
   {
@@ -121,6 +136,14 @@ const mealGroups = computed(() => [
 .timeline-entry {
   position: relative;
   padding-left: 20px;
+  cursor: pointer;
+  outline: none;
+}
+
+.timeline-entry.selected .meal-card,
+.timeline-entry:focus-visible .meal-card {
+  border-color: #9a4024;
+  box-shadow: 0 0 0 2px rgba(154, 64, 36, 0.13), 0 12px 24px rgba(50, 47, 46, 0.09);
 }
 
 .time-dot {

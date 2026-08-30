@@ -1,9 +1,9 @@
 <template>
-  <section class="icon-page">
+  <section class="icon-page" :class="{ embedded }">
     <header class="icon-header">
       <div>
         <p class="section-kicker">Icon Library</p>
-        <h1>图标库</h1>
+        <component :is="embedded ? 'h2' : 'h1'">图标库</component>
       </div>
       <button class="primary-button" type="button" @click="openAddDialog">
         <span class="material-symbols-outlined">add</span>
@@ -119,6 +119,13 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { addIcon, deleteIcon, queryIcons, updateIcon } from './api/icons.js'
+
+defineProps({
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
+})
 
 const iconSizes = [16, 32, 48]
 const resolutionOptions = [
@@ -311,6 +318,12 @@ onMounted(loadIcons)
   color: var(--dashboard-text, #1c1b1b);
 }
 
+.icon-page.embedded {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+}
+
 .icon-header {
   display: flex;
   align-items: center;
@@ -326,7 +339,8 @@ onMounted(loadIcons)
   font-weight: 700;
 }
 
-.icon-header h1 {
+.icon-header h1,
+.icon-header h2 {
   margin: 0;
   color: var(--dashboard-text-strong, #000000);
   font-size: 30px;

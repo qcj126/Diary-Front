@@ -1,29 +1,38 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import {
+  clearRecordsApi,
+  deleteRecordApi,
+  loadLoveData,
+  replaceLoveDataApi,
+  saveAnniversariesApi,
+  saveRecordApi,
+  saveRelationshipApi,
+} from '../api/loveRecords'
 import { initialLoveData } from '../mock/records'
 import type { Anniversary, LoveData, LoveRecord, RecordCategory, RecordDraft, ViewKey } from '../types/records'
 import { daysBetween, nextOccurrence, parseLocalDate } from '../utils/date'
-
-const STORAGE_KEY = 'diary-love-album-v2'
 
 // 初始数据始终深拷贝，避免用户编辑时污染作为“恢复示例数据”使用的常量。
 function cloneInitialData(): LoveData {
   return structuredClone(initialLoveData)
 }
 
-function loadData(): LoveData {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return cloneInitialData()
-    const parsed = JSON.parse(raw) as LoveData
-    return parsed.relationship && Array.isArray(parsed.records) ? parsed : cloneInitialData()
-  } catch {
-    return cloneInitialData()
+function emptyData(): LoveData {
+  return {
+    relationship: {
+      startDate: new Date().toISOString().slice(0, 10),
+      partnerName: '未命名',
+      anniversaries: [],
+    },
+    records: [],
   }
 }
 
 export function useLoveRecords() {
   // 页面状态与业务数据集中在 composable 中，视图组件只负责展示和派发用户操作。
-  const data = ref<LoveData>(loadData())
+  const data = ref<LoveData>(emptyData())
+  const loading = ref(false)
+  const error = ref('')
   const activeView = ref<ViewKey>('timeline')
   const activeFilter = ref<'全部' | RecordCategory>('全部')
   const selectedId = ref<string | null>(null)
@@ -73,8 +82,17 @@ export function useLoveRecords() {
     )).slice(0, 3)
   })
 
-  function persist(): void {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data.value))
+  async function refreshData(): Promise<void> {
+    loading.value = true
+    error.value = ''
+    try {
+      data.value = await loadLoveData()
+    } catch (caught) {
+      error.value = caught instanceof Error ? caught.message : '恋爱记录加载失败'
+      throw caught
+    } finally {
+      loading.value = false
+    }
   }
 
   function switchView(view: ViewKey): void {
@@ -98,28 +116,26 @@ export function useLoveRecords() {
     editingId.value = null
   }
 
-  function saveRecord(draft: RecordDraft): void {
-    // 编辑时保留原坐标；新记录未选经纬度时使用城市中心作为安全降级点。
-    const fallbackPoint = { lat: 29.56, lng: 106.57, x: 52, y: 52 }
-    if (draft.id) {
-      const index = data.value.records.findIndex((item) => item.id === draft.id)
-      if (index >= 0) data.value.records[index] = { ...data.value.records[index], ...draft, id: draft.id }
-    } else {
-      data.value.records.unshift({ ...draft, id: crypto.randomUUID(), point: fallbackPoint })
-    }
-    persist()
+  async function saveRecord(draft: RecordDraft): Promise<void> {
+    const current = draft.id
+      ? data.value.records.find((item) => item.id === draft.id) ?? null
+      : null
+    await saveRecordApi(data.value.relationship, draft, current)
+    await refreshData()
     closeDrawer()
   }
 
-  function deleteRecord(id: string): void {
-    data.value.records = data.value.records.filter((item) => item.id !== id)
-    persist()
+  async function deleteRecord(id: string): Promise<void> {
+    await deleteRecordApi(id)
+    await refreshData()
     closeDrawer()
   }
 
-  function toggleImportant(id: string): void {
+  async function toggleImportant(id: string): Promise<void> {
     const item = data.value.records.find((record) => record.id === id)
-    if (item) { item.important = !item.important; persist() }
+    if (!item) return
+    await saveRecordApi(data.value.relationship, { ...item, important: !item.important }, item)
+    await refreshData()
   }
 
   function navigateRecord(direction: -1 | 1): void {
@@ -129,15 +145,12 @@ export function useLoveRecords() {
     if (next) selectedId.value = next.id
   }
 
-  function updateRelationship(startDate: string, partnerName: string): void {
-    data.value.relationship.startDate = startDate
-    data.value.relationship.partnerName = partnerName.trim() || '未命名'
-    persist()
+  async function updateRelationship(startDate: string, partnerName: string): Promise<void> {
+    data.value.relationship = await saveRelationshipApi(data.value.relationship, startDate, partnerName)
   }
 
-  function saveAnniversaries(items: Anniversary[]): void {
-    data.value.relationship.anniversaries = items
-    persist()
+  async function saveAnniversaries(items: Anniversary[]): Promise<void> {
+    data.value.relationship = await saveAnniversariesApi(data.value.relationship, items)
   }
 
   function exportData(): void {
@@ -154,19 +167,19 @@ export function useLoveRecords() {
   async function importData(file: File): Promise<void> {
     const parsed = JSON.parse(await file.text()) as LoveData
     if (!parsed.relationship || !Array.isArray(parsed.records)) throw new Error('文件格式不正确')
-    data.value = parsed
-    persist()
+    await replaceLoveDataApi(data.value, parsed)
+    await refreshData()
   }
 
-  function clearData(): void {
-    data.value.records = []
-    persist()
+  async function clearData(): Promise<void> {
+    await clearRecordsApi(data.value.records)
+    await refreshData()
     closeDrawer()
   }
 
-  function resetData(): void {
-    data.value = cloneInitialData()
-    persist()
+  async function resetData(): Promise<void> {
+    await replaceLoveDataApi(data.value, cloneInitialData())
+    await refreshData()
   }
 
   function onKeydown(event: KeyboardEvent): void {
@@ -177,13 +190,16 @@ export function useLoveRecords() {
     if (event.key === 'ArrowRight') navigateRecord(1)
   }
 
-  onMounted(() => window.addEventListener('keydown', onKeydown))
+  onMounted(() => {
+    window.addEventListener('keydown', onKeydown)
+    void refreshData().catch(() => undefined)
+  })
   onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
   return {
-    data, activeView, activeFilter, drawerMode, filteredRecords, sortedRecords, selectedRecord, editingRecord,
+    data, loading, error, activeView, activeFilter, drawerMode, filteredRecords, sortedRecords, selectedRecord, editingRecord,
     togetherDays, upcomingAnniversaries, locations, stats, relatedRecords, switchView, openDetail, openForm,
     closeDrawer, saveRecord, deleteRecord, toggleImportant, navigateRecord, updateRelationship,
-    saveAnniversaries, exportData, importData, clearData, resetData,
+    saveAnniversaries, exportData, importData, clearData, resetData, refreshData,
   }
 }

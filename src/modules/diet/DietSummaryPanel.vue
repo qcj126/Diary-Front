@@ -21,7 +21,12 @@
       </div>
     </section>
 
-    <WeeklyNutritionChart :total="total" :colors="colors" :targets="nutritionTargets" />
+    <WeeklyNutritionChart
+      :meals="meals"
+      :selected-date="selectedDate"
+      :colors="colors"
+      :targets="nutritionTargets"
+    />
   </div>
 </template>
 
@@ -45,10 +50,14 @@ const colors = {
   kcal: '#9a4024',
 }
 
-const selectedDate = ref('2026-08-07')
+const selectedDate = ref(formatDate(new Date()))
+
+const selectedMeals = computed(() =>
+  props.meals.filter((meal) => String(meal.eatTime || meal.recordedAt || '').slice(0, 10) === selectedDate.value),
+)
 
 const total = computed(() =>
-  props.meals.reduce(
+  selectedMeals.value.reduce(
     (acc, meal) => ({
       kcal: acc.kcal + (meal.kcal || 0),
       protein: acc.protein + (meal.protein || 0),
@@ -60,6 +69,13 @@ const total = computed(() =>
     { kcal: 0, protein: 0, carbs: 0, fat: 0, sugar: 0, sodium: 0 },
   ),
 )
+
+function formatDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 const overviewItems = computed(() => [
   { key: 'protein', label: '蛋白质', value: total.value.protein, unit: 'g', color: colors.protein },

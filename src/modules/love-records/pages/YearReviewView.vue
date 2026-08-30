@@ -15,7 +15,7 @@ const yearPhotos = computed(() => yearRecords.value.reduce((sum, item) => sum + 
 const yearTrips = computed(() => yearRecords.value.filter((item) => item.category === '旅行').length)
 const keywords = computed(() => { const counts = new Map<string, number>(); yearRecords.value.flatMap((item) => item.tags).forEach((tag) => counts.set(tag, (counts.get(tag) ?? 0) + 1)); return [...counts].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count).slice(0, 12) })
 const topPlaces = computed(() => { const map = new Map<string, { name: string; count: number; latest: string }>(); yearRecords.value.forEach((item) => { const current = map.get(item.location); if (current) { current.count += 1; if (item.date > current.latest) current.latest = item.date } else if (item.location) map.set(item.location, { name: item.location, count: 1, latest: item.date }) }); return [...map.values()].sort((a, b) => b.count - a.count).slice(0, 3) })
-const bestRecord = computed(() => [...yearRecords.value].sort((a, b) => (b.tags.length + b.moods.length + Number(b.important)) - (a.tags.length + a.moods.length + Number(a.important)))[0] ?? null)
+const bestRecord = computed(() => yearRecords.value.filter((item) => item.images.length).sort((a, b) => (b.tags.length + b.moods.length + Number(b.important)) - (a.tags.length + a.moods.length + Number(a.important)))[0] ?? null)
 const chartElement = ref<HTMLElement | null>(null)
 const chartLoading = ref(true)
 let chart: EChartsType | null = null

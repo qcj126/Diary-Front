@@ -53,8 +53,12 @@
 import { computed } from 'vue'
 
 const props = defineProps({
-  total: {
-    type: Object,
+  meals: {
+    type: Array,
+    required: true,
+  },
+  selectedDate: {
+    type: String,
     required: true,
   },
   colors: {
@@ -67,7 +71,6 @@ const props = defineProps({
   },
 })
 
-const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '今日']
 const gramTicks = [0, 30, 60, 90, 120, 150, 180, 210]
 const largeUnitTicks = [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000]
 const seriesMeta = [
@@ -80,16 +83,35 @@ const seriesMeta = [
 ]
 
 const weekData = computed(() => {
-  const factors = [0.78, 0.9, 0.84, 1.05, 0.96, 1.12, 1]
-  return factors.map((factor, index) => ({
-    label: weekdays[index],
-    kcal: Math.round(props.total.kcal * factor),
-    protein: Math.round(props.total.protein * (factor + (index % 2 ? 0.04 : -0.02))),
-    carbs: Math.round(props.total.carbs * (factor + (index % 3 === 0 ? 0.05 : -0.03))),
-    fat: Math.round(props.total.fat * (factor + (index % 2 ? -0.03 : 0.03))),
-    sugar: Math.round(props.total.sugar * (factor + (index % 3 === 2 ? 0.07 : -0.02))),
-    sodium: Math.round(props.total.sodium * (factor + (index % 3 === 1 ? 0.06 : -0.01))),
-  }))
+  const end = new Date(`${props.selectedDate}T00:00:00`)
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(end)
+    date.setDate(end.getDate() - (6 - index))
+    const key = formatDate(date)
+    const dailyMeals = props.meals.filter(
+      (meal) => String(meal.eatTime || meal.recordedAt || '').slice(0, 10) === key,
+    )
+    return dailyMeals.reduce(
+      (total, meal) => ({
+        ...total,
+        kcal: total.kcal + Number(meal.kcal || 0),
+        protein: total.protein + Number(meal.protein || 0),
+        carbs: total.carbs + Number(meal.carbs || 0),
+        fat: total.fat + Number(meal.fat || 0),
+        sugar: total.sugar + Number(meal.sugar || 0),
+        sodium: total.sodium + Number(meal.sodium || 0),
+      }),
+      {
+        label: index === 6 ? '今日' : `周${'日一二三四五六'[date.getDay()]}`,
+        kcal: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        sugar: 0,
+        sodium: 0,
+      },
+    )
+  })
 })
 
 const nutritionCharts = computed(() =>
@@ -110,6 +132,13 @@ const nutritionCharts = computed(() =>
 
 function chartY(chart, tick) {
   return 116 - (tick / chart.maxValue) * 112
+}
+
+function formatDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 </script>
 
