@@ -185,7 +185,7 @@ export function updateGoal(goal) {
 }
 
 export function deleteGoal(goalId) {
-  return postJson(`${GOAL_API.delete}/${goalId}`, {}, '删除阶段目标失败')
+  return postJson(GOAL_API.delete(goalId), {}, '删除阶段目标失败')
 }
 
 export function exportGoals(params = {}) {
@@ -195,7 +195,7 @@ export function exportGoals(params = {}) {
     exportSize: String(params.exportSize ?? 10),
   })
   return requestJson(
-    `${GOAL_API.export}?${query.toString()}`,
+    GOAL_API.export(query.toString()),
     {
       method: 'POST',
       headers: authHeaders(),

@@ -135,6 +135,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { DIET_SEGMENTS, MEAL_TYPE_OPTIONS, NUTRIENT_FIELDS } from '../../constants/diet.js'
 import DietTimeline from './DietTimeline.vue'
 import DietSummaryPanel from './DietSummaryPanel.vue'
 import {
@@ -145,13 +146,7 @@ import {
   updateDietRecord,
 } from './api/diet.js'
 
-const segments = [
-  { key: 'all', label: '全部' },
-  { key: 'today', label: '今日' },
-  { key: 'week', label: '本周' },
-  { key: 'month', label: '本月' },
-  { key: 'habit', label: '习惯' },
-]
+const segments = DIET_SEGMENTS
 
 const activeSegment = ref('all')
 const search = ref('')
@@ -164,23 +159,8 @@ const dialogOpen = ref(false)
 const dialogMode = ref('add')
 const notice = ref({ type: '', message: '' })
 
-const mealTypeOptions = [
-  { value: 10, label: '早餐' },
-  { value: 15, label: '早加餐' },
-  { value: 20, label: '午餐' },
-  { value: 25, label: '午加餐' },
-  { value: 30, label: '晚餐' },
-  { value: 35, label: '夜宵' },
-]
-
-const nutrientFields = [
-  { key: 'calories', label: '热量（kcal）', step: 1 },
-  { key: 'protein', label: '蛋白质（g）', step: 0.1 },
-  { key: 'carbohydrate', label: '碳水（g）', step: 0.1 },
-  { key: 'fat', label: '脂肪（g）', step: 0.1 },
-  { key: 'sugar', label: '糖（g）', step: 0.1 },
-  { key: 'sodium', label: '钠（mg）', step: 0.1 },
-]
+const mealTypeOptions = MEAL_TYPE_OPTIONS
+const nutrientFields = NUTRIENT_FIELDS
 
 const form = ref(createEmptyForm())
 const selectedMeal = computed(() =>

@@ -1,21 +1,9 @@
-export const AI_FLAG_OPTIONS = Object.freeze([
-  { value: 'DIET', label: '饮食记录' },
-  { value: 'RECIPE', label: '厨房创食记' },
-  { value: 'GOAL', label: '阶段目标' },
-])
-
-export const AI_APPLICATION_OPTIONS = Object.freeze([
-  { value: 1, label: '营养分析' },
-  { value: 2, label: '感情分析' },
-  { value: 3, label: '情绪解析' },
-  { value: 4, label: '饮食分析' },
-  { value: 5, label: '账单分析' },
-  { value: 6, label: '天气分析' },
-  { value: 7, label: '饮食推荐' },
-])
-
-const STORAGE_KEY = 'diary-ai-tasks-v1'
-const MAX_TRACKED_TASKS = 100
+import {
+  AI_APPLICATION_OPTIONS,
+  AI_FLAG_OPTIONS,
+  AI_TASK_STORAGE_KEY,
+  MAX_TRACKED_AI_TASKS,
+} from '../../constants/ai.js'
 
 function normalizeTask(task) {
   const taskId = String(task?.taskId ?? '').trim()
@@ -43,7 +31,7 @@ export function getAiApplicationLabel(code) {
 
 export function loadTrackedAiTasks() {
   try {
-    const value = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '[]')
+    const value = JSON.parse(window.localStorage.getItem(AI_TASK_STORAGE_KEY) || '[]')
     if (!Array.isArray(value)) return []
     return value.map(normalizeTask).filter(Boolean)
   } catch {
@@ -64,13 +52,13 @@ export function saveTrackedAiTask(task) {
     updatedAt: new Date().toISOString(),
   }
   const nextTasks = [nextTask, ...tasks.filter((item) => item.taskId !== normalized.taskId)]
-    .slice(0, MAX_TRACKED_TASKS)
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextTasks))
+    .slice(0, MAX_TRACKED_AI_TASKS)
+  window.localStorage.setItem(AI_TASK_STORAGE_KEY, JSON.stringify(nextTasks))
   return nextTask
 }
 
 export function removeTrackedAiTask(taskId) {
   const value = String(taskId ?? '')
   const tasks = loadTrackedAiTasks().filter((item) => item.taskId !== value)
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks))
+  window.localStorage.setItem(AI_TASK_STORAGE_KEY, JSON.stringify(tasks))
 }

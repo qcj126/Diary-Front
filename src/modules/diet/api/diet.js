@@ -1,7 +1,5 @@
 import { DIET_API } from '../../../api/index.js'
-import { getAuthSession } from '../../auth/session.js'
-
-const DEFAULT_USER_ID = 10000
+import { getAuthSession, requireAuthUserId } from '../../auth/session.js'
 
 const mealTypeMap = {
   10: { type: 'breakfast', period: '早餐' },
@@ -68,7 +66,7 @@ function compactObject(object) {
 }
 
 export function currentDietUserId() {
-  return getAuthSession()?.userId ?? DEFAULT_USER_ID
+  return requireAuthUserId()
 }
 
 export function normalizeDietRecord(raw = {}) {
@@ -144,5 +142,5 @@ export function updateDietRecord(meal) {
 }
 
 export function deleteDietRecord(id) {
-  return postJson(`${DIET_API.delete}/${encodeURIComponent(id)}`, {}, '删除饮食记录失败')
+  return postJson(DIET_API.delete(id), {}, '删除饮食记录失败')
 }

@@ -37,7 +37,6 @@ const CODE_TO_CATEGORY: Record<string, RecordCategory> = {
   ANNIVERSARY: '纪念日',
 }
 
-const DEFAULT_USER_ID = '10000'
 const LOVE_TAG_COLORS = ['#FF6B81', '#FF8A80', '#E9546D', '#F59E0B', '#8B5CF6', '#06B6D4'] as const
 
 function parseApiPayload(text: string): any {
@@ -130,7 +129,7 @@ export const diaryLoveControllerApi = {
   moods: {
     add: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.moods.add, dto, '新增心情失败'),
     query: (enabled?: boolean) => getJson(
-      enabled == null ? LOVE_DASHBOARD_API.moods.query : `${LOVE_DASHBOARD_API.moods.query}?enabled=${enabled}`,
+      LOVE_DASHBOARD_API.moods.query(enabled),
       '查询心情失败',
     ),
     update: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.moods.update, dto, '修改心情失败'),
@@ -153,8 +152,7 @@ function toOptionalNumber(value: unknown): number | null {
 }
 
 function currentUserId(): string {
-  // 登录功能暂时屏蔽时使用开发用户；会话中已有 userId 后自动改用真实用户。
-  return toKey(getAuthSession()?.userId) || DEFAULT_USER_ID
+  return requireCurrentUserId()
 }
 
 function requireCurrentUserId(): string {

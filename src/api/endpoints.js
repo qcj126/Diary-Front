@@ -1,5 +1,11 @@
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:10000'
 
+export function resolveApiUrl(path) {
+  const value = String(path ?? '').trim()
+  if (!value || /^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value
+  return `${API_BASE}${value.startsWith('/') ? '' : '/'}${value}`
+}
+
 export const AUTH_API = {
   login: `${API_BASE}/user/login`,
   refresh: `${API_BASE}/user/refresh`,
@@ -41,7 +47,9 @@ export const LOVE_DASHBOARD_API = {
   },
   moods: {
     add: `${API_BASE}/sys/info/add/moods`,
-    query: `${API_BASE}/sys/info/query/moods`,
+    query: (enabled) => enabled == null
+      ? `${API_BASE}/sys/info/query/moods`
+      : `${API_BASE}/sys/info/query/moods?enabled=${encodeURIComponent(enabled)}`,
     update: `${API_BASE}/sys/info/update/moods`,
     delete: (id) => `${API_BASE}/sys/info/delete/moods/${encodeURIComponent(id)}`,
   },
@@ -76,10 +84,10 @@ export const ICON_API = {
 export const GOAL_API = {
   add: `${API_BASE}/goal/add`,
   batchAddSubGoal: `${API_BASE}/goal/batch/addSubGoal`,
-  delete: `${API_BASE}/goal/delete`,
+  delete: (id) => `${API_BASE}/goal/delete/${encodeURIComponent(id)}`,
   update: `${API_BASE}/goal/update`,
   query: `${API_BASE}/goal/query`,
-  export: `${API_BASE}/goal/export`,
+  export: (query = '') => `${API_BASE}/goal/export${query ? `?${query}` : ''}`,
 }
 
 export const RECIPE_API = {
@@ -100,7 +108,7 @@ export const DIET_API = {
   add: `${API_BASE}/diet/add`,
   query: `${API_BASE}/diet/query`,
   update: `${API_BASE}/diet/update`,
-  delete: `${API_BASE}/diet/delete`,
+  delete: (id) => `${API_BASE}/diet/delete/${encodeURIComponent(id)}`,
 }
 
 export const SYS_INFO_API = {

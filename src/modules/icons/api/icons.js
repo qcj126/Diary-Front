@@ -1,8 +1,5 @@
-import { API_BASE, ICON_API } from '../../../api/index.js'
-import { getAuthSession } from '../../auth/session.js'
-
-const DEFAULT_USER_ID = 10000
-const ICON_STATIC_PREFIX = '/sys/info/icon'
+import { ICON_API, resolveApiUrl } from '../../../api/index.js'
+import { getAuthSession, requireAuthUserId } from '../../auth/session.js'
 
 function authHeaders(contentType = 'application/json') {
   const session = getAuthSession()
@@ -16,8 +13,7 @@ function authHeaders(contentType = 'application/json') {
 }
 
 function readUserId() {
-  const userId = getAuthSession()?.userId
-  return userId ?? DEFAULT_USER_ID
+  return requireAuthUserId()
 }
 
 function parseApiPayload(text) {
@@ -89,10 +85,9 @@ function normalizeIconPath(path) {
   const iconIndex = normalized.toLowerCase().lastIndexOf('/icon/')
   if (iconIndex >= 0) {
     const fileName = normalized.slice(iconIndex + '/icon/'.length)
-    return encodeURI(`${API_BASE}${ICON_STATIC_PREFIX}/${fileName}`)
+    return encodeURI(ICON_API.file(fileName))
   }
-  if (normalized.startsWith('/')) return encodeURI(`${API_BASE}${normalized}`)
-  return encodeURI(`${API_BASE}/${normalized}`)
+  return encodeURI(resolveApiUrl(normalized))
 }
 
 export function normalizeIcon(raw = {}, index = 0) {

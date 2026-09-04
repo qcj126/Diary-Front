@@ -8,6 +8,7 @@ export {
   ICON_API,
   LOVE_DASHBOARD_API,
   RECIPE_API,
+  resolveApiUrl,
   SYS_INFO_API,
   TIMELINE_API,
 } from './endpoints.js'

@@ -219,60 +219,9 @@
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
+import { LIFE_THOUGHTS_STORAGE_KEY, THOUGHT_MOODS } from '../../constants/lifeThoughts.js'
 
-const STORAGE_KEY = 'diary-love.life-thoughts'
-const moods = [
-  { name: '开心', icon: '☀' },
-  { name: '平静', icon: '◌' },
-  { name: '期待', icon: '✦' },
-  { name: '疲惫', icon: '☾' },
-  { name: '感动', icon: '♡' },
-]
-const seedThoughts = [
-  {
-    id: 'thought-1',
-    title: '晚风把一天吹软了',
-    content: '下班后沿着路灯慢慢走，空气里有烤红薯的味道。忽然觉得，平凡的一天也可以很值得收藏。',
-    mood: '平静',
-    date: '2026-07-01',
-    location: '小区外的梧桐路',
-    weather: '微风',
-    tags: ['散步', '日常'],
-    photos: [],
-    favorite: true,
-    createdAt: '2026-07-01 21:15',
-    updatedAt: '2026-07-01 21:15',
-  },
-  {
-    id: 'thought-2',
-    title: '早餐店的新豆浆',
-    content: '今天豆浆有一点焦香，老板说是换了新豆子。小小的变化让早晨突然有了新鲜感。',
-    mood: '开心',
-    date: '2026-06-30',
-    location: '楼下早餐店',
-    weather: '晴',
-    tags: ['早餐', '烟火气'],
-    photos: [],
-    favorite: false,
-    createdAt: '2026-06-30 08:20',
-    updatedAt: '2026-06-30 08:20',
-  },
-  {
-    id: 'thought-3',
-    title: '雨声适合整理书桌',
-    content: '把旧便签和数据线都归位，桌面空出来以后，心里也跟着亮了一块。',
-    mood: '期待',
-    date: '2026-06-28',
-    location: '书房',
-    weather: '雨',
-    tags: ['整理', '居家'],
-    photos: [],
-    favorite: true,
-    createdAt: '2026-06-28 16:40',
-    updatedAt: '2026-06-28 16:40',
-  },
-]
-
+const moods = THOUGHT_MOODS
 const thoughts = ref(loadThoughts())
 const activeId = ref(thoughts.value[0]?.id ?? '')
 const keyword = ref('')
@@ -318,7 +267,7 @@ const thoughtStats = computed(() => ({
 }))
 
 watch(thoughts, (value) => {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
+  window.localStorage.setItem(LIFE_THOUGHTS_STORAGE_KEY, JSON.stringify(value))
 }, { deep: true })
 watch(filteredThoughts, (value) => {
   if (value.length && !value.some((thought) => thought.id === activeId.value)) activeId.value = value[0].id
@@ -326,10 +275,10 @@ watch(filteredThoughts, (value) => {
 
 function loadThoughts() {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : seedThoughts
+    const raw = window.localStorage.getItem(LIFE_THOUGHTS_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
   } catch {
-    return seedThoughts
+    return []
   }
 }
 function today() {

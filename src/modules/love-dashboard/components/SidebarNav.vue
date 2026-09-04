@@ -24,13 +24,11 @@
       </button>
     </nav>
 
-    <button class="quick-button" type="button">快速记录</button>
-
     <div class="profile">
       <div class="profile-row">
-        <div class="avatar">陈</div>
+        <div class="avatar">{{ userInitial }}</div>
         <div>
-          <strong>陈子墨</strong>
+          <strong>{{ userName }}</strong>
           <span>普通用户</span>
         </div>
         <button
@@ -44,16 +42,14 @@
         </button>
       </div>
 
-      <a href="#" aria-label="版本信息">
-        <span class="material-symbols-outlined">info</span>
-        <span>版本信息 v2.4.0</span>
-      </a>
     </div>
   </aside>
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   modelValue: {
     type: String,
     required: true,
@@ -66,9 +62,15 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  userName: {
+    type: String,
+    default: '用户',
+  },
 })
 
 defineEmits(['update:modelValue', 'toggle-theme'])
+
+const userInitial = computed(() => props.userName.trim().charAt(0).toUpperCase() || '用')
 </script>
 
 <style scoped>
@@ -156,24 +158,6 @@ defineEmits(['update:modelValue', 'toggle-theme'])
   font-weight: 700;
 }
 
-.quick-button {
-  width: 100%;
-  min-height: 48px;
-  margin: 24px 0;
-  border: 0;
-  border-radius: 12px;
-  background: var(--dashboard-accent, #1c1b1a);
-  color: var(--dashboard-accent-contrast, #ffffff);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.quick-button:hover {
-  opacity: 0.9;
-}
-
 .profile {
   margin-top: auto;
   padding-top: 24px;
@@ -237,20 +221,6 @@ defineEmits(['update:modelValue', 'toggle-theme'])
   font-size: 20px;
 }
 
-.profile a {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  color: var(--dashboard-text-muted, #444748);
-  text-decoration: none;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.profile a:hover {
-  color: var(--dashboard-text-strong, #000000);
-}
-
 @media (max-width: 900px) {
   .sidebar {
     position: sticky;
@@ -280,7 +250,6 @@ defineEmits(['update:modelValue', 'toggle-theme'])
     padding: 10px 14px;
   }
 
-  .quick-button,
   .profile {
     display: none;
   }

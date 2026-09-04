@@ -1,6 +1,5 @@
 import { TIMELINE_API } from '../../../api/index.js'
-import { getAuthSession } from '../../auth/session.js'
-import { GLOBAL_USER_ID } from '../constants/imageTypes.js'
+import { getAuthSession, requireAuthUserId } from '../../auth/session.js'
 
 function authHeaders() {
   const session = getAuthSession()
@@ -51,7 +50,7 @@ async function postJson(url, body, fallback) {
 export function createCategoryDTO(category = {}) {
   return {
     id: category.id ?? null,
-    userId: category.userId ?? GLOBAL_USER_ID,
+    userId: category.userId ?? requireAuthUserId(),
     categoryName: category.categoryName ?? category.label ?? category.name ?? '',
     iconId: category.iconId ?? null,
     icon: category.icon ?? category.iconUrl ?? '',
@@ -63,7 +62,7 @@ export function createCategoryDTO(category = {}) {
 export function createCategoryQueryDTO(category = {}) {
   return {
     id: category.id ?? null,
-    userId: category.userId ?? GLOBAL_USER_ID,
+    userId: category.userId ?? requireAuthUserId(),
     categoryName: category.categoryName ?? category.label ?? category.name ?? '',
     sort: category.sort ?? null,
     iconName: category.iconName ?? '',
@@ -74,7 +73,7 @@ export function createCategoryQueryDTO(category = {}) {
 export function createCardDTO(card = {}) {
   return {
     id: card.id ?? card.rawId ?? null,
-    userId: card.userId ?? GLOBAL_USER_ID,
+    userId: card.userId ?? requireAuthUserId(),
     imageId: card.imageId ?? null,
     categoryId: card.categoryId ?? null,
     cardTitle: card.cardTitle ?? card.title ?? '',

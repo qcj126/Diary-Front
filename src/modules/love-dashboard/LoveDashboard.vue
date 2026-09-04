@@ -4,6 +4,7 @@
       v-model="active"
       :sections="sections"
       :is-night-mode="isNightMode"
+      :user-name="userName"
       @toggle-theme="toggleTheme"
     />
 
@@ -24,41 +25,38 @@
         :initial-task-id="aiResultTaskId"
       />
       <SystemDatabasePage v-else-if="active === 'system-database'" />
-      <PlaceholderPanel
-        v-else
-        :title="currentLabel"
-      />
     </main>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, ref } from 'vue'
+import { DEFAULT_MENU_KEY, MENU_ITEMS } from '../../constants/navigation.js'
+import { THEME_STORAGE_KEY, THEME_TRANSITION_MS } from '../../constants/dashboard.js'
+import { getAuthSession } from '../auth/session.js'
 import SidebarNav from './components/SidebarNav.vue'
-import HomeOverview from '../homepage/HomePage.vue'
-import PlaceholderPanel from './components/panels/PlaceholderPanel.vue'
-import TimelinePage from '../timeline/TimelinePage.vue'
-import LoveRecordsPage from '../love-records/LoveRecordsPage.vue'
-import DietPage from '../diet/DietPage.vue'
-import RecipePage from '../recipe/RecipePage.vue'
-import GoalsPage from '../goals/GoalsPage.vue'
-import LedgerPage from '../ledger/LedgerPage.vue'
-import AiResultsPage from '../ai-results/AiResultsPage.vue'
-import LifeThoughtsPage from '../life-thoughts/LifeThoughtsPage.vue'
-import SystemDatabasePage from '../system-database/SystemDatabasePage.vue'
-import { LOVE_SECTIONS } from './constants/sections.js'
 
-const active = ref('home')
+const HomeOverview = defineAsyncComponent(() => import('../homepage/index.js').then((module) => module.HomePage))
+const TimelinePage = defineAsyncComponent(() => import('../timeline/index.js').then((module) => module.TimelinePage))
+const LoveRecordsPage = defineAsyncComponent(() => import('../love-records/index.js').then((module) => module.LoveRecordsPage))
+const DietPage = defineAsyncComponent(() => import('../diet/index.js').then((module) => module.DietPage))
+const RecipePage = defineAsyncComponent(() => import('../recipe/index.js').then((module) => module.RecipePage))
+const GoalsPage = defineAsyncComponent(() => import('../goals/index.js').then((module) => module.GoalsPage))
+const LedgerPage = defineAsyncComponent(() => import('../ledger/index.js').then((module) => module.LedgerPage))
+const AiResultsPage = defineAsyncComponent(() => import('../ai-results/index.js').then((module) => module.AiResultsPage))
+const LifeThoughtsPage = defineAsyncComponent(() => import('../life-thoughts/index.js').then((module) => module.LifeThoughtsPage))
+const SystemDatabasePage = defineAsyncComponent(() => import('../system-database/index.js').then((module) => module.SystemDatabasePage))
+
+const active = ref(DEFAULT_MENU_KEY)
 const aiResultTaskId = ref('')
-const sections = LOVE_SECTIONS
-const THEME_STORAGE_KEY = 'diary-love-theme'
-const THEME_TRANSITION_MS = 2000
+const sections = MENU_ITEMS
+const session = getAuthSession()
+const userName = String(session?.username || session?.email || session?.phone || `用户 ${session?.userId ?? ''}`).trim()
 const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
 const theme = ref(savedTheme === 'night' ? 'night' : 'day')
 const transitionClass = ref('')
 let transitionTimer = 0
 
-const currentLabel = computed(() => sections.find((x) => x.key === active.value)?.label ?? '')
 const isNightMode = computed(() => theme.value === 'night')
 
 function openAiResultPreview(taskId) {
@@ -76,6 +74,8 @@ function toggleTheme() {
     transitionClass.value = ''
   }, THEME_TRANSITION_MS)
 }
+
+onBeforeUnmount(() => window.clearTimeout(transitionTimer))
 </script>
 
 <style scoped>

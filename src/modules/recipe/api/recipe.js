@@ -1,17 +1,7 @@
-import { AI_API, API_BASE, RECIPE_API, SYS_INFO_API } from '../../../api/index.js'
+import { AI_API, ICON_API, RECIPE_API, resolveApiUrl, SYS_INFO_API } from '../../../api/index.js'
+import { DIFFICULTY_LABELS, MEAL_TYPE_LABELS } from '../../../constants/recipe.js'
 import { getAuthSession } from '../../auth/session.js'
 
-export const MEAL_TYPE_LABELS = {
-  1: '早餐',
-  2: '午餐',
-  3: '晚餐',
-  4: '夜宵',
-}
-export const DIFFICULTY_LABELS = {
-  1: '简单',
-  2: '中等',
-  3: '困难',
-}
 function authHeaders(contentType = 'application/json') {
   const session = getAuthSession()
   const headers = contentType ? { 'Content-Type': contentType } : {}
@@ -62,7 +52,7 @@ function normalizeImageUrl(url) {
   if (/^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
     return value
   }
-  return `${API_BASE}${value.startsWith('/') ? '' : '/'}${value}`
+  return resolveApiUrl(value)
 }
 
 function normalizeImageVO(image, fallbackId) {
@@ -177,7 +167,7 @@ function normalizeRecipeIconUrl(path) {
     ? normalized.slice(iconDirectoryIndex + '/icon/'.length)
     : normalized.replace(/^\/?(?:(?:file|sys\/info)\/)?icon\//i, '').replace(/^\/+/, '')
 
-  return fileName ? encodeURI(`${API_BASE}/sys/info/icon/${fileName}`) : ''
+  return fileName ? encodeURI(ICON_API.file(fileName)) : ''
 }
 
 function normalizeRecipeCategory(raw = {}, index = 0) {

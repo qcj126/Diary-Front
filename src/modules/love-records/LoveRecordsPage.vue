@@ -32,7 +32,6 @@
         @export="exportData"
         @import="handleImport"
         @clear="handleClear"
-        @reset="handleReset"
       />
     </main>
 
@@ -87,9 +86,9 @@ const emit = defineEmits<{ back: [] }>()
 
 const {
   data, loading, error, activeView, activeFilter, drawerMode, filteredRecords, sortedRecords, selectedRecord, editingRecord,
-  togetherDays, upcomingAnniversaries, locations, locationOptions, locationsLoading, stats, relatedRecords, switchView, openDetail, openForm,
+  togetherDays, upcomingAnniversaries, locations, locationOptions, locationsLoading, relatedRecords, switchView, openDetail, openForm,
   closeDrawer, saveRecord, deleteRecord, toggleImportant, navigateRecord, updateRelationship,
-  saveAnniversaries, exportData, importData, clearData, resetData,
+  saveAnniversaries, exportData, importData, clearData,
 } = useLoveRecords()
 
 const currentYear = new Date().getFullYear()
@@ -163,10 +162,6 @@ function handleAnniversaries(items: Anniversary[]): void {
 
 function handleClear(): void {
   void runMutation(clearData, '恋爱记录已清空')
-}
-
-function handleReset(): void {
-  void runMutation(resetData, '示例数据已写入服务端')
 }
 
 function showNotice(message: string, isError = false): void {

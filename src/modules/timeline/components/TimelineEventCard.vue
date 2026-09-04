@@ -49,7 +49,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { COLOR_MAP } from '../constants/eventCategories.js'
+import { TIMELINE_COLOR_MAP } from '../../../constants/timeline.js'
 
 const props = defineProps({
   event: {
@@ -78,7 +78,7 @@ function isImageIcon(icon) {
 }
 
 const colorScheme = computed(() => {
-  return COLOR_MAP[props.event.color] || COLOR_MAP.blue
+  return TIMELINE_COLOR_MAP[props.event.color] || TIMELINE_COLOR_MAP.blue
 })
 
 const cardStyle = computed(() => ({

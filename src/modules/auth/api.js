@@ -1,4 +1,4 @@
-import { API } from './constants.js'
+import { AUTH_API } from '../../api/index.js'
 
 function toText(v) {
   return typeof v === 'string' ? v.trim() : ''
@@ -59,21 +59,21 @@ export function getApiData(data) {
 }
 
 export async function login(body) {
-  return postJson(API.login, body)
+  return postJson(AUTH_API.login, body)
 }
 
 export async function refreshToken(refreshToken) {
-  return postJson(API.refresh, { refreshToken })
+  return postJson(AUTH_API.refresh, { refreshToken })
 }
 
 export async function register(body) {
-  return postJson(API.register, body)
+  return postJson(AUTH_API.register, body)
 }
 
 export async function resetPassword(body) {
-  return postJson(API.resetPw, body)
+  return postJson(AUTH_API.resetPw, body)
 }
 
 export async function sendVerifyCode(phone) {
-  return postJson(API.verifyCode, { phone })
+  return postJson(AUTH_API.verifyCode, { phone })
 }

@@ -9,14 +9,8 @@ import {
   saveRecordApi,
   saveRelationshipApi,
 } from '../api/loveRecords'
-import { initialLoveData } from '../mock/records'
 import type { Anniversary, LoveData, LoveLocationOption, LoveRecord, RecordCategory, RecordDraft, ViewKey } from '../types/records'
 import { daysBetween, nextOccurrence, parseLocalDate } from '../utils/date'
-
-// 初始数据始终深拷贝，避免用户编辑时污染作为“恢复示例数据”使用的常量。
-function cloneInitialData(): LoveData {
-  return structuredClone(initialLoveData)
-}
 
 function emptyData(): LoveData {
   return {
@@ -206,11 +200,6 @@ export function useLoveRecords() {
     closeDrawer()
   }
 
-  async function resetData(): Promise<void> {
-    await replaceLoveDataApi(data.value, cloneInitialData())
-    await refreshData()
-  }
-
   function onKeydown(event: KeyboardEvent): void {
     // 只在详情抽屉打开时接管快捷键，避免干扰设置表单中的正常键盘操作。
     if (drawerMode.value !== 'detail') return
@@ -229,6 +218,6 @@ export function useLoveRecords() {
     data, loading, error, activeView, activeFilter, drawerMode, filteredRecords, sortedRecords, selectedRecord, editingRecord,
     togetherDays, upcomingAnniversaries, locations, locationOptions, locationsLoading, stats, relatedRecords, switchView, openDetail, openForm,
     closeDrawer, saveRecord, deleteRecord, toggleImportant, navigateRecord, updateRelationship,
-    saveAnniversaries, exportData, importData, clearData, resetData, refreshData,
+    saveAnniversaries, exportData, importData, clearData, refreshData,
   }
 }

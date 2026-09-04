@@ -1,9 +1,7 @@
 import { computed, ref } from 'vue'
-import { API_BASE } from '../../../api/index.js'
-import { getAuthSession } from '../../auth/session.js'
-import { CAROUSEL_CONFIG } from '../constants/carouselConfig.js'
-import { COLOR_MAP } from '../constants/eventCategories.js'
-import { GLOBAL_USER_ID } from '../constants/imageTypes.js'
+import { ICON_API } from '../../../api/index.js'
+import { requireAuthUserId } from '../../auth/session.js'
+import { CAROUSEL_CONFIG, TIMELINE_COLOR_MAP } from '../../../constants/timeline.js'
 import { normalizeImageUrl, queryCarouselImageUrls, queryTimelineImageUrls } from '../api/images.js'
 import {
   addTimeCard,
@@ -16,11 +14,10 @@ import {
   updateTimeCategory,
 } from '../api/timeMachine.js'
 
-const CATEGORY_COLORS = Object.keys(COLOR_MAP)
-const ICON_STATIC_PREFIX = '/sys/info/icon'
+const CATEGORY_COLORS = Object.keys(TIMELINE_COLOR_MAP)
 
 function readUserId() {
-  return getAuthSession()?.userId ?? GLOBAL_USER_ID
+  return requireAuthUserId()
 }
 
 function toArray(data) {
@@ -66,9 +63,9 @@ function normalizeIconPath(path) {
   const iconIndex = normalized.toLowerCase().lastIndexOf('/icon/')
   if (iconIndex >= 0) {
     const fileName = normalized.slice(iconIndex + '/icon/'.length)
-    return encodeURI(`${API_BASE}${ICON_STATIC_PREFIX}/${fileName}`)
+    return encodeURI(ICON_API.file(fileName))
   }
-  return encodeURI(`${API_BASE}${ICON_STATIC_PREFIX}/${normalized.replace(/^\/+/, '')}`)
+  return encodeURI(ICON_API.file(normalized.replace(/^\/+/, '')))
 }
 
 function mapCategoryDTO(dto, index = 0) {

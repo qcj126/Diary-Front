@@ -1,13 +1,16 @@
-# Modules
+# Frontend modules
 
-The `src/modules` directory is organized by Vue feature modules:
+Every dashboard menu owns one folder under `src/modules` and exposes its page from an `index.js` entry. The dashboard imports only these public entries and lazy-loads each module.
 
-- `auth`: login, register, reset password, and authentication helpers.
-- `timeline`: time-machine pages, timeline components, composables, constants, and mock data.
-- `diet`: diet dashboard pages and related components.
-- `recipe`: recipe pages, recipe cards, settings, detail view, and recipe data.
-- `love-dashboard`: the dashboard shell, navigation, dashboard-only constants, and fallback panels.
-- `homepage`: the home overview screen used by the dashboard.
-- `shared`: reusable UI components, utilities, and app-level services.
+- `homepage` — home menu
+- `timeline` — time machine
+- `love-records` — relationship records
+- `recipe` — cooking diary
+- `goals` — stage goals
+- `life-thoughts` — life thoughts
+- `ledger` — ledger
+- `diet` — diet records
+- `ai-results` — AI analysis results
+- `system-database` — icon and ingredient management
 
-Global and cross-module styles live in `src/styles`. Component-specific styles remain in each Vue single-file component with `scoped`, which keeps the module boundaries clear and follows common Vue 3 practice.
+`auth`, `icons`, `love-dashboard`, and `shared` are supporting modules rather than menu pages. App/domain configuration lives in `src/constants`; backend URLs live only in `src/api/endpoints.js`. Module `api` folders contain request and response logic, never URL literals.

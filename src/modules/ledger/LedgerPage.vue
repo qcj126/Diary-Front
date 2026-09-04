@@ -105,12 +105,14 @@ import MonthlyTrendModal from './components/MonthlyTrendModal.vue'
 import WeeklyExpenseChart from './components/WeeklyExpenseChart.vue'
 import WeeklyRhythmPanel from './components/WeeklyRhythmPanel.vue'
 import { useLedgerAnalytics } from './composables/useLedgerAnalytics.js'
-import { expenseCategories, incomeCategories, ledgerMockRecords, LEDGER_TODAY, LEDGER_TODAY_ISO } from './mock/ledgerRecords.js'
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, LEDGER_PERIODS } from '../../constants/ledger.js'
 
-const periods = [{ key: 'today', label: '今日', short: '日' }, { key: 'week', label: '本周', short: '周' }, { key: 'month', label: '本月', short: '月' }, { key: 'quarter', label: '本季', short: '季' }, { key: 'year', label: '今年', short: '年' }]
+const periods = LEDGER_PERIODS
+const expenseCategories = EXPENSE_CATEGORIES
+const incomeCategories = INCOME_CATEGORIES
 const allCategories = [...expenseCategories, ...incomeCategories]
 const quickCategories = ['全部', '饮食', '交通', '居住', '购物', '娱乐']
-const records = ref(ledgerMockRecords.map((item) => ({ ...item })))
+const records = ref([])
 const activePeriod = ref('week')
 const activeView = ref('records')
 const drillCategory = ref('')
@@ -130,7 +132,9 @@ const exportForm = reactive({ format: 'pdf', lastDays: 0, size: 10 })
 const toast = reactive({ visible: false, leaving: false, message: '' })
 let toastTimer = 0
 let toastLeaveTimer = 0
-const emptyDraft = () => ({ type: 'expense', amount: null, primary: '饮食', secondary: '日常餐饮', date: LEDGER_TODAY_ISO, note: '' })
+const currentDate = new Date()
+const currentDateIso = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`
+const emptyDraft = () => ({ type: 'expense', amount: null, primary: '饮食', secondary: '日常餐饮', date: currentDateIso, note: '' })
 const draft = reactive(emptyDraft())
 
 const analytics = useLedgerAnalytics(records, activePeriod, filters, drillCategory, drillDate)
@@ -159,9 +163,9 @@ function handleDelete() { if (!selectedIds.value.length) return showToast('请�
 function confirmDelete() { records.value = records.value.filter((item) => !selectedIds.value.includes(item.id)); selectedIds.value = []; confirmDeleteOpen.value = false; showToast('删除成功') }
 function showToast(message) { window.clearTimeout(toastTimer); window.clearTimeout(toastLeaveTimer); Object.assign(toast, { message, visible: true, leaving: false }); toastTimer = window.setTimeout(() => { toast.leaving = true; toastLeaveTimer = window.setTimeout(() => { toast.visible = false }, 400) }, 1800) }
 
-function confirmExport() { const start = exportForm.lastDays ? new Date(LEDGER_TODAY.getFullYear(), LEDGER_TODAY.getMonth(), LEDGER_TODAY.getDate() - exportForm.lastDays + 1) : null; const items = records.value.filter((item) => !start || new Date(`${item.date}T00:00:00`) >= start).sort((a, b) => b.date.localeCompare(a.date)).slice(0, exportForm.size); if (exportForm.format === 'excel') exportExcel(items); if (exportForm.format === 'image') exportImage(items); if (exportForm.format === 'pdf') exportPdf(items); exportOpen.value = false }
-function exportExcel(items) { const rows = items.map((item) => `<tr><td>${item.date}</td><td>${item.note || item.secondary}</td><td>${item.primary}</td><td>${item.secondary}</td><td>${item.type === 'income' ? '收入' : '支出'}</td><td>${item.amount}</td></tr>`).join(''); downloadBlob(new Blob([`<html><head><meta charset="utf-8"></head><body><table><tr><th>日期</th><th>账目</th><th>一级分类</th><th>二级分类</th><th>类型</th><th>金额</th></tr>${rows}</table></body></html>`], { type: 'application/vnd.ms-excel;charset=utf-8' }), `时光账本-${LEDGER_TODAY_ISO}.xls`) }
-function exportImage(items) { const canvas = document.createElement('canvas'); canvas.width = 1100; canvas.height = 190 + items.length * 55; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fffaf7'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#24201f'; ctx.font = 'bold 38px sans-serif'; ctx.fillText('时光账本', 60, 64); items.forEach((item, index) => { const y = 130 + index * 55; ctx.fillStyle = '#272321'; ctx.font = '20px sans-serif'; ctx.fillText(`${item.date}  ${item.note || item.secondary}`, 60, y); ctx.fillStyle = item.type === 'income' ? '#2f9a70' : '#dc684f'; ctx.textAlign = 'right'; ctx.fillText(`${item.type === 'income' ? '+' : '-'}¥${money(item.amount)}`, 1040, y); ctx.textAlign = 'left' }); const link = document.createElement('a'); link.href = canvas.toDataURL('image/png'); link.download = `时光账本-${LEDGER_TODAY_ISO}.png`; link.click() }
+function confirmExport() { const start = exportForm.lastDays ? new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - exportForm.lastDays + 1) : null; const items = records.value.filter((item) => !start || new Date(`${item.date}T00:00:00`) >= start).sort((a, b) => b.date.localeCompare(a.date)).slice(0, exportForm.size); if (exportForm.format === 'excel') exportExcel(items); if (exportForm.format === 'image') exportImage(items); if (exportForm.format === 'pdf') exportPdf(items); exportOpen.value = false }
+function exportExcel(items) { const rows = items.map((item) => `<tr><td>${item.date}</td><td>${item.note || item.secondary}</td><td>${item.primary}</td><td>${item.secondary}</td><td>${item.type === 'income' ? '收入' : '支出'}</td><td>${item.amount}</td></tr>`).join(''); downloadBlob(new Blob([`<html><head><meta charset="utf-8"></head><body><table><tr><th>日期</th><th>账目</th><th>一级分类</th><th>二级分类</th><th>类型</th><th>金额</th></tr>${rows}</table></body></html>`], { type: 'application/vnd.ms-excel;charset=utf-8' }), `时光账本-${currentDateIso}.xls`) }
+function exportImage(items) { const canvas = document.createElement('canvas'); canvas.width = 1100; canvas.height = 190 + items.length * 55; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fffaf7'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#24201f'; ctx.font = 'bold 38px sans-serif'; ctx.fillText('时光账本', 60, 64); items.forEach((item, index) => { const y = 130 + index * 55; ctx.fillStyle = '#272321'; ctx.font = '20px sans-serif'; ctx.fillText(`${item.date}  ${item.note || item.secondary}`, 60, y); ctx.fillStyle = item.type === 'income' ? '#2f9a70' : '#dc684f'; ctx.textAlign = 'right'; ctx.fillText(`${item.type === 'income' ? '+' : '-'}¥${money(item.amount)}`, 1040, y); ctx.textAlign = 'left' }); const link = document.createElement('a'); link.href = canvas.toDataURL('image/png'); link.download = `时光账本-${currentDateIso}.png`; link.click() }
 function exportPdf(items) { const popup = window.open('', '_blank', 'width=920,height=720'); if (!popup) return; const rows = items.map((item) => `<tr><td>${item.date}</td><td>${item.note || item.secondary}</td><td>${item.primary}/${item.secondary}</td><td>${item.type === 'income' ? '收入' : '支出'}</td><td>${item.type === 'income' ? '+' : '-'}¥${money(item.amount)}</td></tr>`).join(''); popup.document.write(`<html><head><title>时光账本</title><style>body{font-family:Arial,"Microsoft YaHei";padding:40px}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{text-align:left;padding:12px;border-bottom:1px solid #ddd}</style></head><body><h1>时光账本</h1><table><tr><th>日期</th><th>账目</th><th>分类</th><th>类型</th><th>金额</th></tr>${rows}</table><script>window.onload=()=>window.print()<\/script></body></html>`); popup.document.close() }
 function downloadBlob(blob, filename) { const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000) }
 </script>

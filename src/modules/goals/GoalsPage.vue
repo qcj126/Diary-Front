@@ -385,35 +385,11 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import { GOAL_CATEGORIES, GOAL_COLUMN_WIDTHS } from '../../constants/goals.js'
 import { addGoal, batchAddSubGoals, deleteGoal, exportGoals, queryGoals, updateGoal } from './api/goals.js'
 
-const categories = ['技术', '学习', '健康', '生活']
-
-const columnWidths = {
-  main: {
-    controls: 78,
-    creator: 70,
-    category: 68,
-    title: 118,
-    content: 190,
-    hours: 70,
-    progress: 98,
-    estimated: 78,
-    status: 78,
-    date: 96,
-    ddl: 96,
-    stale: 80,
-  },
-  sub: {
-    title: 140,
-    content: 300,
-    hours: 90,
-    progress: 140,
-    estimated: 110,
-    date: 120,
-    stale: 120,
-  },
-}
+const categories = GOAL_CATEGORIES
+const columnWidths = GOAL_COLUMN_WIDTHS
 
 const expandedIds = ref([])
 const selectedIds = ref([])
@@ -447,50 +423,6 @@ const exportForm = reactive({
   exportSize: 10,
 })
 
-const STATIC_GOALS = [
-  {
-    id: 'static-stage-goal-1',
-    userId: 10000,
-    creator: 'Codex',
-    category: '技术',
-    title: '阶段目标示例',
-    content: '用于验证阶段目标和小目标展示流程',
-    learnedHours: 1,
-    estimatedHours: 5,
-    progress: 20,
-    createdAt: '2026-08-06 09:00:00',
-    ddl: '2026-08-20 18:00:00',
-    updatedAt: '2026-08-06 09:00:00',
-    daysSinceUpdate: 0,
-    subcategories: [
-      {
-        id: 'static-sub-goal-1',
-        stageId: 'static-stage-goal-1',
-        name: '梳理需求',
-        content: '整理阶段目标页面的查询和新增规则',
-        learnedHours: 1,
-        estimatedHours: 2,
-        createdAt: '2026-08-06 09:00:00',
-        ddl: '2026-08-12 18:00:00',
-        updatedAt: '2026-08-06 09:00:00',
-        daysSinceUpdate: 0,
-      },
-      {
-        id: 'static-sub-goal-2',
-        stageId: 'static-stage-goal-1',
-        name: '完成联调',
-        content: '验证新增、查询和筛选参数传递',
-        learnedHours: 0,
-        estimatedHours: 3,
-        createdAt: '2026-08-06 09:00:00',
-        ddl: '2026-08-20 18:00:00',
-        updatedAt: '2026-08-06 09:00:00',
-        daysSinceUpdate: 0,
-      },
-    ],
-  },
-]
-
 const filters = reactive({
   creator: '',
   category: '',
@@ -508,7 +440,7 @@ const emptyDraft = () => ({
 })
 
 const draft = reactive(emptyDraft())
-const goals = ref(STATIC_GOALS.map((goal) => ({ ...goal, subcategories: goal.subcategories.map((sub) => ({ ...sub })) })))
+const goals = ref([])
 
 function roundHours(value) {
   const number = Number(value)
@@ -606,7 +538,7 @@ async function loadGoals(showSuccess = false, queryFilters = filters) {
     selectedSubGoalKeys.value = selectedSubGoalKeys.value.filter((key) => subKeys.includes(key))
     if (showSuccess) showToast('查询完成')
   } catch (error) {
-    goals.value = STATIC_GOALS.map((goal) => ({ ...goal, subcategories: goal.subcategories.map((sub) => ({ ...sub })) }))
+    goals.value = []
     if (showSuccess) {
       showToast(error instanceof Error ? error.message : '查询阶段目标失败')
     }

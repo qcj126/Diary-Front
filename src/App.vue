@@ -70,13 +70,10 @@
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import LoginForm from './modules/auth/components/LoginForm.vue'
-import RegisterForm from './modules/auth/components/RegisterForm.vue'
-import ResetPasswordForm from './modules/auth/components/ResetPasswordForm.vue'
-import { hasAuthSession } from './modules/auth/session.js'
-import LoveDashboard from './modules/love-dashboard/LoveDashboard.vue'
+import { LOGIN_BUBBLE_COUNT } from './constants/auth.js'
+import { hasAuthSession, LoginForm, RegisterForm, ResetPasswordForm } from './modules/auth/index.js'
+import { LoveDashboard } from './modules/love-dashboard/index.js'
 
-const BUBBLE_COUNT = 10
 const bubbles = ref([])
 const page = ref('login')
 const loginNotice = ref('')
@@ -150,7 +147,7 @@ function clampBubblesToViewport() {
 onMounted(() => {
   if (loggedIn.value) return
 
-  bubbles.value = Array.from({ length: BUBBLE_COUNT }, (_, index) => createBubble(index))
+  bubbles.value = Array.from({ length: LOGIN_BUBBLE_COUNT }, (_, index) => createBubble(index))
   lastBubbleTime = performance.now()
   bubbleFrame = requestAnimationFrame(moveBubbles)
   window.addEventListener('resize', clampBubblesToViewport)

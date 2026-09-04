@@ -1,4 +1,4 @@
-import { API_BASE, TIMELINE_API } from '../../../api/index.js'
+import { resolveApiUrl, TIMELINE_API } from '../../../api/index.js'
 import { getAuthSession } from '../../auth/session.js'
 
 function authHeaders(contentType = 'application/json') {
@@ -122,5 +122,5 @@ export function normalizeImageUrl(url) {
   if (/^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
     return value
   }
-  return `${API_BASE}${value.startsWith('/') ? '' : '/'}${value}`
+  return resolveApiUrl(value)
 }

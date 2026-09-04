@@ -207,9 +207,9 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { AI_APPLICATION_OPTIONS } from '../../constants/ai.js'
 import { queryAiTaskResult, queryAiTaskStatus } from './api/aiResults.js'
 import {
-  AI_APPLICATION_OPTIONS,
   getAiApplicationLabel,
   getAiFlagLabel,
   loadTrackedAiTasks,

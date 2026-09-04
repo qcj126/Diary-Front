@@ -1,4 +1,4 @@
-import { API_BASE, SYS_INFO_API } from '../../../api/index.js'
+import { ICON_API, SYS_INFO_API } from '../../../api/index.js'
 import { getAuthSession } from '../../auth/session.js'
 
 function authHeaders(contentType = 'application/json') {
@@ -81,7 +81,7 @@ function normalizeIconUrl(path) {
   const fileName = iconIndex >= 0
     ? normalized.slice(iconIndex + '/icon/'.length)
     : normalized.replace(/^\/?(?:(?:file|sys\/info)\/)?icon\//i, '').replace(/^\/+/, '')
-  return fileName ? encodeURI(`${API_BASE}/sys/info/icon/${fileName}`) : ''
+  return fileName ? encodeURI(ICON_API.file(fileName)) : ''
 }
 
 export async function queryIngredientCategories(isMain) {
