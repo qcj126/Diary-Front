@@ -22,7 +22,6 @@ export const LOVE_DASHBOARD_API = {
     delete: (id) => `${API_BASE}/love/delete/anniversaries/${encodeURIComponent(id)}`,
   },
   locations: {
-    add: `${API_BASE}/love/add/locations`,
     query: (coupleId) => `${API_BASE}/love/query/locations/${encodeURIComponent(coupleId)}`,
     update: `${API_BASE}/love/update/locations`,
     delete: (id) => `${API_BASE}/love/delete/locations/${encodeURIComponent(id)}`,
@@ -41,28 +40,10 @@ export const LOVE_DASHBOARD_API = {
     delete: (id) => `${API_BASE}/love/delete/record-images/${encodeURIComponent(id)}`,
   },
   moods: {
-    add: `${API_BASE}/love/add/moods`,
-    query: `${API_BASE}/love/query/moods`,
-    update: `${API_BASE}/love/update/moods`,
-    delete: (id) => `${API_BASE}/love/delete/moods/${encodeURIComponent(id)}`,
-  },
-  recordMoods: {
-    add: `${API_BASE}/love/add/record-moods`,
-    query: (recordId) => `${API_BASE}/love/query/record-moods/${encodeURIComponent(recordId)}`,
-    update: `${API_BASE}/love/update/record-moods`,
-    delete: (id) => `${API_BASE}/love/delete/record-moods/${encodeURIComponent(id)}`,
-  },
-  tags: {
-    add: `${API_BASE}/love/add/tags`,
-    query: (coupleId) => `${API_BASE}/love/query/tags/${encodeURIComponent(coupleId)}`,
-    update: `${API_BASE}/love/update/tags`,
-    delete: (id) => `${API_BASE}/love/delete/tags/${encodeURIComponent(id)}`,
-  },
-  recordTags: {
-    add: `${API_BASE}/love/add/record-tags`,
-    query: (recordId) => `${API_BASE}/love/query/record-tags/${encodeURIComponent(recordId)}`,
-    update: `${API_BASE}/love/update/record-tags`,
-    delete: (id) => `${API_BASE}/love/delete/record-tags/${encodeURIComponent(id)}`,
+    add: `${API_BASE}/sys/info/add/moods`,
+    query: `${API_BASE}/sys/info/query/moods`,
+    update: `${API_BASE}/sys/info/update/moods`,
+    delete: (id) => `${API_BASE}/sys/info/delete/moods/${encodeURIComponent(id)}`,
   },
   files: {
     uploadImages: `${API_BASE}/file/upload/images`,

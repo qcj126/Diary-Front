@@ -21,7 +21,7 @@ export function saveAuthSession(data) {
     savedAt: Date.now(),
   }
 
-  if (!session.accessToken) return
+  if (!session.accessToken || session.userId == null) return
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
 }
 
@@ -38,7 +38,7 @@ export function getAuthSession() {
 
 export function hasAuthSession() {
   const session = getAuthSession()
-  return Boolean(session?.accessToken)
+  return Boolean(session?.accessToken && session?.userId != null)
 }
 
 export function clearAuthSession() {

@@ -30,6 +30,22 @@ export interface LoveRecord {
   tagRefs?: Array<{ relationId: string; tagId: string; name: string }>
 }
 
+export interface LoveLocationOption {
+  id: string
+  coupleId: string
+  name: string
+  address: string
+}
+
+export interface NewLocationDraft {
+  name: string
+  address: string
+  cityName: string
+  cityCode: string
+  longitude: number | null
+  latitude: number | null
+}
+
 export interface Anniversary {
   id: string
   coupleId?: string
@@ -64,6 +80,8 @@ export interface RecordDraft {
   content: string
   images: string[]
   location: string
+  locationId?: string | null
+  newLocation?: NewLocationDraft | null
   moods: Mood[]
   tags: string[]
   category: RecordCategory

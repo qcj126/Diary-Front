@@ -3,13 +3,14 @@ import {
   clearRecordsApi,
   deleteRecordApi,
   loadLoveData,
+  queryLocationOptionsApi,
   replaceLoveDataApi,
   saveAnniversariesApi,
   saveRecordApi,
   saveRelationshipApi,
 } from '../api/loveRecords'
 import { initialLoveData } from '../mock/records'
-import type { Anniversary, LoveData, LoveRecord, RecordCategory, RecordDraft, ViewKey } from '../types/records'
+import type { Anniversary, LoveData, LoveLocationOption, LoveRecord, RecordCategory, RecordDraft, ViewKey } from '../types/records'
 import { daysBetween, nextOccurrence, parseLocalDate } from '../utils/date'
 
 // 初始数据始终深拷贝，避免用户编辑时污染作为“恢复示例数据”使用的常量。
@@ -38,6 +39,8 @@ export function useLoveRecords() {
   const selectedId = ref<string | null>(null)
   const editingId = ref<string | null>(null)
   const drawerMode = ref<'detail' | 'form' | null>(null)
+  const locationOptions = ref<LoveLocationOption[]>([])
+  const locationsLoading = ref(false)
 
   const sortedRecords = computed(() => [...data.value.records].sort((a, b) => b.date.localeCompare(a.date)))
   const filteredRecords = computed(() => activeFilter.value === '全部'
@@ -46,7 +49,14 @@ export function useLoveRecords() {
   const selectedRecord = computed(() => data.value.records.find((item) => item.id === selectedId.value) ?? null)
   const editingRecord = computed(() => data.value.records.find((item) => item.id === editingId.value) ?? null)
 
-  const togetherDays = computed(() => Math.max(1, daysBetween(parseLocalDate(data.value.relationship.startDate), new Date()) + 1))
+  const togetherStartDate = computed(() => {
+    const anniversaries = data.value.relationship.anniversaries
+    const relationshipAnniversary = anniversaries.find((item) =>
+      /(恋爱纪念日|在一起|相恋|确定关系)/.test(item.name.trim()),
+    ) ?? anniversaries[0]
+    return relationshipAnniversary?.date || data.value.relationship.startDate
+  })
+  const togetherDays = computed(() => Math.max(1, daysBetween(parseLocalDate(togetherStartDate.value), new Date()) + 1))
   const upcomingAnniversaries = computed(() => data.value.relationship.anniversaries.map((item) => {
     const nextDate = nextOccurrence(item.date)
     return { ...item, nextDate, daysLeft: daysBetween(new Date(), nextDate) }
@@ -86,7 +96,9 @@ export function useLoveRecords() {
     loading.value = true
     error.value = ''
     try {
-      data.value = await loadLoveData()
+      data.value = await loadLoveData((relationship) => {
+        data.value = { ...data.value, relationship }
+      })
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : '恋爱记录加载失败'
       throw caught
@@ -108,6 +120,23 @@ export function useLoveRecords() {
   function openForm(id: string | null = null): void {
     editingId.value = id
     drawerMode.value = 'form'
+    void refreshLocationOptions()
+  }
+
+  async function refreshLocationOptions(): Promise<void> {
+    const coupleId = data.value.relationship.id
+    if (!coupleId) {
+      locationOptions.value = []
+      return
+    }
+    locationsLoading.value = true
+    try {
+      locationOptions.value = await queryLocationOptionsApi(coupleId)
+    } catch (caught) {
+      error.value = caught instanceof Error ? caught.message : '已有地点加载失败'
+    } finally {
+      locationsLoading.value = false
+    }
   }
 
   function closeDrawer(): void {
@@ -198,7 +227,7 @@ export function useLoveRecords() {
 
   return {
     data, loading, error, activeView, activeFilter, drawerMode, filteredRecords, sortedRecords, selectedRecord, editingRecord,
-    togetherDays, upcomingAnniversaries, locations, stats, relatedRecords, switchView, openDetail, openForm,
+    togetherDays, upcomingAnniversaries, locations, locationOptions, locationsLoading, stats, relatedRecords, switchView, openDetail, openForm,
     closeDrawer, saveRecord, deleteRecord, toggleImportant, navigateRecord, updateRelationship,
     saveAnniversaries, exportData, importData, clearData, resetData, refreshData,
   }

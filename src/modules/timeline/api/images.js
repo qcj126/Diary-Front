@@ -1,4 +1,15 @@
 import { API_BASE, TIMELINE_API } from '../../../api/index.js'
+import { getAuthSession } from '../../auth/session.js'
+
+function authHeaders(contentType = 'application/json') {
+  const session = getAuthSession()
+  const headers = {}
+  if (contentType) headers['Content-Type'] = contentType
+  if (session?.accessToken) {
+    headers.Authorization = `${session.tokenType || 'Bearer'} ${session.accessToken}`
+  }
+  return headers
+}
 
 function parseApiPayload(text) {
   if (!text) return null
@@ -56,6 +67,7 @@ export async function uploadTimelineImages(files, imageDTO) {
 
   const res = await fetch(TIMELINE_API.uploadImages, {
     method: 'POST',
+    headers: authHeaders(null),
     body: formData,
   })
   const data = parseApiPayload(await res.text())
@@ -77,7 +89,7 @@ export async function uploadTimelineImages(files, imageDTO) {
 export async function queryTimelineImageUrls(imageIds) {
   const res = await fetch(TIMELINE_API.queryImageUrls, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify(imageIds),
   })
   const data = parseApiPayload(await res.text())
@@ -94,6 +106,7 @@ export async function queryCarouselImageUrls() {
 async function queryCarouselImageUrlsFromApi() {
   const res = await fetch(TIMELINE_API.queryCarouselImages, {
     method: 'POST',
+    headers: authHeaders(null),
   })
   const data = parseApiPayload(await res.text())
   assertApiSuccess(res, data, 'Carousel image query failed.')

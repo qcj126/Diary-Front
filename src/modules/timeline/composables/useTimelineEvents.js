@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { API_BASE } from '../../../api/index.js'
+import { getAuthSession } from '../../auth/session.js'
 import { CAROUSEL_CONFIG } from '../constants/carouselConfig.js'
 import { COLOR_MAP } from '../constants/eventCategories.js'
 import { GLOBAL_USER_ID } from '../constants/imageTypes.js'
@@ -19,7 +20,7 @@ const CATEGORY_COLORS = Object.keys(COLOR_MAP)
 const ICON_STATIC_PREFIX = '/sys/info/icon'
 
 function readUserId() {
-  return GLOBAL_USER_ID
+  return getAuthSession()?.userId ?? GLOBAL_USER_ID
 }
 
 function toArray(data) {

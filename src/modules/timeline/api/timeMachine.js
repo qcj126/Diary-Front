@@ -1,5 +1,15 @@
 import { TIMELINE_API } from '../../../api/index.js'
+import { getAuthSession } from '../../auth/session.js'
 import { GLOBAL_USER_ID } from '../constants/imageTypes.js'
+
+function authHeaders() {
+  const session = getAuthSession()
+  const headers = { 'Content-Type': 'application/json' }
+  if (session?.accessToken) {
+    headers.Authorization = `${session.tokenType || 'Bearer'} ${session.accessToken}`
+  }
+  return headers
+}
 
 function parseApiPayload(text) {
   if (!text) return null
@@ -30,7 +40,7 @@ function responseData(data) {
 async function postJson(url, body, fallback) {
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify(body),
   })
   const data = parseApiPayload(await res.text())

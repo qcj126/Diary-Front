@@ -3,6 +3,7 @@ import { getAuthSession } from '../../auth/session.js'
 import type {
   Anniversary,
   LoveData,
+  LoveLocationOption,
   LoveRecord,
   Mood,
   RecordCategory,
@@ -37,6 +38,7 @@ const CODE_TO_CATEGORY: Record<string, RecordCategory> = {
 }
 
 const DEFAULT_USER_ID = '10000'
+const LOVE_TAG_COLORS = ['#FF6B81', '#FF8A80', '#E9546D', '#F59E0B', '#8B5CF6', '#06B6D4'] as const
 
 function parseApiPayload(text: string): any {
   if (!text) return null
@@ -108,7 +110,6 @@ export const diaryLoveControllerApi = {
     delete: (id: LoveId) => postDelete(LOVE_DASHBOARD_API.anniversaries.delete(id), '删除纪念日失败'),
   },
   locations: {
-    add: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.locations.add, dto, '新增地点失败'),
     query: (coupleId: LoveId) => getJson(LOVE_DASHBOARD_API.locations.query(coupleId), '查询地点失败'),
     update: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.locations.update, dto, '修改地点失败'),
     delete: (id: LoveId) => postDelete(LOVE_DASHBOARD_API.locations.delete(id), '删除地点失败'),
@@ -135,24 +136,6 @@ export const diaryLoveControllerApi = {
     update: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.moods.update, dto, '修改心情失败'),
     delete: (id: LoveId) => postDelete(LOVE_DASHBOARD_API.moods.delete(id), '删除心情失败'),
   },
-  recordMoods: {
-    add: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.recordMoods.add, dto, '新增记录心情关联失败'),
-    query: (recordId: LoveId) => getJson(LOVE_DASHBOARD_API.recordMoods.query(recordId), '查询记录心情失败'),
-    update: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.recordMoods.update, dto, '修改记录心情关联失败'),
-    delete: (id: LoveId) => postDelete(LOVE_DASHBOARD_API.recordMoods.delete(id), '删除记录心情关联失败'),
-  },
-  tags: {
-    add: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.tags.add, dto, '新增标签失败'),
-    query: (coupleId: LoveId) => getJson(LOVE_DASHBOARD_API.tags.query(coupleId), '查询标签失败'),
-    update: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.tags.update, dto, '修改标签失败'),
-    delete: (id: LoveId) => postDelete(LOVE_DASHBOARD_API.tags.delete(id), '删除标签失败'),
-  },
-  recordTags: {
-    add: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.recordTags.add, dto, '新增记录标签关联失败'),
-    query: (recordId: LoveId) => getJson(LOVE_DASHBOARD_API.recordTags.query(recordId), '查询记录标签失败'),
-    update: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.recordTags.update, dto, '修改记录标签关联失败'),
-    delete: (id: LoveId) => postDelete(LOVE_DASHBOARD_API.recordTags.delete(id), '删除记录标签关联失败'),
-  },
 }
 
 function toList(value: any): ApiObject[] {
@@ -163,25 +146,25 @@ function toKey(value: unknown): string {
   return String(value ?? '').trim()
 }
 
+function toOptionalNumber(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
 function currentUserId(): string {
   // 登录功能暂时屏蔽时使用开发用户；会话中已有 userId 后自动改用真实用户。
   return toKey(getAuthSession()?.userId) || DEFAULT_USER_ID
 }
 
-function isBackendId(value: unknown): boolean {
-  return /^\d+$/.test(toKey(value))
+function requireCurrentUserId(): string {
+  const userId = toKey(getAuthSession()?.userId)
+  if (!userId) throw new Error('登录信息中缺少 userId，请重新登录')
+  return userId
 }
 
-function compareIdDesc(left: unknown, right: unknown): number {
-  const leftId = toKey(left)
-  const rightId = toKey(right)
-  try {
-    const leftBigInt = BigInt(leftId)
-    const rightBigInt = BigInt(rightId)
-    return leftBigInt === rightBigInt ? 0 : leftBigInt > rightBigInt ? -1 : 1
-  } catch {
-    return rightId.localeCompare(leftId)
-  }
+function isBackendId(value: unknown): boolean {
+  return /^\d+$/.test(toKey(value))
 }
 
 function emptyLoveData(): LoveData {
@@ -230,29 +213,37 @@ function mapAnniversary(raw: ApiObject): Anniversary {
   }
 }
 
-export async function loadLoveData(): Promise<LoveData> {
+export async function loadLoveData(
+  onRelationshipLoaded?: (relationship: RelationshipInfo) => void,
+): Promise<LoveData> {
   const couple = await queryCouple()
   if (!couple) return emptyLoveData()
 
+  // 情侣关系查询成功后立即更新页面，避免后续任一明细请求失败时丢失已查到的恋人信息。
+  let relationship = mapRelationship(couple, [])
+  onRelationshipLoaded?.(relationship)
+
   const coupleId = toKey(couple.id)
-  const [anniversaryRows, locationRows, recordRows, moodRows, tagRows] = await Promise.all([
-    diaryLoveControllerApi.anniversaries.query(coupleId),
+  const anniversaryRows = await diaryLoveControllerApi.anniversaries.query(coupleId)
+  relationship = {
+    ...relationship,
+    anniversaries: toList(anniversaryRows).map(mapAnniversary),
+  }
+  // 纪念日查询完成后再次更新关系信息，其他明细请求失败也不影响设置页展示已有纪念日。
+  onRelationshipLoaded?.(relationship)
+
+  const [locationRows, recordRows, moodRows] = await Promise.all([
     diaryLoveControllerApi.locations.query(coupleId),
     diaryLoveControllerApi.records.query({ coupleId }),
     diaryLoveControllerApi.moods.query(true),
-    diaryLoveControllerApi.tags.query(coupleId),
   ])
 
   const rawRecords = toList(recordRows)
-  // TODO 后端补充“记录详情批量聚合”接口后替换这里的 3N 次关联查询，避免记录数量增长时请求过多。
+  // 图片仍按记录查询；心情和标签直接读取记录聚合结果，不再请求已移除的关联表接口。
   const relationGroups = await Promise.all(rawRecords.map(async (record) => {
     const recordId = toKey(record.id)
-    const [images, moods, tags] = await Promise.all([
-      diaryLoveControllerApi.recordImages.query(recordId),
-      diaryLoveControllerApi.recordMoods.query(recordId),
-      diaryLoveControllerApi.recordTags.query(recordId),
-    ])
-    return { recordId, images: toList(images), moods: toList(moods), tags: toList(tags) }
+    const images = await diaryLoveControllerApi.recordImages.query(recordId)
+    return { recordId, images: toList(images) }
   }))
 
   const imageIds = [...new Set(relationGroups.flatMap((group) => group.images.map((item) => toKey(item.imageId))).filter(Boolean))]
@@ -262,33 +253,33 @@ export async function loadLoveData(): Promise<LoveData> {
 
   const locations = new Map(toList(locationRows).map((item) => [toKey(item.id), item]))
   const moodDictionary = new Map(toList(moodRows).map((item) => [toKey(item.id), item]))
-  const tagDictionary = new Map(toList(tagRows).map((item) => [toKey(item.id), item]))
   const imageUrls = new Map(imageRows.map((item) => [toKey(item.id ?? item.imageId), String(item.url ?? item.imageUrl ?? '')]))
   const relations = new Map(relationGroups.map((item) => [item.recordId, item]))
 
   const records: LoveRecord[] = rawRecords.map((raw) => {
     const recordId = toKey(raw.id)
     const location = locations.get(toKey(raw.locationId))
-    const group = relations.get(recordId) ?? { images: [], moods: [], tags: [] }
+    const group = relations.get(recordId) ?? { images: [] }
     const imageRefs = group.images.map((item) => ({
       relationId: toKey(item.id),
       imageId: toKey(item.imageId),
       url: imageUrls.get(toKey(item.imageId)) ?? '',
     })).filter((item) => item.imageId && item.url)
-    const moodRefs = group.moods.map((item) => {
-      const mood = moodDictionary.get(toKey(item.moodId))
+    const moodRefs = toList(raw.moods ?? raw.moodIds).map((item) => {
+      const moodId = toKey(typeof item === 'object' ? item.moodId ?? item.id : item)
+      const mood = moodDictionary.get(moodId)
       return {
-        relationId: toKey(item.id),
-        moodId: toKey(item.moodId),
-        name: String(mood?.moodName ?? '') as Mood,
+        relationId: '',
+        moodId,
+        name: String(typeof item === 'object' ? item.moodName ?? item.name ?? mood?.moodName ?? '' : mood?.moodName ?? '') as Mood,
       }
     }).filter((item) => item.moodId && item.name)
-    const tagRefs = group.tags.map((item) => {
-      const tag = tagDictionary.get(toKey(item.tagId))
+    const tagRefs = toList(raw.tags).map((item) => {
+      const tagId = toKey(typeof item === 'object' ? item.tagId ?? item.id : item)
       return {
-        relationId: toKey(item.id),
-        tagId: toKey(item.tagId),
-        name: String(tag?.tagName ?? ''),
+        relationId: '',
+        tagId,
+        name: String(typeof item === 'object' ? item.tagName ?? item.name ?? '' : item),
       }
     }).filter((item) => item.tagId && item.name)
 
@@ -322,7 +313,7 @@ export async function loadLoveData(): Promise<LoveData> {
   })
 
   return {
-    relationship: mapRelationship(couple, toList(anniversaryRows).map(mapAnniversary)),
+    relationship,
     records,
   }
 }
@@ -333,15 +324,15 @@ export async function saveRelationshipApi(
   partnerName: string,
 ): Promise<RelationshipInfo> {
   const userId = currentUserId()
-  const body = {
+  const body: ApiObject = {
     id: relationship.id || undefined,
     ownerUserId: relationship.ownerUserId || userId,
-    partnerUserId: relationship.partnerUserId || null,
     partnerName: partnerName.trim() || '未命名',
     startDate,
     status: relationship.status ?? 1,
   }
   if (relationship.id) {
+    body.partnerUserId = relationship.partnerUserId || null
     await diaryLoveControllerApi.couples.update(body)
   } else {
     await diaryLoveControllerApi.couples.add(body)
@@ -395,34 +386,50 @@ export async function saveAnniversariesApi(
   return { ...ensured, anniversaries: toList(rows).map(mapAnniversary) }
 }
 
-async function ensureLocation(coupleId: string, name: string, current?: LoveRecord | null): Promise<string | null> {
-  const locationName = name.trim()
-  if (!locationName) return null
-  const rows = toList(await diaryLoveControllerApi.locations.query(coupleId))
-  const existing = rows.find((item) => String(item.name ?? '').trim() === locationName)
-  if (existing) return toKey(existing.id)
+export async function queryLocationOptionsApi(coupleId: string): Promise<LoveLocationOption[]> {
+  if (!coupleId) return []
+  return toList(await diaryLoveControllerApi.locations.query(coupleId)).map((item) => {
+    return {
+      id: toKey(item.id),
+      coupleId: toKey(item.coupleId),
+      name: String(item.name ?? ''),
+      address: String(item.address ?? ''),
+    }
+  }).filter((item) => item.id && item.name)
+}
 
-  await diaryLoveControllerApi.locations.add({
-    coupleId,
-    name: locationName,
-    longitude: current?.point?.lng,
-    latitude: current?.point?.lat,
-  })
-  const refreshed = toList(await diaryLoveControllerApi.locations.query(coupleId))
-  return toKey(refreshed.find((item) => String(item.name ?? '').trim() === locationName)?.id) || null
+function locationPayload(draft: RecordDraft): ApiObject {
+  if (draft.newLocation) {
+    const longitude = toOptionalNumber(draft.newLocation.longitude)
+    const latitude = toOptionalNumber(draft.newLocation.latitude)
+    if ((longitude == null) !== (latitude == null)) {
+      throw new Error('经度和纬度需要同时填写，或同时留空')
+    }
+    return {
+      locationId: null,
+      newLocation: {
+        name: draft.newLocation.name.trim(),
+        address: draft.newLocation.address.trim(),
+        cityName: draft.newLocation.cityName.trim(),
+        cityCode: draft.newLocation.cityCode.trim(),
+        longitude,
+        latitude,
+      },
+    }
+  }
+  return { locationId: toKey(draft.locationId) || null, newLocation: null }
 }
 
 function recordToDTO(
   draft: RecordDraft,
   coupleId: string,
-  locationId: string | null,
   current?: LoveRecord | null,
 ): ApiObject {
   return {
-    id: current?.id,
+    recordId: current?.id,
     coupleId,
-    creatorUserId: current?.creatorUserId || currentUserId(),
-    locationId,
+    ...(current ? { creatorUserId: requireCurrentUserId() } : {}),
+    ...locationPayload(draft),
     title: draft.title.trim(),
     content: draft.content,
     recordDate: draft.date,
@@ -430,21 +437,6 @@ function recordToDTO(
     important: draft.important,
     sort: current?.sort ?? 0,
   }
-}
-
-async function findCreatedRecordId(dto: ApiObject): Promise<string> {
-  const rows = toList(await diaryLoveControllerApi.records.query({
-    coupleId: dto.coupleId,
-    creatorUserId: dto.creatorUserId,
-    title: dto.title,
-    recordDate: dto.recordDate,
-  }))
-  const record = rows
-    .filter((item) => String(item.title ?? '') === dto.title && String(item.recordDate ?? '').slice(0, 10) === dto.recordDate)
-    .sort((left, right) => compareIdDesc(left.id, right.id))[0]
-  const recordId = toKey(record?.id)
-  if (!recordId) throw new Error('恋爱记录已提交，但没有查询到新记录 ID')
-  return recordId
 }
 
 async function imageUrlToFile(url: string, index: number): Promise<File> {
@@ -469,6 +461,30 @@ async function uploadImages(urls: string[]): Promise<string[]> {
   return Array.isArray(ids) ? ids.map(toKey).filter(Boolean) : []
 }
 
+async function newRecordToDTO(draft: RecordDraft, coupleId: string): Promise<ApiObject> {
+  const record = recordToDTO(draft, coupleId)
+  const [imageIds, moodRows] = await Promise.all([
+    uploadImages(draft.images),
+    diaryLoveControllerApi.moods.query(true),
+  ])
+  const moodByName = new Map(toList(moodRows).map((item) => [String(item.moodName ?? ''), toKey(item.id)]))
+  const newTags = [...new Set(draft.tags.map((name) => name.trim()).filter(Boolean))]
+    .map((tagName, index) => ({
+      tagName,
+      color: LOVE_TAG_COLORS[index % LOVE_TAG_COLORS.length],
+      sort: index,
+    }))
+
+  return {
+    ...record,
+    clientRequestId: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    images: imageIds.map((imageId, index) => ({ imageId, isCover: index === 0, sort: index })),
+    moodIds: draft.moods.map((name) => moodByName.get(name)).filter(Boolean),
+    tagIds: [],
+    newTags,
+  }
+}
+
 async function syncRecordImages(recordId: string, images: string[], current?: LoveRecord | null): Promise<void> {
   const currentRefs = current?.imageRefs ?? []
   const desired = new Set(images)
@@ -491,66 +507,6 @@ async function syncRecordImages(recordId: string, images: string[], current?: Lo
   }
 }
 
-async function syncRecordMoods(recordId: string, moods: Mood[], current?: LoveRecord | null): Promise<void> {
-  const dictionary = toList(await diaryLoveControllerApi.moods.query(true))
-  const moodByName = new Map(dictionary.map((item) => [String(item.moodName ?? ''), toKey(item.id)]))
-  const desiredIds = new Set<string>(
-    moods.map((name) => moodByName.get(name)).filter((value): value is string => Boolean(value)),
-  )
-  const currentRefs = current?.moodRefs ?? []
-
-  for (const ref of currentRefs) {
-    if (!desiredIds.has(ref.moodId)) {
-      await diaryLoveControllerApi.recordMoods.delete(ref.relationId)
-    }
-  }
-  const currentIds = new Set(currentRefs.map((item) => item.moodId))
-  let sort = 0
-  for (const moodId of desiredIds) {
-    if (!currentIds.has(moodId)) {
-      await diaryLoveControllerApi.recordMoods.add({ recordId, moodId, sort })
-    }
-    sort += 1
-  }
-}
-
-async function syncRecordTags(recordId: string, tags: string[], coupleId: string, current?: LoveRecord | null): Promise<void> {
-  const userId = currentUserId()
-  let dictionary = toList(await diaryLoveControllerApi.tags.query(coupleId))
-  const existingNames = new Set(dictionary.map((item) => String(item.tagName ?? '').trim()))
-  for (const tagName of tags) {
-    if (!existingNames.has(tagName)) {
-      await diaryLoveControllerApi.tags.add({
-        coupleId,
-        creatorUserId: userId,
-        tagName,
-        useCount: 0,
-      })
-      existingNames.add(tagName)
-    }
-  }
-  dictionary = toList(await diaryLoveControllerApi.tags.query(coupleId))
-  const tagByName = new Map(dictionary.map((item) => [String(item.tagName ?? '').trim(), toKey(item.id)]))
-  const desiredIds = new Set<string>(
-    tags.map((name) => tagByName.get(name)).filter((value): value is string => Boolean(value)),
-  )
-  const currentRefs = current?.tagRefs ?? []
-
-  for (const ref of currentRefs) {
-    if (!desiredIds.has(ref.tagId)) {
-      await diaryLoveControllerApi.recordTags.delete(ref.relationId)
-    }
-  }
-  const currentIds = new Set(currentRefs.map((item) => item.tagId))
-  let sort = 0
-  for (const tagId of desiredIds) {
-    if (!currentIds.has(tagId)) {
-      await diaryLoveControllerApi.recordTags.add({ recordId, tagId, sort })
-    }
-    sort += 1
-  }
-}
-
 export async function saveRecordApi(
   relationship: RelationshipInfo,
   draft: RecordDraft,
@@ -558,21 +514,18 @@ export async function saveRecordApi(
 ): Promise<void> {
   const ensured = await ensureRelationship(relationship)
   const coupleId = toKey(ensured.id)
-  const locationId = await ensureLocation(coupleId, draft.location, current)
-  const dto = recordToDTO(draft, coupleId, locationId, current)
   let recordId = toKey(current?.id)
 
   if (recordId) {
+    const dto = recordToDTO(draft, coupleId, current)
     await diaryLoveControllerApi.records.update(dto)
   } else {
-    await diaryLoveControllerApi.records.add(dto)
-    recordId = await findCreatedRecordId(dto)
+    await diaryLoveControllerApi.records.add(await newRecordToDTO(draft, coupleId))
+    return
   }
 
-  // 后端当前提供的是基础表 CRUD，因此这里按关联表逐项保存；后续应由后端提供一个聚合事务接口替代这些请求。
+  // 图片编辑仍沿用现有接口；心情和标签已随记录聚合，不再访问 record-moods / record-tags。
   await syncRecordImages(recordId, draft.images, current)
-  await syncRecordMoods(recordId, draft.moods, current)
-  await syncRecordTags(recordId, draft.tags, coupleId, current)
 }
 
 export function deleteRecordApi(id: string): Promise<any> {
