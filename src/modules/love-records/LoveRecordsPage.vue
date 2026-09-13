@@ -28,6 +28,7 @@
         v-else
         :relationship="data.relationship"
         @relationship="handleRelationship"
+        @delete-relationship="handleDeleteRelationship"
         @anniversaries="handleAnniversaries"
         @export="exportData"
         @import="handleImport"
@@ -88,7 +89,7 @@ const {
   data, loading, error, activeView, activeFilter, drawerMode, filteredRecords, sortedRecords, selectedRecord, editingRecord,
   togetherDays, upcomingAnniversaries, locations, locationOptions, locationsLoading, relatedRecords, switchView, openDetail, openForm,
   closeDrawer, saveRecord, deleteRecord, toggleImportant, navigateRecord, updateRelationship,
-  saveAnniversaries, exportData, importData, clearData,
+  deleteRelationship, saveAnniversaries, exportData, importData, clearData,
 } = useLoveRecords()
 
 const currentYear = new Date().getFullYear()
@@ -154,6 +155,10 @@ function handleToggleImportant(id: string): void {
 
 function handleRelationship(startDate: string, partnerName: string): void {
   void runMutation(() => updateRelationship(startDate, partnerName), '关系信息已同步')
+}
+
+function handleDeleteRelationship(): void {
+  void runMutation(deleteRelationship, '情侣关系已删除')
 }
 
 function handleAnniversaries(items: Anniversary[]): void {

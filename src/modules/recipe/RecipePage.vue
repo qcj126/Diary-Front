@@ -60,7 +60,7 @@
         </div>
       </aside>
 
-      <main class="content-area">
+      <main class="content-area" :class="{ 'detail-scroll': selectedRecipe }" @wheel="handleContentWheel">
         <div class="content-wrapper" :class="{ 'content-wrapper-wide': isWideView }">
           <section class="recipe-toolbar" v-if="currentView === 'timeline'">
             <div class="recipe-actions">
@@ -117,7 +117,7 @@
             @delete="requestDeleteRecipe"
           />
 
-          <div v-else>
+          <div v-else ref="recipeTimelineScrollRef" class="recipe-timeline-scroll">
             <div v-if="recipeLoading" class="recipe-status-card">
               <span class="material-symbols-outlined">progress_activity</span>
               <span>食谱加载中...</span>
@@ -358,6 +358,7 @@
           <span>选择 AI</span>
           <select v-model.number="nutritionAiType">
             <option :value="1">qwen3.7-plus</option>
+            <option :value="2">deepseek-v4-pro</option>
           </select>
         </label>
 
@@ -437,6 +438,7 @@ const pendingRecipeDeletes = ref([])
 const nutritionDialogOpen = ref(false)
 const nutritionTarget = ref(null)
 const nutritionAiType = ref(1)
+const recipeTimelineScrollRef = ref(null)
 const nutritionSubmitting = ref(false)
 const nutritionError = ref('')
 const nutritionClientRequestId = ref('')
@@ -539,6 +541,14 @@ function toggleCategorySelection(categoryId) {
   selectedCategoryIds.value = selectedCategoryIds.value.includes(id)
     ? selectedCategoryIds.value.filter((item) => item !== id)
     : [...selectedCategoryIds.value, id]
+}
+
+function handleContentWheel(event) {
+  const scrollArea = recipeTimelineScrollRef.value
+  if (!scrollArea || selectedRecipe.value || scrollArea.contains(event.target)) return
+
+  event.preventDefault()
+  scrollArea.scrollTop += event.deltaY
 }
 
 function requestDeleteCategories() {
@@ -1272,11 +1282,15 @@ onMounted(async () => {
   flex: 1;
   min-width: 0;
   padding: 1rem;
-  overflow-y: auto;
+  overflow: hidden;
   height: calc(100vh - var(--recipe-header-height));
 }
 
 .content-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
   max-width: 896px;
 }
 
@@ -1303,6 +1317,24 @@ onMounted(async () => {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 18px 40px rgba(50, 47, 46, 0.06);
+  flex: 0 0 auto;
+}
+
+.recipe-timeline-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+}
+
+.content-area.detail-scroll {
+  overflow-y: auto;
+}
+
+.content-area.detail-scroll .content-wrapper {
+  height: auto;
+  min-height: 100%;
 }
 
 .recipe-actions,
@@ -1929,15 +1961,18 @@ onMounted(async () => {
   opacity: 0.68;
 }
 
-.content-area::-webkit-scrollbar {
+.content-area::-webkit-scrollbar,
+.recipe-timeline-scroll::-webkit-scrollbar {
   width: 6px;
 }
 
-.content-area::-webkit-scrollbar-track {
+.content-area::-webkit-scrollbar-track,
+.recipe-timeline-scroll::-webkit-scrollbar-track {
   background: #f9f2f0;
 }
 
-.content-area::-webkit-scrollbar-thumb {
+.content-area::-webkit-scrollbar-thumb,
+.recipe-timeline-scroll::-webkit-scrollbar-thumb {
   background: #dcc1b9;
   border-radius: 3px;
 }
@@ -1960,6 +1995,18 @@ onMounted(async () => {
   .content-area {
     height: auto;
     padding: 1rem;
+    overflow: visible;
+  }
+
+  .content-wrapper,
+  .content-area.detail-scroll .content-wrapper {
+    height: auto;
+    min-height: 0;
+  }
+
+  .recipe-timeline-scroll {
+    overflow: visible;
+    padding-right: 0;
   }
 
   .recipe-toolbar {

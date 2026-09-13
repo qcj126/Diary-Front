@@ -42,3 +42,24 @@ export function queryAiTaskStatus(taskId) {
 export function queryAiTaskResult(taskId) {
   return getJson(AI_API.taskResult(taskId), 'AI分析结果查询失败')
 }
+
+export function queryAiTaskList({
+  taskStatus = null,
+  applicationCode = null,
+  title = null,
+  pageSize = 50,
+  pageNum = 0,
+} = {}) {
+  const url = new URL(AI_API.taskList)
+  const optionalParams = { taskStatus, applicationCode, title }
+
+  Object.entries(optionalParams).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      url.searchParams.set(key, String(value))
+    }
+  })
+  url.searchParams.set('pageSize', String(pageSize))
+  url.searchParams.set('pageNum', String(pageNum))
+
+  return getJson(url.toString(), 'AI任务列表查询失败')
+}

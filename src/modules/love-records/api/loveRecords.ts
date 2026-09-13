@@ -126,6 +126,9 @@ export const diaryLoveControllerApi = {
     update: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.recordImages.update, dto, '修改记录图片关联失败'),
     delete: (id: LoveId) => postDelete(LOVE_DASHBOARD_API.recordImages.delete(id), '删除记录图片关联失败'),
   },
+  recordMoods: {
+    query: (recordId: LoveId) => getJson(LOVE_DASHBOARD_API.recordMoods.query(recordId), '查询记录心情失败'),
+  },
   moods: {
     add: (dto: ApiObject) => postJson(LOVE_DASHBOARD_API.moods.add, dto, '新增心情失败'),
     query: (enabled?: boolean) => getJson(
@@ -233,7 +236,8 @@ export async function loadLoveData(
   const [locationRows, recordRows, moodRows] = await Promise.all([
     diaryLoveControllerApi.locations.query(coupleId),
     diaryLoveControllerApi.records.query({ coupleId }),
-    diaryLoveControllerApi.moods.query(true),
+    // 心情字典属于展示增强数据；服务不可用时不能阻断已查询到的恋爱记录渲染。
+    diaryLoveControllerApi.moods.query(true).catch(() => []),
   ])
 
   const rawRecords = toList(recordRows)
@@ -340,6 +344,12 @@ export async function saveRelationshipApi(
   return mapRelationship(couple, relationship.anniversaries)
 }
 
+export async function deleteRelationshipApi(id: string): Promise<void> {
+  const coupleId = toKey(id)
+  if (!coupleId) throw new Error('当前没有可删除的情侣关系')
+  await diaryLoveControllerApi.couples.delete(coupleId)
+}
+
 async function ensureRelationship(relationship: RelationshipInfo): Promise<RelationshipInfo> {
   if (relationship.id) return relationship
   return saveRelationshipApi(relationship, relationship.startDate, relationship.partnerName)
@@ -392,27 +402,44 @@ export async function queryLocationOptionsApi(coupleId: string): Promise<LoveLoc
       coupleId: toKey(item.coupleId),
       name: String(item.name ?? ''),
       address: String(item.address ?? ''),
+      cityName: String(item.cityName ?? ''),
+      cityCode: String(item.cityCode ?? ''),
+      longitude: toOptionalNumber(item.longitude),
+      latitude: toOptionalNumber(item.latitude),
     }
   }).filter((item) => item.id && item.name)
 }
 
+export async function queryRecordMoodsApi(recordId: string): Promise<NonNullable<LoveRecord['moodRefs']>> {
+  if (!recordId) return []
+  return toList(await diaryLoveControllerApi.recordMoods.query(recordId)).map((item) => ({
+    relationId: toKey(item.id),
+    moodId: toKey(item.moodId),
+    name: String(item.moodName ?? '') as Mood,
+  })).filter((item) => item.moodId && item.name)
+}
+
+function normalizeLocationDetails(location: NonNullable<RecordDraft['newLocation']>): ApiObject {
+  const longitude = toOptionalNumber(location.longitude)
+  const latitude = toOptionalNumber(location.latitude)
+  if ((longitude == null) !== (latitude == null)) {
+    throw new Error('经度和纬度需要同时填写，或同时留空')
+  }
+  return {
+    name: location.name.trim(),
+    address: location.address.trim(),
+    cityName: location.cityName.trim(),
+    cityCode: location.cityCode.trim(),
+    longitude,
+    latitude,
+  }
+}
+
 function locationPayload(draft: RecordDraft): ApiObject {
   if (draft.newLocation) {
-    const longitude = toOptionalNumber(draft.newLocation.longitude)
-    const latitude = toOptionalNumber(draft.newLocation.latitude)
-    if ((longitude == null) !== (latitude == null)) {
-      throw new Error('经度和纬度需要同时填写，或同时留空')
-    }
     return {
       locationId: null,
-      newLocation: {
-        name: draft.newLocation.name.trim(),
-        address: draft.newLocation.address.trim(),
-        cityName: draft.newLocation.cityName.trim(),
-        cityCode: draft.newLocation.cityCode.trim(),
-        longitude,
-        latitude,
-      },
+      newLocation: normalizeLocationDetails(draft.newLocation),
     }
   }
   return { locationId: toKey(draft.locationId) || null, newLocation: null }
@@ -466,6 +493,8 @@ async function newRecordToDTO(draft: RecordDraft, coupleId: string): Promise<Api
     diaryLoveControllerApi.moods.query(true),
   ])
   const moodByName = new Map(toList(moodRows).map((item) => [String(item.moodName ?? ''), toKey(item.id)]))
+  const moodIds = [...new Set(draft.moods.map((name) => moodByName.get(name)).filter(Boolean))]
+  if (moodIds.length !== draft.moods.length) throw new Error('存在无法识别的心情，请刷新页面后重试')
   const newTags = [...new Set(draft.tags.map((name) => name.trim()).filter(Boolean))]
     .map((tagName, index) => ({
       tagName,
@@ -477,31 +506,56 @@ async function newRecordToDTO(draft: RecordDraft, coupleId: string): Promise<Api
     ...record,
     clientRequestId: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     images: imageIds.map((imageId, index) => ({ imageId, isCover: index === 0, sort: index })),
-    moodIds: draft.moods.map((name) => moodByName.get(name)).filter(Boolean),
+    moodIds,
     tagIds: [],
     newTags,
   }
 }
 
 async function syncRecordImages(recordId: string, images: string[], current?: LoveRecord | null): Promise<void> {
-  const currentRefs = current?.imageRefs ?? []
-  const desired = new Set(images)
-  for (const ref of currentRefs) {
-    if (!desired.has(ref.url)) {
-      await diaryLoveControllerApi.recordImages.delete(ref.relationId)
-    }
+  const desiredImages = images.filter(Boolean)
+  const currentRefs = (current?.imageRefs ?? []).filter((item) => item.relationId && item.imageId)
+  const currentImages = currentRefs.map((item) => item.url)
+  if (desiredImages.length === currentImages.length && desiredImages.every((url, index) => url === currentImages[index])) return
+  if (desiredImages.length > currentRefs.length) {
+    throw new Error('编辑记录时只能替换或删除已有图片，不能新增图片关联')
   }
 
-  const existingUrls = new Set(currentRefs.map((item) => item.url))
-  const newUrls = images.filter((url) => url && !existingUrls.has(url))
-  const imageIds = await uploadImages(newUrls)
-  for (const [index, imageId] of imageIds.entries()) {
-    await diaryLoveControllerApi.recordImages.add({
+  const unusedRefs = [...currentRefs]
+  const assignments = desiredImages.map((url) => ({
+    url,
+    ref: null as (typeof currentRefs)[number] | null,
+    uploadedImageId: '',
+  }))
+
+  // 先保留仍在使用的关联，再用被替换的关联 ID 承载新上传的图片。
+  for (const assignment of assignments) {
+    const matchedIndex = unusedRefs.findIndex((item) => item.url === assignment.url)
+    if (matchedIndex >= 0) assignment.ref = unusedRefs.splice(matchedIndex, 1)[0]
+  }
+  for (const assignment of assignments) {
+    if (!assignment.ref) assignment.ref = unusedRefs.shift() ?? null
+    if (!assignment.ref) throw new Error('缺少可更新的图片关联 ID')
+  }
+
+  const changedAssignments = assignments.filter((item) => item.ref?.url !== item.url)
+  const uploadedImageIds = await uploadImages(changedAssignments.map((item) => item.url))
+  if (uploadedImageIds.length !== changedAssignments.length) throw new Error('图片上传结果数量不一致')
+  changedAssignments.forEach((item, index) => { item.uploadedImageId = uploadedImageIds[index] })
+
+  for (const [index, assignment] of assignments.entries()) {
+    const ref = assignment.ref!
+    await diaryLoveControllerApi.recordImages.update({
+      id: ref.relationId,
       recordId,
-      imageId,
-      isCover: images.indexOf(newUrls[index]) === 0,
-      sort: images.indexOf(newUrls[index]),
+      imageId: assignment.uploadedImageId || ref.imageId,
+      isCover: index === 0,
+      sort: index,
     })
+  }
+
+  for (const ref of unusedRefs) {
+    await diaryLoveControllerApi.recordImages.delete(ref.relationId)
   }
 }
 
@@ -515,6 +569,17 @@ export async function saveRecordApi(
   let recordId = toKey(current?.id)
 
   if (recordId) {
+    const editableImageCount = current?.imageRefs?.filter((item) => item.relationId && item.imageId).length ?? 0
+    if (draft.images.filter(Boolean).length > editableImageCount) {
+      throw new Error('编辑记录时只能替换或删除已有图片，不能新增图片关联')
+    }
+    if (draft.locationId && draft.locationDetails) {
+      await diaryLoveControllerApi.locations.update({
+        id: toKey(draft.locationId),
+        coupleId,
+        ...normalizeLocationDetails(draft.locationDetails),
+      })
+    }
     const dto = recordToDTO(draft, coupleId, current)
     await diaryLoveControllerApi.records.update(dto)
   } else {

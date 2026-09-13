@@ -45,6 +45,9 @@ export const LOVE_DASHBOARD_API = {
     update: `${API_BASE}/love/update/record-images`,
     delete: (id) => `${API_BASE}/love/delete/record-images/${encodeURIComponent(id)}`,
   },
+  recordMoods: {
+    query: (recordId) => `${API_BASE}/love/query/record-moods/${encodeURIComponent(recordId)}`,
+  },
   moods: {
     add: `${API_BASE}/sys/info/add/moods`,
     query: (enabled) => enabled == null
@@ -120,6 +123,7 @@ export const SYS_INFO_API = {
 
 export const AI_API = {
   tasks: `${API_BASE}/ai/tasks`,
+  taskList: `${API_BASE}/ai/tasks/query/list`,
   taskStatus: (taskId) => `${API_BASE}/ai/tasks/${encodeURIComponent(taskId)}`,
   taskResult: (taskId) => `${API_BASE}/ai/tasks/${encodeURIComponent(taskId)}/result`,
 }

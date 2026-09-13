@@ -1,6 +1,6 @@
 <template>
   <aside class="form-drawer">
-    <header><div><p>{{ record ? 'EDIT MEMORY' : 'NEW MEMORY' }}</p><h2>{{ record ? '编辑这段回忆' : '记录新的心动' }}</h2></div><button type="button" aria-label="关闭表单" @click="$emit('close')"><span class="material-symbols-outlined">close</span></button></header>
+    <header><div><p>{{ isEditing ? 'EDIT MEMORY' : 'NEW MEMORY' }}</p><h2>{{ isEditing ? '编辑这段回忆' : '记录新的心动' }}</h2></div><button type="button" aria-label="关闭表单" @click="$emit('close')"><span class="material-symbols-outlined">close</span></button></header>
     <form id="love-record-form" @submit.prevent="submit">
       <label><span>记录标题 <b>*</b></span><input v-model.trim="draft.title" maxlength="30" placeholder="给这段回忆起个名字" required></label>
       <div class="two-columns"><label><span>日期 <b>*</b></span><input v-model="draft.date" type="date" required></label><label><span>分类</span><select v-model="draft.category"><option v-for="category in categories" :key="category">{{ category }}</option></select></label></div>
@@ -11,16 +11,29 @@
         <select v-model="locationMode" @change="changeLocationMode">
           <option value="none">不添加地点</option>
           <option value="existing">选择已有地点</option>
-          <option v-if="!record" value="new">新增地点</option>
+          <option v-if="!isEditing" value="new">新增地点</option>
         </select>
         <label v-if="locationMode === 'existing'">
           <span>已有地点 <b>*</b></span>
-          <select v-model="draft.locationId" required>
+          <select v-model="draft.locationId" required @change="syncSelectedLocation(true)">
             <option value="" disabled>{{ locationsLoading ? '正在加载…' : '请选择地点' }}</option>
             <option v-for="item in locations" :key="item.id" :value="item.id">{{ item.name }}{{ item.address ? ` · ${item.address}` : '' }}</option>
           </select>
           <small v-if="!locationsLoading && !locations.length" class="field-hint">暂无已有地点，请选择“新增地点”</small>
         </label>
+        <div v-if="isEditing && locationMode === 'existing' && draft.locationDetails" class="new-location-fields">
+          <label><span>地点名称 <b>*</b></span><input v-model.trim="draft.locationDetails.name" maxlength="100" placeholder="例如：南山一棵树" required></label>
+          <label><span>详细地址 <b>*</b></span><input v-model.trim="draft.locationDetails.address" maxlength="255" placeholder="请输入详细地址" required></label>
+          <div class="two-columns">
+            <label><span>城市名称 <b>*</b></span><input v-model.trim="draft.locationDetails.cityName" maxlength="64" placeholder="例如：重庆市" required></label>
+            <label><span>城市编码 <b>*</b></span><input v-model.trim="draft.locationDetails.cityCode" maxlength="20" placeholder="例如：500100" required></label>
+          </div>
+          <div class="two-columns">
+            <label><span>经度</span><input v-model.number="draft.locationDetails.longitude" type="number" min="-180" max="180" step="any" placeholder="选填"></label>
+            <label><span>纬度</span><input v-model.number="draft.locationDetails.latitude" type="number" min="-90" max="90" step="any" placeholder="选填"></label>
+          </div>
+          <small class="field-hint">经纬度为选填；填写时需同时填写经度和纬度。</small>
+        </div>
         <div v-else-if="locationMode === 'new' && draft.newLocation" class="new-location-fields">
           <label><span>地点名称 <b>*</b></span><input v-model.trim="draft.newLocation.name" maxlength="100" placeholder="例如：南山一棵树" required></label>
           <label><span>详细地址 <b>*</b></span><input v-model.trim="draft.newLocation.address" maxlength="255" placeholder="请输入详细地址" required></label>
@@ -45,11 +58,12 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import type { LoveLocationOption, LoveRecord, Mood, NewLocationDraft, RecordCategory, RecordDraft } from '../types/records'
 import { toInputDate } from '../utils/date'
 const props = defineProps<{ record: LoveRecord | null; locations: LoveLocationOption[]; locationsLoading: boolean }>()
 const emit = defineEmits<{ close: []; save: [draft: RecordDraft] }>()
+const isEditing = computed(() => props.record !== null)
 const categories: RecordCategory[] = ['约会', '日常', '旅行', '纪念日']
 const moods: Array<{ name: Mood; emoji: string }> = [{ name: '心动', emoji: '♥' }, { name: '开心', emoji: '😊' }, { name: '治愈', emoji: '🌿' }, { name: '感动', emoji: '🥹' }, { name: '平静', emoji: '☁️' }, { name: '爆笑', emoji: '😆' }]
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -59,21 +73,37 @@ const locationMode = ref<'none' | 'existing' | 'new'>('none')
 const draft = reactive<RecordDraft>(emptyDraft())
 
 function emptyLocation(): NewLocationDraft { return { name: '', address: '', cityName: '', cityCode: '', longitude: null, latitude: null } }
-function emptyDraft(): RecordDraft { return { title: '', date: toInputDate(), content: '', images: [], location: '', locationId: null, newLocation: null, moods: [], tags: [], category: '日常', important: false } }
+function emptyDraft(): RecordDraft { return { title: '', date: toInputDate(), content: '', images: [], location: '', locationId: null, newLocation: null, locationDetails: null, moods: [], tags: [], category: '日常', important: false } }
+function toLocationDraft(location: LoveLocationOption): NewLocationDraft {
+  return { name: location.name, address: location.address, cityName: location.cityName, cityCode: location.cityCode, longitude: location.longitude, latitude: location.latitude }
+}
+function syncSelectedLocation(force = false): void {
+  if (!props.record || locationMode.value !== 'existing' || (!force && draft.locationDetails)) return
+  const location = props.locations.find((item) => item.id === draft.locationId)
+  draft.locationDetails = location ? toLocationDraft(location) : null
+}
 function reset(): void {
   Object.assign(draft, props.record
-    ? { ...props.record, locationId: props.record.locationId ?? null, newLocation: null, images: [...props.record.images], moods: [...props.record.moods], tags: [...props.record.tags] }
+    ? { ...props.record, locationId: props.record.locationId ?? null, newLocation: null, locationDetails: null, images: [...props.record.images], moods: [...props.record.moods], tags: [...props.record.tags] }
     : emptyDraft())
   locationMode.value = draft.locationId ? 'existing' : 'none'
+  syncSelectedLocation()
 }
 watch(() => props.record, reset, { immediate: true })
+watch(() => props.locations, () => syncSelectedLocation())
 function changeLocationMode(): void {
   if (locationMode.value === 'new') {
     draft.locationId = null
     draft.newLocation = emptyLocation()
+    draft.locationDetails = null
   } else {
     draft.newLocation = null
-    if (locationMode.value === 'none') draft.locationId = null
+    if (locationMode.value === 'none') {
+      draft.locationId = null
+      draft.locationDetails = null
+    } else {
+      syncSelectedLocation(true)
+    }
   }
 }
 function toggleMood(mood: Mood): void { draft.moods = draft.moods.includes(mood) ? draft.moods.filter((item) => item !== mood) : [...draft.moods, mood] }
@@ -96,6 +126,7 @@ function submit(): void {
       : draft.newLocation?.name ?? '',
     locationId: locationMode.value === 'existing' ? draft.locationId : null,
     newLocation: locationMode.value === 'new' && draft.newLocation ? { ...draft.newLocation } : null,
+    locationDetails: isEditing.value && locationMode.value === 'existing' && draft.locationDetails ? { ...draft.locationDetails } : null,
     moods: [...draft.moods],
     tags: [...draft.tags],
     category: draft.category,

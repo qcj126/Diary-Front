@@ -1,9 +1,11 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   clearRecordsApi,
+  deleteRelationshipApi,
   deleteRecordApi,
   loadLoveData,
   queryLocationOptionsApi,
+  queryRecordMoodsApi,
   replaceLoveDataApi,
   saveAnniversariesApi,
   saveRecordApi,
@@ -35,6 +37,7 @@ export function useLoveRecords() {
   const drawerMode = ref<'detail' | 'form' | null>(null)
   const locationOptions = ref<LoveLocationOption[]>([])
   const locationsLoading = ref(false)
+  const recordMoodRequests = new Map<string, Promise<void>>()
 
   const sortedRecords = computed(() => [...data.value.records].sort((a, b) => b.date.localeCompare(a.date)))
   const filteredRecords = computed(() => activeFilter.value === '全部'
@@ -109,12 +112,42 @@ export function useLoveRecords() {
   function openDetail(id: string): void {
     selectedId.value = id
     drawerMode.value = 'detail'
+    void refreshRecordMoods(id).catch((caught) => {
+      error.value = caught instanceof Error ? caught.message : '记录心情加载失败'
+    })
   }
 
   function openForm(id: string | null = null): void {
+    if (id) {
+      void openEditForm(id)
+      return
+    }
     editingId.value = id
     drawerMode.value = 'form'
     void refreshLocationOptions()
+  }
+
+  async function openEditForm(id: string): Promise<void> {
+    try {
+      await refreshRecordMoods(id)
+      editingId.value = id
+      drawerMode.value = 'form'
+      void refreshLocationOptions()
+    } catch (caught) {
+      error.value = caught instanceof Error ? caught.message : '记录心情加载失败'
+    }
+  }
+
+  function refreshRecordMoods(recordId: string): Promise<void> {
+    const currentRequest = recordMoodRequests.get(recordId)
+    if (currentRequest) return currentRequest
+    const request = queryRecordMoodsApi(recordId).then((moodRefs) => {
+      data.value.records = data.value.records.map((record) => record.id === recordId
+        ? { ...record, moodRefs, moods: moodRefs.map((item) => item.name) }
+        : record)
+    }).finally(() => recordMoodRequests.delete(recordId))
+    recordMoodRequests.set(recordId, request)
+    return request
   }
 
   async function refreshLocationOptions(): Promise<void> {
@@ -172,6 +205,15 @@ export function useLoveRecords() {
     data.value.relationship = await saveRelationshipApi(data.value.relationship, startDate, partnerName)
   }
 
+  async function deleteRelationship(): Promise<void> {
+    const coupleId = data.value.relationship.id
+    if (!coupleId) return
+    await deleteRelationshipApi(coupleId)
+    data.value = emptyData()
+    locationOptions.value = []
+    closeDrawer()
+  }
+
   async function saveAnniversaries(items: Anniversary[]): Promise<void> {
     data.value.relationship = await saveAnniversariesApi(data.value.relationship, items)
   }
@@ -217,7 +259,7 @@ export function useLoveRecords() {
   return {
     data, loading, error, activeView, activeFilter, drawerMode, filteredRecords, sortedRecords, selectedRecord, editingRecord,
     togetherDays, upcomingAnniversaries, locations, locationOptions, locationsLoading, stats, relatedRecords, switchView, openDetail, openForm,
-    closeDrawer, saveRecord, deleteRecord, toggleImportant, navigateRecord, updateRelationship,
+    closeDrawer, saveRecord, deleteRecord, toggleImportant, navigateRecord, updateRelationship, deleteRelationship,
     saveAnniversaries, exportData, importData, clearData, refreshData,
   }
 }
