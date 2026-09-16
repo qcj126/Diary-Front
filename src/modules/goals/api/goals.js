@@ -55,6 +55,17 @@ function postJson(url, body, fallback) {
   )
 }
 
+function getJson(url, fallback) {
+  return requestJson(
+    url,
+    {
+      method: 'GET',
+      headers: authHeaders(),
+    },
+    fallback,
+  )
+}
+
 function toList(value) {
   return Array.isArray(value) ? value : []
 }
@@ -65,7 +76,11 @@ function toNumber(value, fallback = 0) {
 }
 
 function toHours(value, fallback = 0) {
-  return Number(toNumber(value, fallback).toFixed(1))
+  return Number(toNumber(value, fallback).toFixed(2))
+}
+
+function toCheckinHours(value, fallback = 0) {
+  return Number(toNumber(value, fallback).toFixed(2))
 }
 
 function compactObject(object) {
@@ -88,10 +103,12 @@ export function normalizeGoal(raw = {}) {
     stageId: sub.stageId ?? sub.stageGoalId ?? raw.id ?? null,
     name: sub.title ?? sub.name ?? '',
     content: sub.content ?? '',
+    status: toNumber(sub.status),
     learnedHours: toHours(sub.learnedHours),
     estimatedHours: toHours(sub.estimatedHours),
     createdAt: sub.createTime ?? sub.createdAt ?? raw.createTime ?? '',
     ddl: sub.ddl ?? '',
+    completedTime: sub.completedTime ?? '',
     updatedAt: sub.updateTime ?? sub.updatedAt ?? raw.updateTime ?? '',
     daysSinceUpdate: toNumber(sub.daysSinceUpdate ?? raw.daysSinceUpdate),
   }))
@@ -110,16 +127,53 @@ export function normalizeGoal(raw = {}) {
     category: raw.category ?? '技术',
     title: raw.title ?? '',
     content: raw.description ?? raw.content ?? '',
+    status: toNumber(raw.status),
     learnedHours,
     estimatedHours,
     remainingHours: toHours(raw.remainingHours, Math.max(estimatedHours - learnedHours, 0)),
     progress,
     createdAt: raw.createTime ?? raw.createdAt ?? '',
     ddl: raw.ddl ?? '',
+    completedTime: raw.completedTime ?? '',
     updatedAt: raw.updateTime ?? raw.updatedAt ?? '',
     daysSinceUpdate: toNumber(raw.daysSinceUpdate),
     subcategories,
   }
+}
+
+export function normalizeGoalCheckin(raw = {}) {
+  return {
+    ...raw,
+    id: raw.id,
+    requestId: raw.requestId ?? '',
+    userId: raw.userId ?? null,
+    stageGoalId: raw.stageGoalId ?? null,
+    subGoalId: raw.subGoalId ?? null,
+    checkinType: toNumber(raw.checkinType, 1),
+    checkinTypeName: raw.checkinTypeName ?? '',
+    spentHours: toCheckinHours(raw.spentHours),
+    content: raw.content ?? '',
+    evidenceUrls: toList(raw.evidenceUrls).map(String),
+    checkinDate: raw.checkinDate ?? '',
+    source: toNumber(raw.source, 1),
+    createTime: raw.createTime ?? '',
+    updateTime: raw.updateTime ?? '',
+  }
+}
+
+export function createGoalCheckinDTO(checkin = {}) {
+  return compactObject({
+    id: checkin.id ?? null,
+    requestId: checkin.requestId ?? '',
+    stageGoalId: checkin.stageGoalId ?? null,
+    subGoalId: checkin.subGoalId ?? null,
+    checkinType: toNumber(checkin.checkinType, 1),
+    spentHours: toCheckinHours(checkin.spentHours),
+    content: String(checkin.content ?? '').trim(),
+    evidenceUrls: toList(checkin.evidenceUrls).map((url) => String(url).trim()).filter(Boolean),
+    checkinDate: checkin.checkinDate ?? '',
+    source: toNumber(checkin.source, 1),
+  })
 }
 
 export function createGoalDTO(goal = {}) {
@@ -202,4 +256,40 @@ export function exportGoals(params = {}) {
     },
     '导出阶段目标失败',
   )
+}
+
+export async function queryGoalCheckins(filters = {}) {
+  const payload = await postJson(
+    GOAL_API.checkin.query,
+    compactObject({
+      stageGoalId: filters.stageGoalId ?? null,
+      subGoalId: filters.subGoalId ?? null,
+      checkinType: filters.checkinType ?? null,
+      startDate: filters.startDate ?? '',
+      endDate: filters.endDate ?? '',
+      pageNum: filters.pageNum ?? 0,
+      pageSize: filters.pageSize ?? 100,
+    }),
+    '查询打卡记录失败',
+  )
+  return toList(payload).map(normalizeGoalCheckin)
+}
+
+export async function getGoalCheckin(checkinId) {
+  const payload = await getJson(GOAL_API.checkin.detail(checkinId), '查询打卡详情失败')
+  return normalizeGoalCheckin(payload)
+}
+
+export async function addGoalCheckin(checkin) {
+  const payload = await postJson(GOAL_API.checkin.add, createGoalCheckinDTO(checkin), '新增打卡失败')
+  return normalizeGoalCheckin(payload)
+}
+
+export async function updateGoalCheckin(checkin) {
+  const payload = await postJson(GOAL_API.checkin.update, createGoalCheckinDTO(checkin), '修改打卡失败')
+  return normalizeGoalCheckin(payload)
+}
+
+export function deleteGoalCheckin(checkinId) {
+  return postJson(GOAL_API.checkin.delete(checkinId), {}, '删除打卡失败')
 }

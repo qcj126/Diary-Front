@@ -126,7 +126,7 @@
                   </div>
                 </td>
                 <td>{{ formatHours(goal.estimatedHours) }}h</td>
-                <td><span :class="['ddl-status', ddlStatusInfo(goal.ddl).type]">{{ ddlStatusInfo(goal.ddl).label }}</span></td>
+                <td><span :class="['goal-status', goalStatusInfo(goal.status).type]">{{ goalStatusInfo(goal.status).label }}</span></td>
                 <td>{{ formatDateTime(goal.ddl) }}</td>
                 <td><span class="time-stack"><span>{{ datePart(goal.createdAt) }}</span><span>{{ timePart(goal.createdAt) }}</span></span></td>
                 <td><span class="time-stack"><span>{{ datePart(goal.updatedAt) }}</span><span>{{ timePart(goal.updatedAt) }}</span></span></td>
@@ -139,6 +139,22 @@
               <tr v-if="expandedIds.includes(goal.id)" class="detail-row">
                 <td colspan="13">
                   <div class="detail-card">
+                    <div class="checkin-toolbar">
+                      <div>
+                        <strong>{{ goal.title }}</strong>
+                        <span>记录实际投入、完成情况和复盘内容</span>
+                      </div>
+                      <div class="checkin-toolbar-actions">
+                        <button type="button" @click="openCheckinEditor(goal)">
+                          <span class="material-symbols-outlined">add_task</span>
+                          目标打卡
+                        </button>
+                        <button type="button" @click="openCheckinHistory(goal)">
+                          <span class="material-symbols-outlined">history</span>
+                          打卡记录
+                        </button>
+                      </div>
+                    </div>
                     <div class="sub-table-wrap">
                       <table class="sub-table">
                         <colgroup>
@@ -158,34 +174,31 @@
                           <col :style="{ width: `${columnWidths.main.stale}px` }" />
                         </colgroup>
                         <tbody>
-                        <tr v-for="(sub, subIndex) in goal.subcategories" :key="sub.name">
-                          <td></td>
+                        <tr v-for="(sub, subIndex) in goal.subcategories" :key="sub.id ?? sub.name">
+                          <td class="sub-checkin-cell">
+                            <button
+                              type="button"
+                              class="sub-checkin-button"
+                              :aria-label="`为${sub.name}打卡`"
+                              title="为小目标打卡"
+                              @click="openCheckinEditor(goal, sub)"
+                            >
+                              <span class="material-symbols-outlined">add_task</span>
+                            </button>
+                          </td>
                           <td class="sub-index">{{ circledIndex(subIndex) }}</td>
                           <td><span class="tag">{{ goal.category }}</span></td>
                           <td class="strong">{{ sub.name }}</td>
                           <td class="content-cell">{{ sub.content }}</td>
                           <td>{{ formatHours(sub.learnedHours) }}h</td>
                           <td>
-                            <div class="sub-progress-with-controls">
-                              <div class="sub-progress-controls-top" role="group" aria-label="sub progress controls">
-                                <button type="button" class="sub-btn minus" :aria-label="`减少${sub.name}进度`" @click="changeSubHours(goal, subIndex, -1)">
-                                  <span class="material-symbols-outlined">remove</span>
-                                </button>
-
-                                <div class="sub-progress-pct">{{ subProgress(sub) }}%</div>
-
-                                <button type="button" class="sub-btn plus" :aria-label="`增加${sub.name}进度`" @click="changeSubHours(goal, subIndex, 1)">
-                                  <span class="material-symbols-outlined">add</span>
-                                </button>
-                              </div>
-
-                              <div class="progress-cell">
-                                <i><b :style="{ width: `${subProgress(sub)}%` }" /></i>
-                              </div>
+                            <div class="progress-cell">
+                              <span>{{ subProgress(sub) }}%</span>
+                              <i><b :style="{ width: `${subProgress(sub)}%` }" /></i>
                             </div>
                           </td>
                           <td>{{ formatHours(sub.estimatedHours) }}h</td>
-                          <td><span :class="['ddl-status', ddlStatusInfo(sub.ddl).type]">{{ ddlStatusInfo(sub.ddl).label }}</span></td>
+                          <td><span :class="['goal-status', goalStatusInfo(sub.status).type]">{{ goalStatusInfo(sub.status).label }}</span></td>
                           <td>{{ formatDateTime(sub.ddl) }}</td>
                           <td><span class="time-stack"><span>{{ datePart(sub.createdAt) }}</span><span>{{ timePart(sub.createdAt) }}</span></span></td>
                           <td><span class="time-stack"><span>{{ datePart(sub.updatedAt) }}</span><span>{{ timePart(sub.updatedAt) }}</span></span></td>
@@ -326,6 +339,121 @@
       </form>
     </div>
 
+    <div v-if="checkinEditorOpen" class="modal-backdrop checkin-editor-backdrop" @click.self="closeCheckinEditor">
+      <form class="checkin-modal" @submit.prevent="saveCheckin">
+        <header>
+          <div>
+            <span class="eyebrow">Goal Check-in</span>
+            <h2>{{ checkinMode === 'create' ? '新增打卡' : '修改打卡' }}</h2>
+            <p>{{ checkinTargetLabel }}</p>
+          </div>
+          <button type="button" aria-label="关闭" :disabled="checkinSaving" @click="closeCheckinEditor">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </header>
+
+        <div class="checkin-fields">
+          <label>
+            <span>打卡类型</span>
+            <select v-model.number="checkinDraft.checkinType">
+              <option v-for="type in checkinTypes" :key="type.value" :value="type.value">
+                {{ type.label }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>打卡日期</span>
+            <input v-model="checkinDraft.checkinDate" required type="date" :max="todayString()" />
+          </label>
+          <label>
+            <span>本次投入（小时）</span>
+            <input
+              v-model.number="checkinDraft.spentHours"
+              type="number"
+              min="0"
+              step="0.01"
+              :disabled="!checkinTargetSub || checkinDraft.checkinType === 3"
+            />
+          </label>
+          <label class="checkin-content-field">
+            <span>完成内容 / 复盘</span>
+            <textarea v-model.trim="checkinDraft.content" maxlength="1000" rows="4" placeholder="记录本次完成了什么、遇到了什么问题"></textarea>
+          </label>
+          <label class="checkin-content-field">
+            <span>凭证链接（每行一个，选填）</span>
+            <textarea v-model="checkinEvidenceText" rows="3" placeholder="https://example.com/note.png"></textarea>
+          </label>
+        </div>
+
+        <footer>
+          <button type="button" :disabled="checkinSaving" @click="closeCheckinEditor">取消</button>
+          <button type="submit" class="primary" :disabled="checkinSaving">
+            {{ checkinSaving ? '保存中...' : '保存打卡' }}
+          </button>
+        </footer>
+      </form>
+    </div>
+
+    <div v-if="checkinHistoryOpen" class="modal-backdrop" @click.self="closeCheckinHistory">
+      <section class="checkin-history-modal">
+        <header>
+          <div>
+            <span class="eyebrow">Check-in History</span>
+            <h2>打卡记录</h2>
+            <p>{{ checkinHistoryGoal?.title }}</p>
+          </div>
+          <div class="history-header-actions">
+            <button type="button" @click="openCheckinEditor(checkinHistoryGoal)">
+              <span class="material-symbols-outlined">add_task</span>
+              新增
+            </button>
+            <button type="button" aria-label="关闭" @click="closeCheckinHistory">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </header>
+
+        <div v-if="checkinHistoryLoading" class="checkin-history-empty">打卡记录加载中...</div>
+        <div v-else-if="!checkinRecords.length" class="checkin-history-empty">暂无打卡记录</div>
+        <div v-else class="checkin-history-list">
+          <article v-for="checkin in checkinRecords" :key="checkin.id" class="checkin-history-item">
+            <div class="checkin-history-main">
+              <div class="checkin-history-meta">
+                <span class="checkin-type-pill">{{ checkinTypeName(checkin) }}</span>
+                <strong>{{ checkinTargetName(checkin) }}</strong>
+                <time>{{ checkin.checkinDate }}</time>
+                <span v-if="checkin.spentHours">{{ formatCheckinHours(checkin.spentHours) }}h</span>
+              </div>
+              <p>{{ checkin.content || '未填写打卡内容' }}</p>
+              <div v-if="safeEvidenceUrls(checkin.evidenceUrls).length" class="checkin-evidence-list">
+                <a
+                  v-for="url in safeEvidenceUrls(checkin.evidenceUrls)"
+                  :key="url"
+                  :href="url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >查看凭证</a>
+              </div>
+            </div>
+            <div class="checkin-history-actions">
+              <button type="button" aria-label="修改打卡" @click="editCheckin(checkin.id)">
+                <span class="material-symbols-outlined">edit</span>
+              </button>
+              <button
+                type="button"
+                class="danger-icon"
+                aria-label="删除打卡"
+                :disabled="deletingCheckinId === checkin.id"
+                @click="removeCheckin(checkin)"
+              >
+                <span class="material-symbols-outlined">delete</span>
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+
     <div v-if="editorOpen" class="modal-backdrop" @click.self="closeEditor">
       <form class="editor-modal" @submit.prevent="saveGoal">
         <header>
@@ -385,10 +513,23 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { GOAL_CATEGORIES, GOAL_COLUMN_WIDTHS } from '../../constants/goals.js'
-import { addGoal, batchAddSubGoals, deleteGoal, exportGoals, queryGoals, updateGoal } from './api/goals.js'
+import { GOAL_CATEGORIES, GOAL_CHECKIN_TYPES, GOAL_COLUMN_WIDTHS, GOAL_STATUS } from '../../constants/goals.js'
+import {
+  addGoal,
+  addGoalCheckin,
+  batchAddSubGoals,
+  deleteGoal,
+  deleteGoalCheckin,
+  exportGoals,
+  getGoalCheckin,
+  queryGoalCheckins,
+  queryGoals,
+  updateGoal,
+  updateGoalCheckin,
+} from './api/goals.js'
 
 const categories = GOAL_CATEGORIES
+const checkinTypes = GOAL_CHECKIN_TYPES
 const columnWidths = GOAL_COLUMN_WIDTHS
 
 const expandedIds = ref([])
@@ -409,7 +550,17 @@ const subGoalDrafts = ref([])
 const loading = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
-const syncingSubKey = ref('')
+const checkinEditorOpen = ref(false)
+const checkinHistoryOpen = ref(false)
+const checkinMode = ref('create')
+const checkinSaving = ref(false)
+const checkinHistoryLoading = ref(false)
+const deletingCheckinId = ref(null)
+const checkinTargetGoal = ref(null)
+const checkinTargetSub = ref(null)
+const checkinHistoryGoal = ref(null)
+const checkinRecords = ref([])
+const checkinEvidenceText = ref('')
 const toast = reactive({ visible: false, leaving: false, message: '' })
 let toastTimer = 0
 let toastLeaveTimer = 0
@@ -440,15 +591,69 @@ const emptyDraft = () => ({
 })
 
 const draft = reactive(emptyDraft())
+const emptyCheckinDraft = () => ({
+  id: null,
+  requestId: '',
+  stageGoalId: null,
+  subGoalId: null,
+  checkinType: 1,
+  spentHours: 0,
+  content: '',
+  checkinDate: todayString(),
+  source: 1,
+})
+const checkinDraft = reactive(emptyCheckinDraft())
 const goals = ref([])
+const checkinTargetLabel = computed(() => {
+  if (!checkinTargetGoal.value) return ''
+  return checkinTargetSub.value
+    ? `${checkinTargetGoal.value.title} / ${checkinTargetSub.value.name}`
+    : checkinTargetGoal.value.title
+})
 
 function roundHours(value) {
   const number = Number(value)
-  return Number.isFinite(number) ? Number(number.toFixed(1)) : 0
+  return Number.isFinite(number) ? Number(number.toFixed(2)) : 0
 }
 
 function formatHours(value) {
   return String(roundHours(value))
+}
+
+function formatCheckinHours(value) {
+  const number = Number(value)
+  return Number.isFinite(number) ? String(Number(number.toFixed(2))) : '0'
+}
+
+function todayString() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
+function createRequestId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `goal-checkin-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function goalStatusInfo(status) {
+  return GOAL_STATUS[Number(status)] ?? GOAL_STATUS[0]
+}
+
+function checkinTypeName(checkin) {
+  return checkin.checkinTypeName || checkinTypes.find((type) => type.value === Number(checkin.checkinType))?.label || '打卡'
+}
+
+function safeEvidenceUrls(urls = []) {
+  return urls.filter((value) => {
+    try {
+      const url = new URL(value)
+      return url.protocol === 'http:' || url.protocol === 'https:'
+    } catch {
+      return false
+    }
+  })
 }
 
 function circledIndex(index) {
@@ -531,6 +736,11 @@ async function loadGoals(showSuccess = false, queryFilters = filters) {
   try {
     const nextGoals = await queryGoals(queryFilters)
     goals.value = nextGoals
+    if (checkinHistoryGoal.value) {
+      checkinHistoryGoal.value = nextGoals.find(
+        (goal) => String(goal.id) === String(checkinHistoryGoal.value.id),
+      ) ?? checkinHistoryGoal.value
+    }
     const ids = nextGoals.map((goal) => goal.id)
     selectedIds.value = selectedIds.value.filter((id) => ids.includes(id))
     expandedIds.value = expandedIds.value.filter((id) => ids.includes(id))
@@ -547,57 +757,159 @@ async function loadGoals(showSuccess = false, queryFilters = filters) {
   }
 }
 
-async function changeSubHours(goal, subIndex, delta) {
-  const sub = goal.subcategories[subIndex]
-  if (!sub || syncingSubKey.value) return
-
-  const previous = {
-    goalLearnedHours: goal.learnedHours,
-    goalEstimatedHours: goal.estimatedHours,
-    goalProgress: goal.progress,
-    goalUpdatedAt: goal.updatedAt,
-    goalDaysSinceUpdate: goal.daysSinceUpdate,
-    subLearnedHours: sub.learnedHours,
-    subUpdatedAt: sub.updatedAt,
-    subDaysSinceUpdate: sub.daysSinceUpdate,
-  }
-  const nextHours = Math.min(Math.max((Number(sub.learnedHours) || 0) + delta, 0), Number(sub.estimatedHours) || 0)
-  sub.learnedHours = roundHours(nextHours)
-  sub.updatedAt = currentDateTime()
-  sub.daysSinceUpdate = 0
-  recalculateGoal(goal)
-  syncingSubKey.value = subKey(goal, sub)
-
-  try {
-    await updateGoal(goal)
-    showToast('进度已同步')
-  } catch (error) {
-    goal.learnedHours = previous.goalLearnedHours
-    goal.estimatedHours = previous.goalEstimatedHours
-    goal.progress = previous.goalProgress
-    goal.updatedAt = previous.goalUpdatedAt
-    goal.daysSinceUpdate = previous.goalDaysSinceUpdate
-    sub.learnedHours = previous.subLearnedHours
-    sub.updatedAt = previous.subUpdatedAt
-    sub.daysSinceUpdate = previous.subDaysSinceUpdate
-    showToast(error instanceof Error ? error.message : '同步进度失败')
-  } finally {
-    syncingSubKey.value = ''
-  }
-}
-
-function recalculateGoal(goal) {
-  goal.learnedHours = roundHours(goal.subcategories.reduce((sum, sub) => sum + (Number(sub.learnedHours) || 0), 0))
-  goal.estimatedHours = roundHours(goal.subcategories.reduce((sum, sub) => sum + (Number(sub.estimatedHours) || 0), 0))
-  goal.progress = goal.estimatedHours ? Math.min(Math.round((goal.learnedHours / goal.estimatedHours) * 100), 100) : 0
-  goal.updatedAt = currentDateTime()
-  goal.daysSinceUpdate = 0
-}
-
 function toggleExpand(id) {
   expandedIds.value = expandedIds.value.includes(id)
     ? expandedIds.value.filter((item) => item !== id)
     : [...expandedIds.value, id]
+}
+
+function openCheckinEditor(goal, sub = null) {
+  if (!goal) return
+  checkinMode.value = 'create'
+  checkinTargetGoal.value = goal
+  checkinTargetSub.value = sub
+  checkinEvidenceText.value = ''
+  Object.assign(checkinDraft, emptyCheckinDraft(), {
+    requestId: createRequestId(),
+    stageGoalId: goal.id,
+    subGoalId: sub?.id ?? null,
+  })
+  checkinEditorOpen.value = true
+}
+
+function closeCheckinEditor() {
+  if (checkinSaving.value) return
+  checkinEditorOpen.value = false
+  checkinTargetGoal.value = null
+  checkinTargetSub.value = null
+  checkinEvidenceText.value = ''
+}
+
+function checkinTargetName(checkin) {
+  const goal = checkinHistoryGoal.value
+  if (!goal) return '阶段目标'
+  if (checkin.subGoalId == null) return goal.title
+  return goal.subcategories.find((sub) => String(sub.id) === String(checkin.subGoalId))?.name || '小目标'
+}
+
+async function loadCheckinHistory() {
+  const goal = checkinHistoryGoal.value
+  if (!goal) return
+  checkinHistoryLoading.value = true
+  try {
+    checkinRecords.value = await queryGoalCheckins({
+      stageGoalId: goal.id,
+      pageNum: 0,
+      pageSize: 100,
+    })
+  } catch (error) {
+    checkinRecords.value = []
+    showToast(error instanceof Error ? error.message : '查询打卡记录失败')
+  } finally {
+    checkinHistoryLoading.value = false
+  }
+}
+
+async function openCheckinHistory(goal) {
+  if (!goal) return
+  checkinHistoryGoal.value = goal
+  checkinHistoryOpen.value = true
+  await loadCheckinHistory()
+}
+
+function closeCheckinHistory() {
+  if (checkinHistoryLoading.value || deletingCheckinId.value) return
+  checkinHistoryOpen.value = false
+  checkinHistoryGoal.value = null
+  checkinRecords.value = []
+}
+
+async function editCheckin(checkinId) {
+  try {
+    const checkin = await getGoalCheckin(checkinId)
+    const goal = goals.value.find((item) => String(item.id) === String(checkin.stageGoalId)) ?? checkinHistoryGoal.value
+    if (!goal) {
+      showToast('未找到打卡所属的阶段目标')
+      return
+    }
+    const sub = checkin.subGoalId == null
+      ? null
+      : goal.subcategories.find((item) => String(item.id) === String(checkin.subGoalId)) ?? null
+    checkinMode.value = 'edit'
+    checkinTargetGoal.value = goal
+    checkinTargetSub.value = sub
+    checkinEvidenceText.value = checkin.evidenceUrls.join('\n')
+    Object.assign(checkinDraft, emptyCheckinDraft(), checkin)
+    checkinEditorOpen.value = true
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : '查询打卡详情失败')
+  }
+}
+
+async function saveCheckin() {
+  const spentHours = Number(checkinDraft.spentHours)
+  if (!checkinDraft.stageGoalId || !checkinDraft.checkinDate) {
+    showToast('打卡目标和日期不能为空')
+    return
+  }
+  if (!Number.isFinite(spentHours) || spentHours < 0) {
+    showToast('本次投入必须是大于等于 0 的数字')
+    return
+  }
+
+  const evidenceUrls = checkinEvidenceText.value
+    .split(/[\n,]+/)
+    .map((url) => url.trim())
+    .filter(Boolean)
+  if (evidenceUrls.length > 20) {
+    showToast('凭证链接最多填写 20 个')
+    return
+  }
+  if (evidenceUrls.some((url) => url.length > 2048 || safeEvidenceUrls([url]).length === 0)) {
+    showToast('凭证链接必须是有效的 http 或 https 地址')
+    return
+  }
+
+  const payload = {
+    ...checkinDraft,
+    spentHours: !checkinTargetSub.value || checkinDraft.checkinType === 3 ? 0 : spentHours,
+    evidenceUrls,
+  }
+  const historyWasOpen = checkinHistoryOpen.value
+  checkinSaving.value = true
+  try {
+    if (checkinMode.value === 'edit') {
+      await updateGoalCheckin(payload)
+    } else {
+      await addGoalCheckin(payload)
+    }
+    checkinEditorOpen.value = false
+    checkinTargetGoal.value = null
+    checkinTargetSub.value = null
+    checkinEvidenceText.value = ''
+    await loadGoals()
+    if (historyWasOpen && checkinHistoryGoal.value) await loadCheckinHistory()
+    showToast(checkinMode.value === 'edit' ? '打卡修改成功' : '打卡成功')
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : '保存打卡失败')
+  } finally {
+    checkinSaving.value = false
+  }
+}
+
+async function removeCheckin(checkin) {
+  if (!window.confirm(`确定删除 ${checkin.checkinDate} 的打卡记录吗？`)) return
+  deletingCheckinId.value = checkin.id
+  try {
+    await deleteGoalCheckin(checkin.id)
+    await loadGoals()
+    await loadCheckinHistory()
+    showToast('打卡记录已删除')
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : '删除打卡失败')
+  } finally {
+    deletingCheckinId.value = null
+  }
 }
 
 function createSubGoalDraft() {
@@ -1213,6 +1525,42 @@ tbody tr.selected {
   color: #ba1a1a;
 }
 
+.goal-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.goal-status.not-started {
+  background: #f1edec;
+  color: #5c5f61;
+}
+
+.goal-status.in-progress {
+  background: #e8f3ff;
+  color: #1261a0;
+}
+
+.goal-status.paused {
+  background: #fff2d8;
+  color: #8a5700;
+}
+
+.goal-status.completed {
+  background: #e5f5e6;
+  color: #26742c;
+}
+
+.goal-status.abandoned {
+  background: #fbe9e7;
+  color: #a33a2b;
+}
+
 .tag {
   color: #444748;
   font-size: 13px;
@@ -1289,6 +1637,66 @@ tbody tr.selected {
   display: block;
   padding: 18px 0;
   animation: unfold 0.24s ease both;
+}
+
+.checkin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 12px 14px;
+  border: 1px solid rgba(255, 152, 0, 0.18);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #fffaf2, #ffffff);
+}
+
+.checkin-toolbar > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.checkin-toolbar strong {
+  color: #1c1b1b;
+  font-size: 14px;
+}
+
+.checkin-toolbar > div:first-child span {
+  color: #6f6260;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.checkin-toolbar-actions,
+.history-header-actions,
+.checkin-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkin-toolbar-actions button,
+.history-header-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  border-radius: 11px;
+  padding: 0 12px;
+  background: #1c1b1b;
+  color: #ffffff;
+  font-weight: 850;
+}
+
+.checkin-toolbar-actions button:last-child {
+  background: #f1edec;
+  color: #444748;
+}
+
+.checkin-toolbar-actions .material-symbols-outlined,
+.history-header-actions .material-symbols-outlined {
+  font-size: 18px;
 }
 
 @keyframes unfold {
@@ -1404,6 +1812,24 @@ tbody tr.selected {
 .sub-table th,
 .sub-table td {
   padding: 13px 12px;
+}
+
+.sub-checkin-cell {
+  text-align: center;
+}
+
+.sub-checkin-button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 10px;
+  background: #1c1b1b;
+  color: #ffffff;
+}
+
+.sub-checkin-button .material-symbols-outlined {
+  font-size: 17px;
 }
 
 .sub-progress-with-controls {
@@ -1527,10 +1953,16 @@ tbody tr.selected {
   backdrop-filter: blur(8px);
 }
 
+.checkin-editor-backdrop {
+  z-index: 55;
+}
+
 .confirm-modal,
 .export-modal,
 .editor-modal,
-.sub-goal-modal {
+.sub-goal-modal,
+.checkin-modal,
+.checkin-history-modal {
   width: min(100%, 760px);
   border: 1px solid rgba(255, 255, 255, 0.65);
   border-radius: 22px;
@@ -1636,6 +2068,209 @@ tbody tr.selected {
   display: grid;
   gap: 18px;
   padding: 22px;
+}
+
+.checkin-modal,
+.checkin-history-modal {
+  display: grid;
+  gap: 18px;
+  max-height: min(86vh, 780px);
+  padding: 22px;
+  overflow: hidden;
+}
+
+.checkin-history-modal {
+  width: min(100%, 860px);
+}
+
+.checkin-modal header,
+.checkin-modal footer,
+.checkin-history-modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.checkin-modal header p,
+.checkin-history-modal header p {
+  margin: 5px 0 0;
+  color: #6f6260;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.checkin-modal header > button,
+.history-header-actions button:last-child {
+  display: grid;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 12px;
+  padding: 0;
+  background: #f1edec;
+  color: #444748;
+}
+
+.checkin-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.checkin-fields label {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  color: #444748;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.checkin-fields input,
+.checkin-fields select,
+.checkin-fields textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid rgba(196, 199, 199, 0.58);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
+  color: #1c1b1b;
+  font: 700 13px/1.5 Inter, sans-serif;
+  outline: none;
+}
+
+.checkin-fields input,
+.checkin-fields select {
+  min-height: 42px;
+}
+
+.checkin-fields textarea {
+  resize: vertical;
+}
+
+.checkin-fields input:disabled {
+  background: #f5f3f2;
+  color: #888382;
+}
+
+.checkin-content-field {
+  grid-column: 1 / -1;
+}
+
+.checkin-modal footer {
+  justify-content: flex-end;
+}
+
+.checkin-modal footer button {
+  min-height: 40px;
+  border-radius: 12px;
+  padding: 0 18px;
+  background: #f1edec;
+  color: #444748;
+  font-weight: 900;
+}
+
+.checkin-modal footer .primary {
+  background: #1c1b1b;
+  color: #ffffff;
+}
+
+.checkin-history-list {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.checkin-history-empty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  border: 1px dashed rgba(196, 199, 199, 0.72);
+  border-radius: 16px;
+  color: #8a625c;
+  font-weight: 850;
+}
+
+.checkin-history-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid rgba(196, 199, 199, 0.45);
+  border-radius: 16px;
+  padding: 15px;
+  background: #fffdfb;
+}
+
+.checkin-history-main {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+}
+
+.checkin-history-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #6f6260;
+  font-size: 12px;
+}
+
+.checkin-history-meta strong {
+  color: #1c1b1b;
+}
+
+.checkin-type-pill {
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: #fff0dc;
+  color: #8a5700;
+  font-weight: 900;
+}
+
+.checkin-history-main > p {
+  margin: 0;
+  color: #444748;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.checkin-evidence-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.checkin-evidence-list a {
+  color: #1261a0;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.checkin-history-actions button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 11px;
+  background: #f1edec;
+  color: #444748;
+}
+
+.checkin-history-actions .material-symbols-outlined {
+  font-size: 17px;
+}
+
+.checkin-history-actions .danger-icon {
+  background: #fbe9e7;
+  color: #ba1a1a;
 }
 
 .sub-goal-modal {
@@ -1791,6 +2426,14 @@ tbody tr.selected {
     grid-template-columns: 1fr;
   }
 
+  .checkin-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .checkin-content-field {
+    grid-column: auto;
+  }
+
   .sub-goal-field-head {
     display: none;
   }
@@ -1817,6 +2460,17 @@ tbody tr.selected {
   .sub-goal-field-row .append-sub-goal-button {
     grid-column: 2;
     grid-row: 1 / span 3;
+  }
+
+  .checkin-toolbar,
+  .checkin-history-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .checkin-toolbar-actions,
+  .checkin-history-actions {
+    justify-content: flex-end;
   }
 }
 </style>
