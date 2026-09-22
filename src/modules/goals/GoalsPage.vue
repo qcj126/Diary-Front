@@ -2,8 +2,19 @@
   <section class="goals-page">
     <header class="goals-header">
       <h1>阶段目标</h1>
+      <nav class="goal-view-switch" aria-label="阶段目标视图">
+        <button type="button" :class="{ active: activeView === 'list' }" @click="activeView = 'list'">
+          <span class="material-symbols-outlined">format_list_bulleted</span>
+          目标清单
+        </button>
+        <button type="button" :class="{ active: activeView === 'review' }" @click="activeView = 'review'">
+          <span class="material-symbols-outlined">monitoring</span>
+          周期复盘
+        </button>
+      </nav>
     </header>
 
+    <template v-if="activeView === 'list'">
     <section class="toolbar">
       <div class="actions">
         <button type="button" class="primary" @click="openCreate">
@@ -72,6 +83,7 @@
             <col :style="{ width: `${columnWidths.main.date}px` }" />
             <col :style="{ width: `${columnWidths.main.date}px` }" />
             <col :style="{ width: `${columnWidths.main.stale}px` }" />
+            <col :style="{ width: `${columnWidths.main.complete}px` }" />
           </colgroup>
           <thead>
             <tr>
@@ -88,6 +100,7 @@
               <th>创建时间</th>
               <th>修改时间</th>
               <th>距上次更新</th>
+              <th>完成</th>
             </tr>
           </thead>
           <tbody>
@@ -135,9 +148,23 @@
                     {{ goal.daysSinceUpdate }}天
                   </span>
                 </td>
+                <td class="completion-cell">
+                  <button
+                    v-if="!goal.subcategories.length"
+                    type="button"
+                    :class="['complete-goal-button', { completed: goal.status === 3 }]"
+                    :disabled="goal.status === 3 || goal.status === 4 || completingTarget"
+                    :aria-label="goal.status === 3 ? `${goal.title}已完成` : `完成阶段目标${goal.title}`"
+                    :title="goal.status === 3 ? '已完成' : '标记为已完成'"
+                    @click="openCompletionConfirm(goal)"
+                  >
+                    <span class="material-symbols-outlined">{{ goal.status === 3 ? 'check_circle' : 'check' }}</span>
+                  </button>
+                  <span v-else class="auto-complete-hint" title="全部小目标完成后自动完成">自动</span>
+                </td>
               </tr>
               <tr v-if="expandedIds.includes(goal.id)" class="detail-row">
-                <td colspan="13">
+                <td colspan="14">
                   <div class="detail-card">
                     <div class="checkin-toolbar">
                       <div>
@@ -172,6 +199,7 @@
                           <col :style="{ width: `${columnWidths.main.date}px` }" />
                           <col :style="{ width: `${columnWidths.main.date}px` }" />
                           <col :style="{ width: `${columnWidths.main.stale}px` }" />
+                          <col :style="{ width: `${columnWidths.main.complete}px` }" />
                         </colgroup>
                         <tbody>
                         <tr v-for="(sub, subIndex) in goal.subcategories" :key="sub.id ?? sub.name">
@@ -202,11 +230,23 @@
                           <td>{{ formatDateTime(sub.ddl) }}</td>
                           <td><span class="time-stack"><span>{{ datePart(sub.createdAt) }}</span><span>{{ timePart(sub.createdAt) }}</span></span></td>
                           <td><span class="time-stack"><span>{{ datePart(sub.updatedAt) }}</span><span>{{ timePart(sub.updatedAt) }}</span></span></td>
-                          <td>
-                              <span :class="['stale-pill', { warn: sub.daysSinceUpdate >= 3 }]">
-                                {{ sub.daysSinceUpdate }}天
-                              </span>
-                          </td>
+                           <td>
+                               <span :class="['stale-pill', { warn: sub.daysSinceUpdate >= 3 }]">
+                                 {{ sub.daysSinceUpdate }}天
+                               </span>
+                           </td>
+                           <td class="completion-cell">
+                             <button
+                               type="button"
+                               :class="['complete-goal-button', { completed: sub.status === 3 }]"
+                               :disabled="sub.status === 3 || sub.status === 4 || completingTarget"
+                               :aria-label="sub.status === 3 ? `${sub.name}已完成` : `完成小目标${sub.name}`"
+                               :title="sub.status === 3 ? '已完成' : '标记为已完成'"
+                               @click="openCompletionConfirm(goal, sub)"
+                             >
+                               <span class="material-symbols-outlined">{{ sub.status === 3 ? 'check_circle' : 'check' }}</span>
+                             </button>
+                           </td>
                         </tr>
                         </tbody>
                       </table>
@@ -216,10 +256,10 @@
               </tr>
             </template>
             <tr v-if="!loading && !filteredGoals.length">
-              <td colspan="13" class="empty-cell">暂无阶段目标</td>
+              <td colspan="14" class="empty-cell">暂无阶段目标</td>
             </tr>
             <tr v-if="loading">
-              <td colspan="13" class="empty-cell">加载中...</td>
+              <td colspan="14" class="empty-cell">加载中...</td>
             </tr>
           </tbody>
         </table>
@@ -246,9 +286,28 @@
           <label>
             <span>文件格式</span>
             <select v-model.number="exportForm.exportType">
-              <option :value="1">PDF</option>
-              <option :value="2">图片</option>
-              <option :value="3">Excel</option>
+              <option :value="1">Excel</option>
+              <option :value="2">PDF</option>
+              <option :value="3">PNG 图片</option>
+            </select>
+          </label>
+          <label>
+            <span>分类</span>
+            <select v-model.number="exportForm.category">
+              <option :value="1">全部</option>
+              <option :value="2">技术</option>
+              <option :value="3">学习</option>
+              <option :value="4">健康</option>
+              <option :value="5">生活</option>
+            </select>
+          </label>
+          <label>
+            <span>DDL 状态</span>
+            <select v-model.number="exportForm.ddl">
+              <option :value="1">全部</option>
+              <option :value="2">正常</option>
+              <option :value="3">即将到期</option>
+              <option :value="4">已到期</option>
             </select>
           </label>
           <label>
@@ -508,16 +567,35 @@
         </footer>
       </form>
     </div>
+
+    <div v-if="completionConfirmOpen" class="modal-backdrop" @click.self="closeCompletionConfirm">
+      <section class="confirm-modal completion-confirm-modal">
+        <span class="completion-confirm-icon material-symbols-outlined">task_alt</span>
+        <h2>是否确认此目标已完成？</h2>
+        <p>{{ completionTarget?.title }}</p>
+        <div>
+          <button type="button" :disabled="completingTarget" @click="closeCompletionConfirm">取消</button>
+          <button type="button" class="complete-confirm-button" :disabled="completingTarget" @click="confirmCompletion">
+            {{ completingTarget ? '提交中' : '确认完成' }}
+          </button>
+        </div>
+      </section>
+    </div>
+    </template>
+
+    <GoalDashboard v-else />
   </section>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { GOAL_CATEGORIES, GOAL_CHECKIN_TYPES, GOAL_COLUMN_WIDTHS, GOAL_STATUS } from '../../constants/goals.js'
+import GoalDashboard from './components/GoalDashboard.vue'
 import {
   addGoal,
   addGoalCheckin,
   batchAddSubGoals,
+  completeGoalTarget,
   deleteGoal,
   deleteGoalCheckin,
   exportGoals,
@@ -531,6 +609,7 @@ import {
 const categories = GOAL_CATEGORIES
 const checkinTypes = GOAL_CHECKIN_TYPES
 const columnWidths = GOAL_COLUMN_WIDTHS
+const activeView = ref('list')
 
 const expandedIds = ref([])
 const selectedIds = ref([])
@@ -550,6 +629,9 @@ const subGoalDrafts = ref([])
 const loading = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
+const completionConfirmOpen = ref(false)
+const completingTarget = ref(false)
+const completionTarget = ref(null)
 const checkinEditorOpen = ref(false)
 const checkinHistoryOpen = ref(false)
 const checkinMode = ref('create')
@@ -570,6 +652,8 @@ const exportDayOptions = [1, 3, 5, 7, 10, 15, 30]
 const exportSizeOptions = [10, 20, 30, 40, 50, 100]
 const exportForm = reactive({
   exportType: 1,
+  category: 1,
+  ddl: 1,
   lastDays: 7,
   exportSize: 10,
 })
@@ -761,6 +845,40 @@ function toggleExpand(id) {
   expandedIds.value = expandedIds.value.includes(id)
     ? expandedIds.value.filter((item) => item !== id)
     : [...expandedIds.value, id]
+}
+
+function openCompletionConfirm(goal, sub = null) {
+  const target = sub ?? goal
+  if (!target?.id || target.status === 3 || target.status === 4) return
+  completionTarget.value = {
+    id: target.id,
+    flag: sub ? 2 : 1,
+    title: sub ? `${goal.title} / ${sub.name}` : goal.title,
+  }
+  completionConfirmOpen.value = true
+}
+
+function closeCompletionConfirm() {
+  if (completingTarget.value) return
+  completionConfirmOpen.value = false
+  completionTarget.value = null
+}
+
+async function confirmCompletion() {
+  const target = completionTarget.value
+  if (!target) return
+  completingTarget.value = true
+  try {
+    await completeGoalTarget(target.id, target.flag)
+    completionConfirmOpen.value = false
+    completionTarget.value = null
+    await loadGoals()
+    showToast(target.flag === 2 ? '小目标已完成' : '阶段目标已完成')
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : '完成目标失败')
+  } finally {
+    completingTarget.value = false
+  }
 }
 
 function openCheckinEditor(goal, sub = null) {
@@ -1037,14 +1155,27 @@ async function confirmDelete() {
 async function confirmExport() {
   exporting.value = true
   try {
-    await exportGoals(exportForm)
+    const file = await exportGoals(exportForm)
+    downloadExportFile(file)
     exportOpen.value = false
-    showToast('导出请求已发送')
+    showToast(`已开始下载 ${file.filename}`)
   } catch (error) {
     showToast(error instanceof Error ? error.message : '导出请求失败')
   } finally {
     exporting.value = false
   }
+}
+
+function downloadExportFile(file) {
+  const url = URL.createObjectURL(file.blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = file.filename
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
 function openCreate() {
@@ -1179,7 +1310,7 @@ onMounted(() => {
 
 .goals-header {
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   height: 72px;
   min-height: 72px;
   margin: -1rem -1rem 24px;
@@ -1207,6 +1338,38 @@ p {
   margin-top: 0;
   font-size: 1.75rem;
   line-height: 1.2;
+}
+
+.goal-view-switch {
+  display: inline-flex;
+  gap: 4px;
+  border: 1px solid rgba(196, 199, 199, 0.52);
+  border-radius: 13px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.goal-view-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  border-radius: 9px;
+  padding: 0 13px;
+  background: transparent;
+  color: #666163;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.goal-view-switch button.active {
+  background: var(--dashboard-accent, #1c1b1b);
+  color: var(--dashboard-accent-contrast, #ffffff);
+  box-shadow: 0 5px 14px rgba(28, 27, 27, 0.15);
+}
+
+.goal-view-switch .material-symbols-outlined {
+  font-size: 17px;
 }
 
 .toolbar,
@@ -1387,7 +1550,7 @@ button:disabled {
 
 table {
   width: 100%;
-  min-width: 1222px;
+  min-width: 1290px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -1800,7 +1963,7 @@ tbody tr.selected {
 }
 
 .sub-table {
-  min-width: 1222px;
+  min-width: 1290px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -1830,6 +1993,47 @@ tbody tr.selected {
 
 .sub-checkin-button .material-symbols-outlined {
   font-size: 17px;
+}
+
+.completion-cell {
+  text-align: center;
+}
+
+.complete-goal-button {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid rgba(38, 166, 154, 0.35);
+  border-radius: 10px;
+  padding: 0;
+  background: rgba(38, 166, 154, 0.1);
+  color: #087f71;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38);
+}
+
+.complete-goal-button:hover:not(:disabled) {
+  background: #16867a;
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(22, 134, 122, 0.22);
+}
+
+.complete-goal-button.completed {
+  border-color: rgba(38, 166, 154, 0.18);
+  background: transparent;
+  color: #26a69a;
+  opacity: 1;
+}
+
+.complete-goal-button .material-symbols-outlined {
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.auto-complete-hint {
+  color: #8a8381;
+  font-size: 10px;
+  font-weight: 850;
 }
 
 .sub-progress-with-controls {
@@ -1981,6 +2185,31 @@ tbody tr.selected {
 .confirm-modal {
   max-width: 420px;
   padding: 24px;
+}
+
+.completion-confirm-modal {
+  text-align: center;
+}
+
+.completion-confirm-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 14px;
+  place-items: center;
+  border-radius: 16px;
+  background: rgba(38, 166, 154, 0.12);
+  color: #16867a;
+  font-size: 29px;
+}
+
+.completion-confirm-modal div {
+  justify-content: center;
+}
+
+.confirm-modal .complete-confirm-button {
+  background: #16867a;
+  color: #ffffff;
 }
 
 .export-modal {
@@ -2446,7 +2675,18 @@ tbody tr.selected {
 
 @media (max-width: 680px) {
   .goals-header {
+    height: auto;
+    min-height: 72px;
+    gap: 12px;
     padding: 0 1rem;
+  }
+
+  .goal-view-switch button {
+    padding: 0 9px;
+  }
+
+  .goal-view-switch .material-symbols-outlined {
+    display: none;
   }
 
   .sub-goal-field-row {

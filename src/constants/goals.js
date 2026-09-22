@@ -29,6 +29,7 @@ export const GOAL_COLUMN_WIDTHS = Object.freeze({
     date: 96,
     ddl: 96,
     stale: 80,
+    complete: 68,
   },
   sub: {
     title: 140,

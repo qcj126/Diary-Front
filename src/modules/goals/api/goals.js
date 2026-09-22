@@ -93,7 +93,6 @@ function sessionDefaults() {
   const session = getAuthSession()
   return {
     userId: session?.userId ?? null,
-    creator: session?.username ?? '',
   }
 }
 
@@ -123,7 +122,7 @@ export function normalizeGoal(raw = {}) {
     ...raw,
     id: raw.id,
     userId: raw.userId ?? null,
-    creator: raw.creator ?? '',
+    creator: String(raw.creator ?? '').trim() || (raw.userId != null ? `用户 ${raw.userId}` : '—'),
     category: raw.category ?? '技术',
     title: raw.title ?? '',
     content: raw.description ?? raw.content ?? '',
@@ -181,7 +180,6 @@ export function createGoalDTO(goal = {}) {
   return compactObject({
     id: goal.id ?? null,
     userId: goal.userId ?? defaults.userId,
-    creator: goal.creator ?? defaults.creator,
     category: goal.category ?? '',
     title: goal.title ?? '',
     description: goal.content ?? goal.description ?? '',
@@ -215,6 +213,66 @@ export async function queryGoals(filters = {}) {
   return toList(payload).map(normalizeGoal)
 }
 
+export async function queryGoalDashboard(filters = {}) {
+  const payload = await postJson(
+    GOAL_API.dashboardReview,
+    compactObject({
+      periodType: toNumber(filters.periodType, 1),
+      anchorDate: filters.anchorDate ?? '',
+      staleDays: toNumber(filters.staleDays, 7),
+    }),
+    '查询目标周期复盘失败',
+  )
+
+  const summary = payload?.summary ?? {}
+  return {
+    periodType: toNumber(payload?.periodType, 1),
+    periodName: payload?.periodName ?? (toNumber(filters.periodType, 1) === 2 ? '月报' : '周报'),
+    startDate: payload?.startDate ?? '',
+    endDate: payload?.endDate ?? '',
+    dataThroughDate: payload?.dataThroughDate ?? '',
+    summary: {
+      dueGoalCount: toNumber(summary.dueGoalCount),
+      completedGoalCount: toNumber(summary.completedGoalCount),
+      overdueGoalCount: toNumber(summary.overdueGoalCount),
+      completionRate: toNumber(summary.completionRate),
+      overdueRate: toNumber(summary.overdueRate),
+      periodSpentHours: toHours(summary.periodSpentHours),
+      currentStreakDays: toNumber(summary.currentStreakDays),
+      longestStreakDays: toNumber(summary.longestStreakDays),
+      completedEstimatedHours: toHours(summary.completedEstimatedHours),
+      completedActualHours: toHours(summary.completedActualHours),
+      hourDeviation: toHours(summary.hourDeviation),
+      hourDeviationRate: toNumber(summary.hourDeviationRate),
+    },
+    timeTrend: toList(payload?.timeTrend).map((item) => ({
+      startDate: item?.startDate ?? '',
+      endDate: item?.endDate ?? '',
+      label: item?.label ?? '',
+      spentHours: toHours(item?.spentHours),
+    })),
+    categoryDistribution: toList(payload?.categoryDistribution).map((item) => ({
+      category: item?.category ?? '未分类',
+      spentHours: toHours(item?.spentHours),
+      percentage: toNumber(item?.percentage),
+    })),
+    burndown: toList(payload?.burndown).map((item) => ({
+      date: item?.date ?? '',
+      idealRemainingHours: toHours(item?.idealRemainingHours),
+      actualRemainingHours: toHours(item?.actualRemainingHours),
+    })),
+    staleGoals: toList(payload?.staleGoals).map((item) => ({
+      goalId: item?.goalId ?? null,
+      title: item?.title ?? '',
+      category: item?.category ?? '未分类',
+      status: toNumber(item?.status),
+      statusName: item?.statusName ?? '',
+      lastActivityDate: item?.lastActivityDate ?? '',
+      inactiveDays: toNumber(item?.inactiveDays),
+    })),
+  }
+}
+
 export function addGoal(goal) {
   return postJson(GOAL_API.add, createGoalDTO(goal), '新增阶段目标失败')
 }
@@ -235,7 +293,15 @@ export function batchAddSubGoals(stageId, subGoals = []) {
 }
 
 export function updateGoal(goal) {
-  return postJson(GOAL_API.update, createGoalDTO(goal), '修改阶段目标失败')
+  return postJson(GOAL_API.update, { ...createGoalDTO(goal), flag: 1 }, '修改阶段目标失败')
+}
+
+export function completeGoalTarget(id, flag) {
+  return postJson(
+    GOAL_API.update,
+    { id, flag, status: 3 },
+    flag === 2 ? '完成小目标失败' : '完成阶段目标失败',
+  )
 }
 
 export function deleteGoal(goalId) {
@@ -245,17 +311,44 @@ export function deleteGoal(goalId) {
 export function exportGoals(params = {}) {
   const query = new URLSearchParams({
     exportType: String(params.exportType ?? 1),
+    ddl: String(params.ddl ?? 1),
+    category: String(params.category ?? 1),
     lastDays: String(params.lastDays ?? 7),
     exportSize: String(params.exportSize ?? 10),
   })
-  return requestJson(
-    GOAL_API.export(query.toString()),
-    {
-      method: 'POST',
-      headers: authHeaders(),
-    },
-    '导出阶段目标失败',
-  )
+  return fetch(GOAL_API.export(query.toString()), {
+    method: 'POST',
+    headers: authHeaders(),
+  }).then(async (res) => {
+    if (!res.ok) {
+      const data = parseApiPayload(await res.text())
+      assertApiSuccess(res, data, '导出阶段目标失败')
+    }
+    const blob = await res.blob()
+    if (!blob.size) throw new Error('导出文件为空')
+    return {
+      blob,
+      filename: exportFilename(res.headers.get('content-disposition'), params.exportType),
+    }
+  })
+}
+
+function exportFilename(contentDisposition, exportType) {
+  const encoded = String(contentDisposition ?? '').match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded)
+    } catch {
+      // 使用响应头中的原始文件名或默认名称。
+    }
+  }
+  const filename = String(contentDisposition ?? '').match(/filename="?([^";]+)"?/i)?.[1]
+  if (filename) return filename
+  return {
+    1: 'stage-goal-export.xlsx',
+    2: 'stage-goal-export.pdf',
+    3: 'stage-goal-export.png',
+  }[Number(exportType)] ?? 'stage-goal-export.zip'
 }
 
 export async function queryGoalCheckins(filters = {}) {

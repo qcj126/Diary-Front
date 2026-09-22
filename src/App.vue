@@ -72,13 +72,13 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { LOGIN_BUBBLE_COUNT } from './constants/auth.js'
 import { LoginForm, RegisterForm, ResetPasswordForm } from './modules/auth/index.js'
+import { hasAuthSession } from './modules/auth/session.js'
 import { LoveDashboard } from './modules/love-dashboard/index.js'
 
 const bubbles = ref([])
 const page = ref('login')
 const loginNotice = ref('')
-// 登录功能暂时停用，恢复时改回：const loggedIn = ref(hasAuthSession())
-const loggedIn = ref(true)
+const loggedIn = ref(hasAuthSession())
 let bubbleFrame = 0
 let lastBubbleTime = 0
 

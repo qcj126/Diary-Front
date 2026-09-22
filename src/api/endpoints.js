@@ -91,6 +91,7 @@ export const GOAL_API = {
   update: `${API_BASE}/goal/update`,
   query: `${API_BASE}/goal/query`,
   export: (query = '') => `${API_BASE}/goal/export${query ? `?${query}` : ''}`,
+  dashboardReview: `${API_BASE}/goal/dashboard/review`,
   checkin: {
     add: `${API_BASE}/goal/checkin/add`,
     update: `${API_BASE}/goal/checkin/update`,
