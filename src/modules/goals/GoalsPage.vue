@@ -130,7 +130,13 @@
                 <td>{{ goal.creator }}</td>
                 <td><span class="tag">{{ goal.category }}</span></td>
                 <td class="strong">{{ goal.title }}</td>
-                <td class="content-cell">{{ goal.content }}</td>
+                <td class="content-cell">
+                  <span
+                    class="content-preview"
+                    @mouseenter="showContentTooltip($event, goal.content)"
+                    @mouseleave="hideContentTooltip"
+                  >{{ goal.content }}</span>
+                </td>
                 <td>{{ formatHours(goal.learnedHours) }}h</td>
                 <td>
                   <div class="progress-cell">
@@ -217,7 +223,13 @@
                           <td class="sub-index">{{ circledIndex(subIndex) }}</td>
                           <td><span class="tag">{{ goal.category }}</span></td>
                           <td class="strong">{{ sub.name }}</td>
-                          <td class="content-cell">{{ sub.content }}</td>
+                          <td class="content-cell">
+                            <span
+                              class="content-preview"
+                              @mouseenter="showContentTooltip($event, sub.content)"
+                              @mouseleave="hideContentTooltip"
+                            >{{ sub.content }}</span>
+                          </td>
                           <td>{{ formatHours(sub.learnedHours) }}h</td>
                           <td>
                             <div class="progress-cell">
@@ -584,11 +596,20 @@
     </template>
 
     <GoalDashboard v-else />
+
+    <Teleport to="body">
+      <div
+        v-if="contentTooltip.visible"
+        :class="['goal-content-tooltip', `is-${contentTooltip.horizontal}`, `is-${contentTooltip.vertical}`]"
+        :style="contentTooltipStyle"
+        role="tooltip"
+      >{{ contentTooltip.text }}</div>
+    </Teleport>
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { GOAL_CATEGORIES, GOAL_CHECKIN_TYPES, GOAL_COLUMN_WIDTHS, GOAL_STATUS } from '../../constants/goals.js'
 import GoalDashboard from './components/GoalDashboard.vue'
 import {
@@ -644,6 +665,7 @@ const checkinHistoryGoal = ref(null)
 const checkinRecords = ref([])
 const checkinEvidenceText = ref('')
 const toast = reactive({ visible: false, leaving: false, message: '' })
+const contentTooltip = reactive({ visible: false, text: '', left: 0, top: 0, horizontal: 'left', vertical: 'bottom' })
 let toastTimer = 0
 let toastLeaveTimer = 0
 let subGoalDraftKey = 0
@@ -694,6 +716,36 @@ const checkinTargetLabel = computed(() => {
     ? `${checkinTargetGoal.value.title} / ${checkinTargetSub.value.name}`
     : checkinTargetGoal.value.title
 })
+
+const contentTooltipStyle = computed(() => {
+  const position = contentTooltip.horizontal === 'left'
+    ? { left: `${contentTooltip.left}px` }
+    : { right: `${contentTooltip.left}px` }
+  return contentTooltip.vertical === 'bottom'
+    ? { ...position, top: `${contentTooltip.top}px` }
+    : { ...position, bottom: `${contentTooltip.top}px` }
+})
+
+function showContentTooltip(event, content) {
+  const text = String(content || '').trim()
+  if (!text) return
+
+  const rect = event.currentTarget.getBoundingClientRect()
+  contentTooltip.text = text
+  contentTooltip.horizontal = rect.left + rect.width / 2 > window.innerWidth / 2 ? 'right' : 'left'
+  contentTooltip.vertical = rect.bottom + 180 > window.innerHeight ? 'top' : 'bottom'
+  contentTooltip.left = contentTooltip.horizontal === 'left'
+    ? Math.max(12, rect.left)
+    : Math.max(12, window.innerWidth - rect.right)
+  contentTooltip.top = contentTooltip.vertical === 'bottom'
+    ? rect.bottom + 10
+    : Math.max(12, window.innerHeight - rect.top + 10)
+  contentTooltip.visible = true
+}
+
+function hideContentTooltip() {
+  contentTooltip.visible = false
+}
 
 function roundHours(value) {
   const number = Number(value)
@@ -1284,6 +1336,10 @@ async function saveGoal() {
 onMounted(() => {
   loadGoals(false, {})
 })
+
+onBeforeUnmount(() => {
+  contentTooltip.visible = false
+})
 </script>
 
 <style scoped>
@@ -1662,6 +1718,33 @@ tbody tr.selected {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.content-preview {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+:global(.goal-content-tooltip) {
+  position: fixed;
+  z-index: 2000;
+  width: fit-content;
+  max-width: min(560px, calc(100vw - 24px));
+  max-height: min(320px, calc(100vh - 24px));
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid rgba(64, 50, 47, 0.18);
+  border-radius: 10px;
+  background: rgba(37, 32, 31, 0.96);
+  box-shadow: 0 10px 28px rgba(28, 27, 27, 0.24);
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  pointer-events: none;
 }
 
 .stale-pill {
