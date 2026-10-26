@@ -113,8 +113,13 @@
             />
           </label>
           <label class="field wide">
-            <span>图片地址</span>
-            <input v-model.trim="form.imageUrl" maxlength="1000" type="url" placeholder="https://..." />
+            <span>上传图片</span>
+            <input accept="image/png,image/jpeg" type="file" :disabled="uploadingImage" @change="uploadImage" />
+            <small v-if="uploadingImage">图片上传中，请稍候…</small>
+          </label>
+          <label class="field wide">
+            <span>图片地址（可选）</span>
+            <input v-model.trim="form.imageUrl" maxlength="1000" type="text" placeholder="https://... 或上传后自动填写" />
           </label>
           <label class="field wide">
             <span>备注</span>
@@ -123,8 +128,8 @@
 
           <div class="dialog-actions wide">
             <button type="button" @click="closeDialog">取消</button>
-            <button type="submit" class="primary" :disabled="saving">
-              {{ saving ? '保存中…' : '保存' }}
+            <button type="submit" class="primary" :disabled="saving || uploadingImage">
+              {{ saving ? '保存中…' : uploadingImage ? '图片上传中…' : '保存' }}
             </button>
           </div>
         </form>
@@ -140,13 +145,14 @@ import DietTimeline from './DietTimeline.vue'
 import DietSummaryPanel from './DietSummaryPanel.vue'
 import {
   addDietRecord,
-  currentDietUserId,
   deleteDietRecord,
   queryDietRecords,
+  uploadDietImage,
   updateDietRecord,
 } from './api/diet.js'
 
 const segments = DIET_SEGMENTS
+const uploadingImage = ref(false)
 
 const activeSegment = ref('all')
 const search = ref('')
@@ -199,7 +205,6 @@ async function loadMeals() {
   setNotice('', '')
   try {
     meals.value = await queryDietRecords({
-      userId: currentDietUserId(),
       keyword: search.value,
       ...dateRange(activeSegment.value),
     })
@@ -223,7 +228,6 @@ function openEditDialog() {
   dialogMode.value = 'edit'
   form.value = {
     id: meal.id,
-    userId: meal.userId,
     eatTime: String(meal.eatTime || '').slice(0, 16),
     mealType: meal.mealType,
     foodName: meal.name,
@@ -235,7 +239,7 @@ function openEditDialog() {
     sodium: meal.sodium,
     location: meal.place,
     note: meal.desc,
-    imageUrl: meal.img,
+    imageUrl: meal.imageUrl ?? meal.img,
   }
   dialogOpen.value = true
 }
@@ -259,6 +263,21 @@ async function saveMeal() {
   }
 }
 
+async function uploadImage(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  uploadingImage.value = true
+  try {
+    form.value.imageUrl = await uploadDietImage(file)
+    setNotice('success', '图片上传成功')
+  } catch (error) {
+    setNotice('error', error.message || '图片上传失败')
+  } finally {
+    uploadingImage.value = false
+    event.target.value = ''
+  }
+}
+
 async function removeSelectedMeal() {
   const meal = selectedMeal.value
   if (!meal || !window.confirm(`确定删除“${meal.name}”吗？`)) return
@@ -279,7 +298,6 @@ function createEmptyForm() {
   const now = new Date()
   return {
     id: null,
-    userId: currentDietUserId(),
     eatTime: toDateTimeInput(now),
     mealType: defaultMealType(now.getHours()),
     foodName: '',

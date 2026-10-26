@@ -35,12 +35,16 @@ async function getJson(url, fallback) {
   return payload
 }
 
-export function queryAiTaskStatus(taskId) {
-  return getJson(AI_API.taskStatus(taskId), 'AI任务状态查询失败')
+function taskApi(aiApplication) {
+  return Number(aiApplication) === 2 ? AI_API.sentiment : AI_API.nutrition
 }
 
-export function queryAiTaskResult(taskId) {
-  return getJson(AI_API.taskResult(taskId), 'AI分析结果查询失败')
+export function queryAiTaskStatus(taskId, aiApplication) {
+  return getJson(taskApi(aiApplication).taskStatus(taskId), 'AI任务状态查询失败')
+}
+
+export function queryAiTaskResult(taskId, aiApplication) {
+  return getJson(taskApi(aiApplication).taskResult(taskId), 'AI分析结果查询失败')
 }
 
 export function queryAiTaskList({

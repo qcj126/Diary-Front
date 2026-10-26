@@ -1,6 +1,5 @@
 import { computed, ref } from 'vue'
 import { ICON_API } from '../../../api/index.js'
-import { requireAuthUserId } from '../../auth/session.js'
 import { CAROUSEL_CONFIG, TIMELINE_COLOR_MAP } from '../../../constants/timeline.js'
 import { normalizeImageUrl, queryCarouselImageUrls, queryTimelineImageUrls } from '../api/images.js'
 import {
@@ -15,10 +14,6 @@ import {
 } from '../api/timeMachine.js'
 
 const CATEGORY_COLORS = Object.keys(TIMELINE_COLOR_MAP)
-
-function readUserId() {
-  return requireAuthUserId()
-}
 
 function toArray(data) {
   if (Array.isArray(data)) return data
@@ -74,7 +69,6 @@ function mapCategoryDTO(dto, index = 0) {
   const icon = normalizeIconPath(iconPath)
   return {
     id: toKey(id),
-    userId: dto?.userId ?? readUserId(),
     key: dto?.key || `cat_${id}`,
     label: dto?.categoryName || dto?.label || '',
     icon,
@@ -93,7 +87,6 @@ function mapCategoryDTO(dto, index = 0) {
 function mapCategoryToDTO(category) {
   return {
     id: category?.id ?? null,
-    userId: category?.userId ?? readUserId(),
     categoryName: category?.categoryName ?? category?.label ?? '',
     iconId: category?.iconId ?? null,
     iconName: category?.iconName ?? '',
@@ -116,7 +109,6 @@ function mapCardDTO(dto, categoryMap, fallback = {}) {
   return {
     id: toKey(id),
     rawId: toKey(id),
-    userId: dto?.userId ?? readUserId(),
     imageId: dto?.imageId ?? null,
     categoryId: categoryId === null ? null : toKey(categoryId),
     categoryKey: categoryKeyById(categoryMap, categoryId) || fallback.categoryKey || 'all',
@@ -138,7 +130,6 @@ function mapEventToCardDTO(event, categoryMap) {
 
   return {
     id: event?.rawId ?? event?.id ?? null,
-    userId: event?.userId ?? readUserId(),
     imageId: event?.imageId ?? null,
     categoryId,
     cardTitle: event?.cardTitle ?? event?.title ?? '',
@@ -264,7 +255,7 @@ export function useTimelineEvents() {
   }
 
   async function refreshCategories() {
-    const result = await queryTimeCategories({ userId: readUserId() })
+    const result = await queryTimeCategories()
     const nextCategories = toArray(result).map(mapCategoryDTO).filter((category) => category.deleted !== 1)
     if (nextCategories.length) {
       categories.value = nextCategories.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
@@ -333,7 +324,7 @@ export function useTimelineEvents() {
   }
 
   async function createCategory(category) {
-    const dto = mapCategoryToDTO({ ...category, userId: readUserId() })
+    const dto = mapCategoryToDTO(category)
     const saved = normalizeSavedEntity(await addTimeCategory(dto), dto)
     const nextCategory = mapCategoryDTO(saved, categories.value.length)
     categories.value = [...categories.value, nextCategory].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
@@ -341,7 +332,7 @@ export function useTimelineEvents() {
   }
 
   async function updateCategory(category) {
-    const dto = mapCategoryToDTO({ ...category, userId: readUserId() })
+    const dto = mapCategoryToDTO(category)
     const saved = normalizeSavedEntity(await updateTimeCategory(dto), dto)
     const nextCategory = mapCategoryDTO(saved)
     categories.value = categories.value.map((item) => (toKey(item.id) === toKey(nextCategory.id) ? { ...item, ...nextCategory } : item))
@@ -349,14 +340,14 @@ export function useTimelineEvents() {
   }
 
   async function removeCategory(category) {
-    const dto = mapCategoryToDTO({ ...category, userId: readUserId(), deleted: 1 })
+    const dto = mapCategoryToDTO({ ...category, deleted: 1 })
     await deleteTimeCategory(dto)
     categories.value = categories.value.filter((item) => toKey(item.id) !== toKey(dto.id))
     if (selectedCategory.value === category?.key) selectCategory('all')
   }
 
   async function createEvent(event) {
-    const dto = mapEventToCardDTO({ ...event, userId: readUserId() }, categoryMap.value)
+    const dto = mapEventToCardDTO(event, categoryMap.value)
     const saved = normalizeSavedEntity(await addTimeCard(dto), dto)
     let nextEvent = mapCardDTO(saved, categoryMap.value)
     nextEvent = {
@@ -380,7 +371,7 @@ export function useTimelineEvents() {
 
   async function updateEvent(updatedEvent) {
     const currentEvent = events.value.find((event) => toKey(event.id) === toKey(updatedEvent.id))
-    const dto = mapEventToCardDTO({ ...updatedEvent, userId: readUserId() }, categoryMap.value)
+    const dto = mapEventToCardDTO(updatedEvent, categoryMap.value)
     const saved = normalizeSavedEntity(await updateTimeCard(dto), dto)
     let nextEvent = mapCardDTO(saved, categoryMap.value)
     nextEvent = {
@@ -403,7 +394,7 @@ export function useTimelineEvents() {
   async function removeEvent(eventId) {
     const event = events.value.find((item) => toKey(item.id) === toKey(eventId))
     if (!event) return
-    await deleteTimeCard(mapEventToCardDTO({ ...event, deleted: 1, userId: readUserId() }, categoryMap.value))
+    await deleteTimeCard(mapEventToCardDTO({ ...event, deleted: 1 }, categoryMap.value))
     events.value = events.value.filter((item) => toKey(item.id) !== toKey(eventId))
   }
 

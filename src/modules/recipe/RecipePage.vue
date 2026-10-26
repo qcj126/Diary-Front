@@ -506,13 +506,29 @@ async function loadRecipes() {
 }
 
 function isIconUrl(icon) {
-  return /^(https?:)?\/\//i.test(String(icon ?? '')) || String(icon ?? '').startsWith('data:')
+  const value = String(icon ?? '')
+  return /^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')
+}
+
+function applyCategoryIcons(categoryList) {
+  const iconsById = new Map(categoryIcons.value.map((icon) => [String(icon.id), icon]))
+  return categoryList.map((category) => {
+    const icon = iconsById.get(String(category.iconId ?? ''))
+    if (!icon?.icon) return category
+
+    return {
+      ...category,
+      icon: icon.icon,
+      iconUrl: icon.iconUrl,
+      iconName: category.iconName || icon.label,
+    }
+  })
 }
 
 async function loadCategories() {
   try {
     const result = await queryRecipeCategories()
-    categories.value = result
+    categories.value = applyCategoryIcons(result)
     selectedCategoryIds.value = selectedCategoryIds.value.filter((id) =>
       result.some((category) => String(category.id) === String(id)),
     )
@@ -679,7 +695,7 @@ async function submitSelectedRecipeAnalysis() {
   const target = nutritionTarget.value
   const universalId = target?.recipeId ?? target?.id
   const cookWay = String(target?.cookWay ?? '').trim()
-  const materials = buildNutritionMaterials()
+  const ingredients = buildNutritionMaterials()
 
   if (!universalId) {
     nutritionError.value = '未找到食谱主键，请刷新后重试'
@@ -689,7 +705,7 @@ async function submitSelectedRecipeAnalysis() {
     nutritionError.value = '该食谱尚未填写烹饪方式，请先修改食谱'
     return
   }
-  if (!Object.keys(materials).length) {
+  if (!Object.keys(ingredients).length) {
     nutritionError.value = '该食谱尚未填写食材，请先修改食谱'
     return
   }
@@ -701,11 +717,10 @@ async function submitSelectedRecipeAnalysis() {
     const result = await submitNutritionAnalysis({
       clientRequestId: nutritionClientRequestId.value,
       aiType: Number(nutritionAiType.value),
-      aiApplication: 1,
       flag: 'RECIPE',
       universalId,
       cookWay,
-      materials,
+      ingredients,
     })
     const taskId = result?.taskId
     if (taskId) {
@@ -898,11 +913,17 @@ function closeCategoryDialog() {
 }
 
 async function loadCategoryIcons(selectDefault = true) {
+  if (categoryIcons.value.length) {
+    if (selectDefault && !categoryDraft.value.iconId) selectCategoryIcon(categoryIcons.value[0])
+    return
+  }
+
   iconLoading.value = true
   categoryDialogError.value = ''
 
   try {
     categoryIcons.value = await queryRecipeIcons()
+    categories.value = applyCategoryIcons(categories.value)
     const firstIcon = categoryIcons.value[0]
     if (selectDefault && firstIcon) selectCategoryIcon(firstIcon)
   } catch (error) {
@@ -1059,7 +1080,7 @@ async function saveRecipe(recipe) {
 }
 
 onMounted(async () => {
-  await loadCategories()
+  await Promise.all([loadCategories(), loadCategoryIcons(false)])
   await loadRecipes()
 })
 </script>

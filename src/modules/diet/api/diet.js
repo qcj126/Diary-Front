@@ -1,5 +1,6 @@
-import { DIET_API } from '../../../api/index.js'
-import { getAuthSession, requireAuthUserId } from '../../auth/session.js'
+import { DIET_API, IMAGE_API, resolveApiUrl } from '../../../api/index.js'
+import { loadProtectedFileUrl } from '../../../api/protected-file.js'
+import { getAuthSession } from '../../auth/session.js'
 
 const mealTypeMap = {
   10: { type: 'breakfast', period: '早餐' },
@@ -65,8 +66,22 @@ function compactObject(object) {
   )
 }
 
-export function currentDietUserId() {
-  return requireAuthUserId()
+function normalizeImageUrl(url) {
+  const value = String(url ?? '').trim()
+  if (!value || /^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
+    return value
+  }
+  const normalized = value.replaceAll('\\', '/')
+  const imagePath = '/file/images/'
+  const imagePathIndex = normalized.toLowerCase().lastIndexOf(imagePath)
+  if (imagePathIndex >= 0) {
+    return encodeURI(IMAGE_API.file(normalized.slice(imagePathIndex + imagePath.length)))
+  }
+  return resolveApiUrl(value)
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 }
 
 export function normalizeDietRecord(raw = {}) {
@@ -91,7 +106,8 @@ export function normalizeDietRecord(raw = {}) {
     sugar: toNumber(raw.sugar),
     sodium: toNumber(raw.sodium),
     fullnessScore: raw.fullnessScore ?? null,
-    img: raw.imageUrl || '',
+    imageUrl: String(raw.imageUrl ?? '').trim(),
+    img: normalizeImageUrl(raw.imageUrl),
     createdAt: raw.createTime || '',
     updatedAt: raw.updateTime || '',
   }
@@ -100,7 +116,6 @@ export function normalizeDietRecord(raw = {}) {
 export function createDietRecordDTO(meal = {}) {
   return {
     id: meal.id ?? null,
-    userId: meal.userId ?? currentDietUserId(),
     eatTime: meal.eatTime,
     mealType: Number(meal.mealType),
     foodName: String(meal.foodName ?? meal.name ?? '').trim(),
@@ -121,7 +136,6 @@ export async function queryDietRecords(filters = {}) {
   const payload = await postJson(
     DIET_API.query,
     compactObject({
-      userId: filters.userId ?? currentDietUserId(),
       keyword: String(filters.keyword || '').trim(),
       startTime: filters.startTime,
       endTime: filters.endTime,
@@ -130,7 +144,11 @@ export async function queryDietRecords(filters = {}) {
     }),
     '查询饮食记录失败',
   )
-  return (Array.isArray(payload) ? payload : []).map(normalizeDietRecord)
+  const records = (Array.isArray(payload) ? payload : []).map(normalizeDietRecord)
+  return Promise.all(records.map(async (record) => ({
+    ...record,
+    img: await loadProtectedFileUrl(record.img),
+  })))
 }
 
 export function addDietRecord(meal) {
@@ -143,4 +161,34 @@ export function updateDietRecord(meal) {
 
 export function deleteDietRecord(id) {
   return postJson(DIET_API.delete(id), {}, '删除饮食记录失败')
+}
+
+/** 上传饮食图片，返回可保存到 diet_record.image_url 的文件服务相对地址。 */
+export async function uploadDietImage(file) {
+  if (!(file instanceof File) || !file.type.startsWith('image/')) {
+    throw new Error('请选择图片文件')
+  }
+
+  const formData = new FormData()
+  formData.append('files', file, file.name)
+  formData.append('code', '1000')
+  const headers = authHeaders()
+  delete headers['Content-Type']
+  const res = await fetch(IMAGE_API.upload, {
+    method: 'POST',
+    headers,
+    body: formData,
+  })
+  const data = parseApiPayload(await res.text())
+  assertApiSuccess(res, data, '图片上传失败')
+  const imageId = String((Array.isArray(responseData(data)) ? responseData(data)[0] : responseData(data)) ?? '').trim()
+  if (!imageId) throw new Error('图片上传成功，但未返回图片 ID')
+
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    const images = await postJson(IMAGE_API.queryUrls, [imageId], '查询图片地址失败')
+    const imageUrl = Array.isArray(images) ? String(images[0]?.url ?? images[0]?.imageUrl ?? '').trim() : ''
+    if (imageUrl) return imageUrl
+    await wait(500)
+  }
+  throw new Error('图片已提交，但 OSS 上传尚未完成，请稍后重试')
 }

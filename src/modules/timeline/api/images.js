@@ -1,4 +1,5 @@
-import { resolveApiUrl, TIMELINE_API } from '../../../api/index.js'
+import { IMAGE_API, resolveApiUrl, TIMELINE_API } from '../../../api/index.js'
+import { loadProtectedFileUrl } from '../../../api/protected-file.js'
 import { getAuthSession } from '../../auth/session.js'
 
 function authHeaders(contentType = 'application/json') {
@@ -95,8 +96,11 @@ export async function queryTimelineImageUrls(imageIds) {
   const data = parseApiPayload(await res.text())
   assertApiSuccess(res, data, 'Image URL query failed.')
 
-  const images = getResponseData(data)
-  return Array.isArray(images) ? images.map(normalizeImageVO).filter(Boolean) : []
+  const images = Array.isArray(getResponseData(data)) ? getResponseData(data).map(normalizeImageVO).filter(Boolean) : []
+  return Promise.all(images.map(async (image) => ({
+    ...image,
+    url: await loadProtectedFileUrl(image.url),
+  })))
 }
 
 export async function queryCarouselImageUrls() {
@@ -113,7 +117,7 @@ async function queryCarouselImageUrlsFromApi() {
 
   const images = getResponseData(data)
   const urls = Array.isArray(images) ? images.map(normalizeCarouselImageUrl).filter(Boolean) : []
-  return [...urls]
+  return Promise.all(urls.map(loadProtectedFileUrl))
 }
 
 export function normalizeImageUrl(url) {
@@ -121,6 +125,12 @@ export function normalizeImageUrl(url) {
   if (!value) return ''
   if (/^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
     return value
+  }
+  const normalized = value.replaceAll('\\', '/')
+  const imagePath = '/file/images/'
+  const imagePathIndex = normalized.toLowerCase().lastIndexOf(imagePath)
+  if (imagePathIndex >= 0) {
+    return encodeURI(IMAGE_API.file(normalized.slice(imagePathIndex + imagePath.length)))
   }
   return resolveApiUrl(value)
 }

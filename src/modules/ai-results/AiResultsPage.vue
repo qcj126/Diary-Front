@@ -336,7 +336,7 @@ async function refreshTask(task, silent = false) {
   if (!silent) taskErrors.value = { ...taskErrors.value, [task.taskId]: '' }
 
   try {
-    const statusDetail = await queryAiTaskStatus(task.taskId)
+    const statusDetail = await queryAiTaskStatus(task.taskId, task.aiApplication)
     const status = String(statusDetail?.status || task.status || '').toUpperCase()
     const patch = {
       status: status || task.status,
@@ -348,7 +348,7 @@ async function refreshTask(task, silent = false) {
     }
 
     if (status === 'SUCCESS') {
-      const result = await queryAiTaskResult(task.taskId)
+      const result = await queryAiTaskResult(task.taskId, task.aiApplication)
       patch.result = result
       patch.flag = result?.flag || task.flag
       patch.universalId = result?.universalId || task.universalId

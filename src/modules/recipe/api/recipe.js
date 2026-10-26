@@ -1,4 +1,5 @@
-import { AI_API, ICON_API, RECIPE_API, resolveApiUrl, SYS_INFO_API } from '../../../api/index.js'
+import { AI_API, ICON_API, IMAGE_API, RECIPE_API, RECIPE_SYS_API, resolveApiUrl } from '../../../api/index.js'
+import { loadProtectedFileUrl } from '../../../api/protected-file.js'
 import { DIFFICULTY_LABELS, MEAL_TYPE_LABELS } from '../../../constants/recipe.js'
 import { getAuthSession } from '../../auth/session.js'
 
@@ -52,6 +53,12 @@ function normalizeImageUrl(url) {
   if (/^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
     return value
   }
+  const normalized = value.replaceAll('\\', '/')
+  const imagePath = '/file/images/'
+  const imagePathIndex = normalized.toLowerCase().lastIndexOf(imagePath)
+  if (imagePathIndex >= 0) {
+    return encodeURI(IMAGE_API.file(normalized.slice(imagePathIndex + imagePath.length)))
+  }
   return resolveApiUrl(value)
 }
 
@@ -75,13 +82,15 @@ async function queryRecipeImageUrls(imageIds) {
   const images = await postJson(RECIPE_API.queryImageUrls, normalizedIds, '图片地址查询失败')
 
   if (Array.isArray(images)) {
-    return images.map((image, index) => normalizeImageVO(image, normalizedIds[index])).filter(Boolean)
+    const normalizedImages = images.map((image, index) => normalizeImageVO(image, normalizedIds[index])).filter(Boolean)
+    return Promise.all(normalizedImages.map(async (image) => ({ ...image, url: await loadProtectedFileUrl(image.url) })))
   }
 
   if (images && typeof images === 'object') {
-    return Object.entries(images)
+    const normalizedImages = Object.entries(images)
       .map(([id, url]) => normalizeImageVO({ id, url }))
       .filter(Boolean)
+    return Promise.all(normalizedImages.map(async (image) => ({ ...image, url: await loadProtectedFileUrl(image.url) })))
   }
 
   return []
@@ -208,6 +217,25 @@ function normalizeRecipeIcon(raw = {}, index = 0) {
     label,
     iconUrl,
     icon: iconUrl || (raw.icon ?? raw.code ?? ''),
+  }
+}
+
+async function loadRecipeIconImage(icon) {
+  const sourceUrl = icon.iconUrl
+  if (!sourceUrl || !sourceUrl.startsWith(ICON_API.file(''))) return icon
+
+  const res = await fetch(sourceUrl, {
+    method: 'GET',
+    headers: authHeaders(null),
+  })
+
+  if (!res.ok) throw new Error('获取图标文件失败')
+
+  const objectUrl = URL.createObjectURL(await res.blob())
+  return {
+    ...icon,
+    iconUrl: objectUrl,
+    icon: objectUrl,
   }
 }
 
@@ -345,7 +373,6 @@ export function createRecipeDTO(recipe = {}) {
   }))
 
   return {
-    authorId: recipe.authorId ?? null,
     recipeId: recipe.recipeId ?? null,
     title: recipe.title ?? '',
     imageId: String(recipe.imageId ?? '').trim(),
@@ -440,7 +467,7 @@ export function updateRecipeCategory(category) {
 
 export async function queryRecipeIcons() {
   const payload = await postJson(RECIPE_API.queryIcons, {}, '查询图标失败')
-  return toPayloadList(payload).map(normalizeRecipeIcon)
+  return Promise.all(toPayloadList(payload).map((icon, index) => loadRecipeIconImage(normalizeRecipeIcon(icon, index))))
 }
 
 export function addRecipe(recipe) {
@@ -465,7 +492,7 @@ export async function queryIngredientCategories(isMain) {
   if (normalizedIsMain !== null) params.set('isMain', String(normalizedIsMain))
 
   const payload = await getJson(
-    `${SYS_INFO_API.ingredientCategories}?${params.toString()}`,
+    `${RECIPE_SYS_API.ingredientCategories}?${params.toString()}`,
     '查询食材分类失败',
   )
   return toPayloadList(payload).map((item, index) => ({
@@ -478,7 +505,7 @@ export async function queryIngredientCategories(isMain) {
 
 export async function queryIngredients({ category, isMain } = {}) {
   const payload = await postJson(
-    SYS_INFO_API.ingredients,
+    RECIPE_SYS_API.ingredients,
     {
       category: String(category ?? '').trim(),
       isMain: toNumberOrNull(isMain),
@@ -498,7 +525,7 @@ export async function queryIngredients({ category, isMain } = {}) {
 }
 
 export async function queryCookWays() {
-  const payload = await getJson(SYS_INFO_API.cookWays, '查询烹饪方式失败')
+  const payload = await getJson(RECIPE_SYS_API.cookWays, '查询烹饪方式失败')
   return toPayloadList(payload).map((item, index) => ({
     ...item,
     id: item?.id ?? item?.name ?? index,
@@ -508,5 +535,5 @@ export async function queryCookWays() {
 }
 
 export function submitNutritionAnalysis(payload) {
-  return postJson(AI_API.tasks, payload, '营养分析任务提交失败')
+  return postJson(AI_API.nutrition.submit, payload, '营养分析任务提交失败')
 }

@@ -1,4 +1,4 @@
-import { ICON_API, SYS_INFO_API } from '../../../api/index.js'
+import { ICON_API, RECIPE_SYS_API } from '../../../api/index.js'
 import { getAuthSession } from '../../auth/session.js'
 
 function authHeaders(contentType = 'application/json') {
@@ -87,7 +87,7 @@ function normalizeIconUrl(path) {
 export async function queryIngredientCategories(isMain) {
   const params = new URLSearchParams({ isMain: String(Number(isMain)) })
   const payload = await getJson(
-    `${SYS_INFO_API.ingredientCategories}?${params.toString()}`,
+    `${RECIPE_SYS_API.ingredientCategories}?${params.toString()}`,
     '查询食材分类失败',
   )
 
@@ -101,7 +101,7 @@ export async function queryIngredientCategories(isMain) {
 
 export async function queryIngredients({ category, isMain }) {
   const payload = await postJson(
-    SYS_INFO_API.ingredients,
+    RECIPE_SYS_API.ingredients,
     {
       category: String(category ?? '').trim(),
       isMain: Number(isMain),
@@ -122,7 +122,7 @@ export async function queryIngredients({ category, isMain }) {
 
 export function addIngredient({ name, category, categoryName, isMain, iconId }) {
   return postJson(
-    SYS_INFO_API.addIngredient,
+    RECIPE_SYS_API.addIngredient,
     {
       name: String(name ?? '').trim(),
       category: String(category ?? '').trim(),
@@ -135,7 +135,7 @@ export function addIngredient({ name, category, categoryName, isMain, iconId }) 
 }
 
 export async function queryCookWays() {
-  const payload = await getJson(SYS_INFO_API.cookWays, '查询烹饪方式失败')
+  const payload = await getJson(RECIPE_SYS_API.cookWays, '查询烹饪方式失败')
   return toPayloadList(payload).map((item, index) => ({
     ...item,
     id: item?.id ?? item?.name ?? index,

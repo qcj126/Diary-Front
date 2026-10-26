@@ -3,7 +3,7 @@
     <div v-if="groups.length" class="month-group-list">
       <section v-for="group in groups" :key="group.key" class="month-group">
         <header><div><span>{{ group.monthNumber }}</span><div><h2>{{ group.label }}</h2></div></div><span>共 {{ group.records.length }} 条</span></header>
-        <div class="record-grid"><RecordCard v-for="record in group.records" :key="record.id" :record="record" @open="$emit('open', $event)" /></div>
+        <div class="record-grid"><RecordCard v-for="record in group.records" :key="record.id" :record="record" :analysis-status="analysisStates[record.id]" @open="$emit('open', $event)" @analyze="$emit('analyze', $event)" /></div>
       </section>
     </div>
     <div v-else class="empty"><span class="material-symbols-outlined">favorite</span><h2>这个分类还没有记录</h2><p>下一次心动，就从这里开始保存。</p><button type="button" @click="$emit('create')">写下第一条</button></div>
@@ -14,8 +14,10 @@ import { computed } from 'vue'
 import RecordCard from '../components/RecordCard.vue'
 import type { LoveRecord } from '../types/records'
 import { parseLocalDate } from '../utils/date'
-const props = defineProps<{ records: LoveRecord[] }>()
-defineEmits<{ open: [id: string]; create: [] }>()
+const props = withDefaults(defineProps<{ records: LoveRecord[]; analysisStates?: Record<string, string> }>(), {
+  analysisStates: () => ({}),
+})
+defineEmits<{ open: [id: string]; create: []; analyze: [id: string] }>()
 const groups = computed(() => {
   const map = new Map<string, LoveRecord[]>()
   props.records.forEach((item) => {

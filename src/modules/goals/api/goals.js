@@ -89,13 +89,6 @@ function compactObject(object) {
   )
 }
 
-function sessionDefaults() {
-  const session = getAuthSession()
-  return {
-    userId: session?.userId ?? null,
-  }
-}
-
 export function normalizeGoal(raw = {}) {
   const subcategories = toList(raw.subGoals ?? raw.subcategories).map((sub) => ({
     id: sub.id ?? null,
@@ -176,10 +169,8 @@ export function createGoalCheckinDTO(checkin = {}) {
 }
 
 export function createGoalDTO(goal = {}) {
-  const defaults = sessionDefaults()
   return compactObject({
     id: goal.id ?? null,
-    userId: goal.userId ?? defaults.userId,
     category: goal.category ?? '',
     title: goal.title ?? '',
     description: goal.content ?? goal.description ?? '',
@@ -200,7 +191,6 @@ export async function queryGoals(filters = {}) {
   const payload = await postJson(
     GOAL_API.query,
     compactObject({
-      userId: filters.userId ?? null,
       creator: filters.creator ?? '',
       category: filters.category ?? '',
       title: filters.title ?? '',
@@ -278,11 +268,9 @@ export function addGoal(goal) {
 }
 
 export function batchAddSubGoals(stageId, subGoals = []) {
-  const defaults = sessionDefaults()
   const payload = toList(subGoals).map((sub) =>
     compactObject({
       stageId,
-      userId: defaults.userId,
       title: String(sub.title ?? '').trim(),
       content: String(sub.content ?? '').trim(),
       learnedHours: toHours(sub.learnedHours),

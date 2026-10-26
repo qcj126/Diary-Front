@@ -1,5 +1,5 @@
 import { ICON_API, resolveApiUrl } from '../../../api/index.js'
-import { getAuthSession, requireAuthUserId } from '../../auth/session.js'
+import { getAuthSession } from '../../auth/session.js'
 
 function authHeaders(contentType = 'application/json') {
   const session = getAuthSession()
@@ -10,10 +10,6 @@ function authHeaders(contentType = 'application/json') {
   }
 
   return headers
-}
-
-function readUserId() {
-  return requireAuthUserId()
 }
 
 function parseApiPayload(text) {
@@ -105,7 +101,27 @@ export function normalizeIcon(raw = {}, index = 0) {
     iconType: raw.iconType ?? null,
     iconSize: raw.iconSize ?? null,
     iconPixel: Number.isFinite(iconPixel) ? iconPixel : 0,
-    userId: raw.userId ?? readUserId(),
+    userId: raw.userId ?? null,
+  }
+}
+
+async function loadIconImage(icon) {
+  const sourceUrl = icon.iconUrl
+  if (!sourceUrl || !sourceUrl.startsWith(ICON_API.file(''))) return icon
+
+  try {
+    const res = await fetch(sourceUrl, {
+      method: 'GET',
+      headers: authHeaders(null),
+    })
+    if (!res.ok) return { ...icon, iconUrl: '' }
+
+    return {
+      ...icon,
+      iconUrl: URL.createObjectURL(await res.blob()),
+    }
+  } catch {
+    return { ...icon, iconUrl: '' }
   }
 }
 
@@ -120,9 +136,10 @@ export async function queryIcons(params = {}) {
     '查询图标失败',
   )
 
-  return toPayloadList(payload)
-    .map(normalizeIcon)
-    .sort((a, b) => (a.iconPixel || 0) - (b.iconPixel || 0) || String(a.iconName).localeCompare(String(b.iconName)))
+  const icons = await Promise.all(toPayloadList(payload).map((icon, index) => loadIconImage(normalizeIcon(icon, index))))
+  return icons.sort((a, b) =>
+    (a.iconPixel || 0) - (b.iconPixel || 0) || String(a.iconName).localeCompare(String(b.iconName)),
+  )
 }
 
 export function addIcon({ file, iconName, iconPixel }) {
@@ -130,7 +147,6 @@ export function addIcon({ file, iconName, iconPixel }) {
   formData.append('file', file)
   formData.append('iconName', iconName)
   formData.append('iconPixel', String(iconPixel))
-  formData.append('userId', String(readUserId()))
 
   return postForm(ICON_API.add, formData, '新增图标失败')
 }
@@ -140,7 +156,6 @@ export function updateIcon({ id, file, iconName, iconPixel }) {
   formData.append('id', String(id))
   formData.append('iconName', iconName)
   formData.append('iconPixel', String(iconPixel))
-  formData.append('userId', String(readUserId()))
   if (file) formData.append('file', file)
 
   return postForm(ICON_API.update, formData, '修改图标失败')
@@ -151,7 +166,6 @@ export function deleteIcon(id) {
     ICON_API.delete,
     {
       id,
-      userId: readUserId(),
     },
     '删除图标失败',
   )

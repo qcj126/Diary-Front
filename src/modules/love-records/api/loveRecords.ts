@@ -1,4 +1,5 @@
-import { LOVE_DASHBOARD_API } from '../../../api/index.js'
+import { AI_API, IMAGE_API, LOVE_DASHBOARD_API, resolveApiUrl } from '../../../api/index.js'
+import { loadProtectedFileUrl } from '../../../api/protected-file.js'
 import { getAuthSession } from '../../auth/session.js'
 import type {
   Anniversary,
@@ -38,6 +39,20 @@ const CODE_TO_CATEGORY: Record<string, RecordCategory> = {
 }
 
 const LOVE_TAG_COLORS = ['#FF6B81', '#FF8A80', '#E9546D', '#F59E0B', '#8B5CF6', '#06B6D4'] as const
+
+function normalizeImageUrl(url: unknown): string {
+  const value = String(url ?? '').trim()
+  if (!value || /^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
+    return value
+  }
+  const normalized = value.replaceAll('\\', '/')
+  const imagePath = '/file/images/'
+  const imagePathIndex = normalized.toLowerCase().lastIndexOf(imagePath)
+  if (imagePathIndex >= 0) {
+    return encodeURI(IMAGE_API.file(normalized.slice(imagePathIndex + imagePath.length)))
+  }
+  return resolveApiUrl(value)
+}
 
 function parseApiPayload(text: string): any {
   if (!text) return null
@@ -140,6 +155,22 @@ export const diaryLoveControllerApi = {
   },
 }
 
+export function submitLoveRecordSentimentAnalysis({
+  clientRequestId,
+  aiType,
+  loveRecordId,
+}: {
+  clientRequestId: string
+  aiType: number
+  loveRecordId: LoveId
+}): Promise<any> {
+  return postJson(
+    AI_API.sentiment.submit,
+    { clientRequestId, aiType, loveRecordId },
+    '提交恋爱记录情感分析失败',
+  )
+}
+
 function toList(value: any): ApiObject[] {
   return Array.isArray(value) ? value : []
 }
@@ -152,16 +183,6 @@ function toOptionalNumber(value: unknown): number | null {
   if (value == null || value === '') return null
   const number = Number(value)
   return Number.isFinite(number) ? number : null
-}
-
-function currentUserId(): string {
-  return requireCurrentUserId()
-}
-
-function requireCurrentUserId(): string {
-  const userId = toKey(getAuthSession()?.userId)
-  if (!userId) throw new Error('登录信息中缺少 userId，请重新登录')
-  return userId
 }
 
 function isBackendId(value: unknown): boolean {
@@ -179,9 +200,9 @@ function emptyLoveData(): LoveData {
   }
 }
 
-async function queryCouple(userId = currentUserId()): Promise<ApiObject | null> {
+async function queryCouple(): Promise<ApiObject | null> {
   try {
-    return await diaryLoveControllerApi.couples.query({ ownerUserId: userId, status: 1 })
+    return await diaryLoveControllerApi.couples.query({ status: 1 })
   } catch (error) {
     if (error instanceof ApiRequestError && error.code === '293') return null
     throw error
@@ -255,7 +276,11 @@ export async function loadLoveData(
 
   const locations = new Map(toList(locationRows).map((item) => [toKey(item.id), item]))
   const moodDictionary = new Map(toList(moodRows).map((item) => [toKey(item.id), item]))
-  const imageUrls = new Map(imageRows.map((item) => [toKey(item.id ?? item.imageId), String(item.url ?? item.imageUrl ?? '')]))
+  const imageUrlEntries: Array<[string, string]> = await Promise.all(imageRows.map(async (item): Promise<[string, string]> => [
+    toKey(item.id ?? item.imageId),
+    await loadProtectedFileUrl(normalizeImageUrl(item.url ?? item.imageUrl)),
+  ]))
+  const imageUrls = new Map<string, string>(imageUrlEntries)
   const relations = new Map(relationGroups.map((item) => [item.recordId, item]))
 
   const records: LoveRecord[] = rawRecords.map((raw) => {
@@ -325,10 +350,8 @@ export async function saveRelationshipApi(
   startDate: string,
   partnerName: string,
 ): Promise<RelationshipInfo> {
-  const userId = currentUserId()
   const body: ApiObject = {
     id: relationship.id || undefined,
-    ownerUserId: relationship.ownerUserId || userId,
     partnerName: partnerName.trim() || '未命名',
     startDate,
     status: relationship.status ?? 1,
@@ -339,7 +362,7 @@ export async function saveRelationshipApi(
   } else {
     await diaryLoveControllerApi.couples.add(body)
   }
-  const couple = await queryCouple(userId)
+  const couple = await queryCouple()
   if (!couple) throw new Error('情侣关系保存成功，但重新查询失败')
   return mapRelationship(couple, relationship.anniversaries)
 }
@@ -361,7 +384,6 @@ export async function saveAnniversariesApi(
 ): Promise<RelationshipInfo> {
   const ensured = await ensureRelationship(relationship)
   const coupleId = toKey(ensured.id)
-  const userId = currentUserId()
   const currentById = new Map(ensured.anniversaries.filter((item) => isBackendId(item.id)).map((item) => [item.id, item]))
   const desiredIds = new Set(items.filter((item) => isBackendId(item.id)).map((item) => item.id))
 
@@ -375,7 +397,6 @@ export async function saveAnniversariesApi(
     const body = {
       id: isBackendId(item.id) ? item.id : undefined,
       coupleId,
-      creatorUserId: item.creatorUserId || userId,
       name: item.name.trim(),
       eventDate: item.date,
       repeatType: item.repeatType ?? 1,
@@ -453,7 +474,6 @@ function recordToDTO(
   return {
     recordId: current?.id,
     coupleId,
-    ...(current ? { creatorUserId: requireCurrentUserId() } : {}),
     ...locationPayload(draft),
     title: draft.title.trim(),
     content: draft.content,
