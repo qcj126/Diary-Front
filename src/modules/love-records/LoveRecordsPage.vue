@@ -225,7 +225,22 @@ function showNotice(message: string, isError = false): void {
 }
 
 function createClientRequestId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `love-ai-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  const now = new Date()
+  const date = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('')
+  const randomValues = new Uint32Array(1)
+  let randomNumber: number
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(randomValues)
+    randomNumber = randomValues[0]
+  } else {
+    randomNumber = Math.floor(Math.random() * 0xffffffff)
+  }
+  const sequence = String((randomNumber % 999999) + 1).padStart(6, '0')
+  return `web-${date}-${sequence}`
 }
 
 function setSentimentStatus(recordId: string, status: string): void {
