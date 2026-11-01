@@ -28,6 +28,14 @@
           <span class="material-symbols-outlined">ios_share</span>
           导出
         </button>
+        <button type="button" :disabled="!selectedMeal || loading" @click="requestSelectedNutritionAnalysis">
+          <span class="material-symbols-outlined">nutrition</span>
+          营养分析
+        </button>
+        <button type="button" :disabled="!selectedMeal || loading" @click="previewSelectedNutritionResult">
+          <span class="material-symbols-outlined">visibility</span>
+          结果预览
+        </button>
       </div>
 
       <form v-if="queryPanelOpen" class="query-panel" @submit.prevent="loadMeals">
@@ -79,9 +87,16 @@
         </div>
 
         <form class="diet-form" @submit.prevent="saveMeal">
-          <label class="field wide">
+          <label class="field">
             <span>食物名称</span>
             <input v-model.trim="form.foodName" maxlength="200" required placeholder="例如：香煎三文鱼能量碗" />
+          </label>
+          <label class="field">
+            <span>用餐地点</span>
+            <select v-model="form.location" required>
+              <option value="home">在家吃</option>
+              <option value="outside">在外吃</option>
+            </select>
           </label>
           <label class="field">
             <span>食用时间</span>
@@ -95,23 +110,6 @@
               </option>
             </select>
           </label>
-          <label class="field">
-            <span>用餐地点</span>
-            <select v-model="form.location" required>
-              <option value="home">在家吃</option>
-              <option value="outside">在外吃</option>
-            </select>
-          </label>
-          <label v-for="nutrient in nutrientFields" :key="nutrient.key" class="field">
-            <span>{{ nutrient.label }}</span>
-            <input
-              v-model.number="form[nutrient.key]"
-              type="number"
-              min="0"
-              :step="nutrient.step"
-              required
-            />
-          </label>
           <label class="field wide">
             <span>上传图片</span>
             <input accept="image/png,image/jpeg" type="file" :disabled="uploadingImage" @change="uploadImage" />
@@ -123,13 +121,85 @@
           </label>
           <label class="field wide">
             <span>备注</span>
-            <textarea v-model.trim="form.note" maxlength="500" rows="3" placeholder="食材、口味或当时的感受"></textarea>
+            <input v-model.trim="form.note" maxlength="500" type="text" placeholder="食材、口味或当时的感受" />
           </label>
 
-          <div class="dialog-actions wide">
+          <div class="dialog-actions record-actions wide">
             <button type="button" @click="closeDialog">取消</button>
             <button type="submit" class="primary" :disabled="saving || uploadingImage">
               {{ saving ? '保存中…' : uploadingImage ? '图片上传中…' : '保存' }}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div v-if="nutritionPromptOpen" class="dialog-backdrop" role="presentation">
+      <section class="diet-dialog nutrition-prompt-dialog" role="dialog" aria-modal="true" aria-labelledby="nutrition-prompt-title">
+        <div class="nutrition-prompt-icon">
+          <span class="material-symbols-outlined">nutrition</span>
+        </div>
+        <p class="dialog-kicker">记录保存成功</p>
+        <h2 id="nutrition-prompt-title">是否使用 AI 进行营养分析？</h2>
+        <div class="dialog-actions prompt-actions">
+          <button type="button" @click="skipNutritionAnalysis">暂不分析</button>
+          <button type="button" class="primary" @click="openNutritionAnalysisDialog">使用 AI 分析</button>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="nutritionDialogOpen" class="dialog-backdrop" role="presentation">
+      <section class="diet-dialog nutrition-analysis-dialog" role="dialog" aria-modal="true" aria-labelledby="nutrition-dialog-title">
+        <div class="dialog-head">
+          <div>
+            <p class="dialog-kicker">AI 营养分析</p>
+            <h2 id="nutrition-dialog-title">{{ nutritionTarget?.foodName || '饮食记录' }}</h2>
+          </div>
+          <button type="button" class="icon-button" aria-label="关闭" :disabled="nutritionSubmitting" @click="closeNutritionAnalysisDialog">×</button>
+        </div>
+
+        <form class="nutrition-form" @submit.prevent="submitNutritionAnalysis">
+          <label class="field wide">
+            <span>烹饪方式</span>
+            <input v-model.trim="nutritionForm.cookWay" maxlength="100" required placeholder="例如：少油香煎、清蒸、凉拌" />
+          </label>
+
+          <section class="ingredient-panel wide" aria-labelledby="diet-ingredient-title">
+            <div class="ingredient-heading">
+              <div>
+                <h3 id="diet-ingredient-title">食材列表</h3>
+                <p>填写食材名称及对应份量，佐料和用油也建议列出。</p>
+              </div>
+              <button type="button" class="add-ingredient-button" @click="addIngredient">+ 添加食材</button>
+            </div>
+            <div class="ingredient-table-head" aria-hidden="true">
+              <span>食材名称</span>
+              <span>用量</span>
+              <span></span>
+            </div>
+            <div class="ingredient-rows">
+              <div v-for="(ingredient, index) in nutritionForm.ingredients" :key="ingredient.key" class="ingredient-row">
+                <input v-model.trim="ingredient.name" maxlength="100" required placeholder="例如：三文鱼" />
+                <input v-model.trim="ingredient.quantity" maxlength="100" required placeholder="例如：150g" />
+                <button type="button" class="remove-ingredient-button" aria-label="删除食材" :disabled="nutritionForm.ingredients.length === 1" @click="removeIngredient(index)">×</button>
+              </div>
+            </div>
+          </section>
+
+          <label class="field wide">
+            <span>AI 类型</span>
+            <select v-model.number="nutritionForm.aiType" required>
+              <option :value="1">Qwen 3.7 Plus</option>
+              <option :value="2">DeepSeek V4 Pro 0813</option>
+            </select>
+          </label>
+
+          <p v-if="nutritionError" class="nutrition-error wide">{{ nutritionError }}</p>
+
+          <div class="dialog-actions wide">
+            <button type="button" :disabled="nutritionSubmitting" @click="closeNutritionAnalysisDialog">取消</button>
+            <button type="submit" class="primary" :disabled="nutritionSubmitting">
+              {{ nutritionSubmitting ? '提交中…' : '一键分析' }}
             </button>
           </div>
         </form>
@@ -140,16 +210,20 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { DIET_SEGMENTS, MEAL_TYPE_OPTIONS, NUTRIENT_FIELDS } from '../../constants/diet.js'
+import { DIET_SEGMENTS, MEAL_TYPE_OPTIONS } from '../../constants/diet.js'
 import DietTimeline from './DietTimeline.vue'
 import DietSummaryPanel from './DietSummaryPanel.vue'
 import {
   addDietRecord,
   deleteDietRecord,
   queryDietRecords,
+  submitDietNutritionAnalysis,
   uploadDietImage,
   updateDietRecord,
 } from './api/diet.js'
+import { loadTrackedAiTasks, saveTrackedAiTask } from '../ai-results/taskStore.js'
+
+const emit = defineEmits(['preview-ai-result'])
 
 const segments = DIET_SEGMENTS
 const uploadingImage = ref(false)
@@ -164,9 +238,14 @@ const saving = ref(false)
 const dialogOpen = ref(false)
 const dialogMode = ref('add')
 const notice = ref({ type: '', message: '' })
+const nutritionPromptOpen = ref(false)
+const nutritionDialogOpen = ref(false)
+const nutritionTarget = ref(null)
+const nutritionSubmitting = ref(false)
+const nutritionError = ref('')
+const nutritionForm = ref(createEmptyNutritionForm())
 
 const mealTypeOptions = MEAL_TYPE_OPTIONS
-const nutrientFields = NUTRIENT_FIELDS
 
 const form = ref(createEmptyForm())
 const selectedMeal = computed(() =>
@@ -200,6 +279,34 @@ function selectMeal(meal) {
   selectedId.value = String(meal.id) === String(selectedId.value) ? null : meal.id
 }
 
+function requestSelectedNutritionAnalysis() {
+  const meal = selectedMeal.value
+  if (!meal) {
+    setNotice('error', '请选择一条需要分析的饮食记录')
+    return
+  }
+  nutritionTarget.value = { id: meal.id, foodName: meal.name }
+  openNutritionAnalysisDialog()
+}
+
+function previewSelectedNutritionResult() {
+  const meal = selectedMeal.value
+  if (!meal) {
+    setNotice('error', '请选择一条需要预览结果的饮食记录')
+    return
+  }
+
+  const task = loadTrackedAiTasks()
+    .filter((item) => item.flag === 'DIET' && String(item.universalId) === String(meal.id))
+    .sort((a, b) => String(b.submittedAt ?? '').localeCompare(String(a.submittedAt ?? '')))[0]
+  if (!task?.taskId) {
+    setNotice('error', '该饮食记录暂无可预览的 AI 分析任务，请先提交营养分析')
+    return
+  }
+
+  emit('preview-ai-result', task.taskId)
+}
+
 async function loadMeals() {
   loading.value = true
   setNotice('', '')
@@ -231,12 +338,6 @@ function openEditDialog() {
     eatTime: String(meal.eatTime || '').slice(0, 16),
     mealType: meal.mealType,
     foodName: meal.name,
-    calories: meal.kcal,
-    protein: meal.protein,
-    carbohydrate: meal.carbs,
-    fat: meal.fat,
-    sugar: meal.sugar,
-    sodium: meal.sodium,
     location: meal.place,
     note: meal.desc,
     imageUrl: meal.imageUrl ?? meal.img,
@@ -251,11 +352,17 @@ function closeDialog() {
 async function saveMeal() {
   saving.value = true
   try {
-    const action = dialogMode.value === 'add' ? addDietRecord : updateDietRecord
-    await action(form.value)
+    const isAdding = dialogMode.value === 'add'
+    const action = isAdding ? addDietRecord : updateDietRecord
+    const recordId = await action(form.value)
+    const savedFoodName = form.value.foodName
     dialogOpen.value = false
     await loadMeals()
-    setNotice('success', dialogMode.value === 'add' ? '饮食记录已新增' : '饮食记录已修改')
+    setNotice('success', isAdding ? '饮食记录已新增' : '饮食记录已修改')
+    if (isAdding) {
+      nutritionTarget.value = { id: recordId, foodName: savedFoodName }
+      nutritionPromptOpen.value = true
+    }
   } catch (error) {
     setNotice('error', error.message || '保存饮食记录失败')
   } finally {
@@ -301,15 +408,118 @@ function createEmptyForm() {
     eatTime: toDateTimeInput(now),
     mealType: defaultMealType(now.getHours()),
     foodName: '',
-    calories: 0,
-    protein: 0,
-    carbohydrate: 0,
-    fat: 0,
-    sugar: 0,
-    sodium: 0,
     location: 'home',
     note: '',
     imageUrl: '',
+  }
+}
+
+function createEmptyNutritionForm() {
+  return {
+    aiType: 1,
+    cookWay: '',
+    ingredients: [createIngredient()],
+  }
+}
+
+function createIngredient() {
+  return {
+    key: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: '',
+    quantity: '',
+  }
+}
+
+function skipNutritionAnalysis() {
+  nutritionPromptOpen.value = false
+  nutritionTarget.value = null
+}
+
+function openNutritionAnalysisDialog() {
+  nutritionPromptOpen.value = false
+  nutritionForm.value = createEmptyNutritionForm()
+  nutritionError.value = ''
+  nutritionDialogOpen.value = true
+}
+
+function closeNutritionAnalysisDialog() {
+  if (nutritionSubmitting.value) return
+  nutritionDialogOpen.value = false
+  nutritionTarget.value = null
+  nutritionError.value = ''
+}
+
+function addIngredient() {
+  nutritionForm.value.ingredients.push(createIngredient())
+}
+
+function removeIngredient(index) {
+  if (nutritionForm.value.ingredients.length === 1) return
+  nutritionForm.value.ingredients.splice(index, 1)
+}
+
+function buildIngredients() {
+  return nutritionForm.value.ingredients.reduce((result, ingredient) => {
+    const name = ingredient.name.trim()
+    const quantity = ingredient.quantity.trim()
+    if (!name || !quantity) return result
+    result[name] = result[name] ? `${result[name]}、${quantity}` : quantity
+    return result
+  }, {})
+}
+
+function createClientRequestId() {
+  const randomValues = new Uint32Array(1)
+  const randomNumber = globalThis.crypto?.getRandomValues
+    ? globalThis.crypto.getRandomValues(randomValues)[0]
+    : Math.floor(Math.random() * 0xffffffff)
+  return `diet-web-${Date.now()}-${String(randomNumber).padStart(10, '0')}`
+}
+
+async function submitNutritionAnalysis() {
+  const universalId = nutritionTarget.value?.id
+  const cookWay = nutritionForm.value.cookWay.trim()
+  const ingredients = buildIngredients()
+  if (!universalId) {
+    nutritionError.value = '未获取到饮食记录主键，请刷新后重试'
+    return
+  }
+  if (!cookWay || !Object.keys(ingredients).length) {
+    nutritionError.value = '请完整填写烹饪方式、食材名称和用量'
+    return
+  }
+
+  nutritionSubmitting.value = true
+  nutritionError.value = ''
+  const clientRequestId = createClientRequestId()
+  try {
+    const result = await submitDietNutritionAnalysis({
+      clientRequestId,
+      aiType: Number(nutritionForm.value.aiType),
+      flag: 'DIET',
+      universalId,
+      cookWay,
+      ingredients,
+    })
+    if (result?.taskId) {
+      saveTrackedAiTask({
+        taskId: result.taskId,
+        status: result.status || 'PENDING',
+        flag: 'DIET',
+        aiApplication: 1,
+        aiType: Number(nutritionForm.value.aiType),
+        universalId,
+        clientRequestId,
+        title: nutritionTarget.value?.foodName || '饮食营养分析',
+      })
+    }
+    nutritionSubmitting.value = false
+    closeNutritionAnalysisDialog()
+    setNotice('success', result?.taskId ? `营养分析任务已提交（${result.taskId}）` : '营养分析任务已提交')
+  } catch (error) {
+    nutritionError.value = error.message || '营养分析任务提交失败'
+  } finally {
+    nutritionSubmitting.value = false
   }
 }
 
@@ -747,6 +957,164 @@ button:disabled {
   color: #fff;
 }
 
+.record-actions {
+  justify-content: space-between;
+}
+
+.dialog-kicker {
+  margin: 0 0 6px;
+  color: #9a4024;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.nutrition-prompt-dialog {
+  width: min(480px, 100%);
+  text-align: center;
+}
+
+.nutrition-prompt-dialog h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.nutrition-prompt-dialog > p:not(.dialog-kicker) {
+  margin: 12px auto 22px;
+  max-width: 390px;
+  color: #78625c;
+  line-height: 1.7;
+}
+
+.nutrition-prompt-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 14px;
+  border-radius: 18px;
+  color: #315b25;
+  background: #d4e9c5;
+}
+
+.nutrition-prompt-icon .material-symbols-outlined {
+  font-size: 30px;
+}
+
+.prompt-actions {
+  justify-content: center;
+  margin-top: 22px;
+}
+
+.nutrition-analysis-dialog {
+  width: min(720px, 100%);
+}
+
+.nutrition-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.nutrition-form .wide,
+.ingredient-panel.wide,
+.nutrition-error.wide {
+  grid-column: 1 / -1;
+}
+
+.ingredient-panel {
+  padding: 16px;
+  border: 1px solid rgba(220, 193, 185, 0.9);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.ingredient-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.ingredient-heading h3,
+.ingredient-heading p {
+  margin: 0;
+}
+
+.ingredient-heading h3 {
+  font-size: 16px;
+}
+
+.ingredient-heading p {
+  margin-top: 5px;
+  color: #89726c;
+  font-size: 13px;
+}
+
+.add-ingredient-button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: #7e2c11;
+  background: #f3e5df;
+  font-weight: 800;
+}
+
+.ingredient-table-head,
+.ingredient-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr) 38px;
+  gap: 10px;
+  align-items: center;
+}
+
+.ingredient-table-head {
+  padding: 0 2px 7px;
+  color: #78625c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ingredient-rows {
+  display: grid;
+  gap: 9px;
+}
+
+.ingredient-row input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 11px;
+  border: 1px solid rgba(220, 193, 185, 0.92);
+  border-radius: 10px;
+  outline: none;
+  background: #fff;
+  font: inherit;
+}
+
+.remove-ingredient-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #8d2f22;
+  background: #ffe4dc;
+  font-size: 20px;
+}
+
+.nutrition-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #8d2f22;
+  background: rgba(255, 219, 209, 0.9);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 @media (max-width: 1280px) {
   .diet-main {
     grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.9fr);
@@ -806,6 +1174,28 @@ button:disabled {
 
   .diet-form {
     grid-template-columns: 1fr;
+  }
+
+  .nutrition-form {
+    grid-template-columns: 1fr;
+  }
+
+  .nutrition-form .wide,
+  .ingredient-panel.wide,
+  .nutrition-error.wide {
+    grid-column: auto;
+  }
+
+  .ingredient-heading {
+    flex-direction: column;
+  }
+
+  .ingredient-table-head {
+    display: none;
+  }
+
+  .ingredient-row {
+    grid-template-columns: 1fr 1fr 38px;
   }
 
   .field.wide,

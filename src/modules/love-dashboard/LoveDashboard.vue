@@ -15,7 +15,7 @@
       />
       <TimelinePage v-else-if="active === 'timeline'" />
       <LoveRecordsPage v-else-if="active === 'dates'" @back="active = 'home'" />
-      <DietPage v-else-if="active === 'diet'" />
+      <DietPage v-else-if="active === 'diet'" @preview-ai-result="openAiResultPreview" />
       <RecipePage v-else-if="active === 'diary'" @preview-ai-result="openAiResultPreview" />
       <GoalsPage v-else-if="active === 'wishlist'" />
       <LifeThoughtsPage v-else-if="active === 'board'" />

@@ -81,6 +81,9 @@
           <h2>{{ selectedTask.title || getAiApplicationLabel(selectedTask.aiApplication) }}</h2>
           <div class="detail-heading-actions">
             <p>{{ getAiFlagLabel(selectedTask.flag) }} · {{ getAiApplicationLabel(selectedTask.aiApplication) }}</p>
+            <span class="status-badge large" :class="statusTone(selectedTask.status)">
+              <span class="status-dot"></span>{{ statusLabel(selectedTask.status) }}
+            </span>
             <button
               type="button"
               class="icon-action"
@@ -111,10 +114,71 @@
 
         <section v-if="selectedTask.status === 'SUCCESS'" class="result-section">
           <div class="section-heading">
-            <div><span class="material-symbols-outlined">analytics</span><h3>分析结果</h3></div>
+            <div>
+              <span class="section-icon material-symbols-outlined">analytics</span>
+              <div class="section-title-copy">
+                <h3>分析结果</h3>
+                <p>{{ isNutrientResult ? '本次饮食的营养指标估算' : isSentimentResult ? '情感倾向与温和建议' : 'AI 返回的结构化结果' }}</p>
+              </div>
+            </div>
             <time>完成于 {{ formatDateTime(selectedTask.finishTime) }}</time>
           </div>
-          <div v-if="selectedResultEntries.length" class="result-grid">
+
+          <div v-if="isNutrientResult" class="nutrient-result-layout">
+            <article class="nutrient-hero-card">
+              <div class="result-card-icon"><span class="material-symbols-outlined">local_fire_department</span></div>
+              <div>
+                <span>整份预计热量</span>
+                <strong>{{ selectedResult.calory || '—' }}</strong>
+              </div>
+              <p>基于食材用量与烹饪方式，由 AI 估算得出。</p>
+            </article>
+
+            <div class="nutrient-metric-grid">
+              <article
+                v-for="entry in nutrientMetricEntries"
+                :key="entry.key"
+                class="nutrient-metric-card"
+                :class="entry.tone"
+              >
+                <span class="metric-icon material-symbols-outlined">{{ entry.icon }}</span>
+                <div><span>{{ entry.label }}</span><strong>{{ entry.value }}</strong></div>
+              </article>
+            </div>
+          </div>
+
+          <div v-else-if="isSentimentResult" class="sentiment-result-layout">
+            <article class="sentiment-overview-card" :class="sentimentTone(selectedResult.sentimentLabel)">
+              <div class="sentiment-symbol"><span class="material-symbols-outlined">favorite</span></div>
+              <div class="sentiment-label-copy">
+                <span>整体情感倾向</span>
+                <strong>{{ sentimentLabelText(selectedResult.sentimentLabel) }}</strong>
+              </div>
+              <div class="sentiment-score">
+                <strong>{{ formatSentimentScore(selectedResult.sentimentScore) }}</strong>
+                <span>情感指数</span>
+              </div>
+            </article>
+
+            <div class="sentiment-copy-grid">
+              <article class="sentiment-copy-card summary-copy">
+                <div class="copy-card-title">
+                  <span class="material-symbols-outlined">psychology</span>
+                  <div><span>AI 解读</span><strong>情感摘要</strong></div>
+                </div>
+                <p>{{ selectedResult.analysisSummary || '暂无情感摘要。' }}</p>
+              </article>
+              <article class="sentiment-copy-card suggestion-copy">
+                <div class="copy-card-title">
+                  <span class="material-symbols-outlined">lightbulb</span>
+                  <div><span>温和提醒</span><strong>相处建议</strong></div>
+                </div>
+                <p>{{ selectedResult.suggestion || '暂无相处建议。' }}</p>
+              </article>
+            </div>
+          </div>
+
+          <div v-else-if="selectedResultEntries.length" class="result-grid">
             <article v-for="entry in selectedResultEntries" :key="entry.key" class="result-card">
               <span>{{ entry.label }}</span>
               <strong>{{ entry.value }}</strong>
@@ -209,6 +273,19 @@ const RESULT_LABELS = {
   sugar: '糖',
   sodium: '钠',
 }
+const NUTRIENT_PRESENTATION = {
+  protein: { label: '蛋白质', icon: 'egg_alt', tone: 'protein' },
+  carbohydrate: { label: '碳水化合物', icon: 'rice_bowl', tone: 'carbohydrate' },
+  fat: { label: '脂肪', icon: 'water_drop', tone: 'fat' },
+  sugar: { label: '糖', icon: 'cookie', tone: 'sugar' },
+  sodium: { label: '钠', icon: 'grain', tone: 'sodium' },
+}
+const SENTIMENT_LABELS = {
+  POSITIVE: '积极温暖',
+  NEUTRAL: '平静中性',
+  NEGATIVE: '低落消极',
+  MIXED: '复杂交织',
+}
 const RESULT_META_FIELDS = new Set([
   'taskId', 'status', 'title', 'aiApplication', 'applicationCode', 'aiInfoId', 'universalId',
   'flag', 'errorCode', 'errorMessage', 'createTime', 'finishTime',
@@ -237,6 +314,17 @@ const taskSummary = computed(() => ({
   failed: tasks.value.filter((task) => isFailure(task.status)).length,
 }))
 const filteredTasks = computed(() => tasks.value)
+const selectedResult = computed(() => selectedTask.value?.result || {})
+const isNutrientResult = computed(() =>
+  ['calory', ...Object.keys(NUTRIENT_PRESENTATION)].some((key) => selectedResult.value[key] !== undefined),
+)
+const nutrientMetricEntries = computed(() => Object.entries(NUTRIENT_PRESENTATION)
+  .filter(([key]) => selectedResult.value[key] !== null && selectedResult.value[key] !== undefined && selectedResult.value[key] !== '')
+  .map(([key, presentation]) => ({ key, value: selectedResult.value[key], ...presentation })))
+const isSentimentResult = computed(() =>
+  ['sentimentLabel', 'sentimentScore', 'analysisSummary', 'suggestion']
+    .some((key) => selectedResult.value[key] !== undefined),
+)
 const selectedResultEntries = computed(() => Object.entries(selectedTask.value?.result || {})
   .filter(([key, value]) => !RESULT_META_FIELDS.has(key) && value !== null && value !== undefined && value !== '')
   .map(([key, value]) => ({ key, label: RESULT_LABELS[key] || key, value })))
@@ -287,6 +375,25 @@ function progressTitle(status) {
 function applicationShortName(code) {
   const label = getAiApplicationLabel(code)
   return label.length > 4 ? label.slice(0, 4) : label
+}
+
+function sentimentLabelText(label) {
+  const value = String(label || '').toUpperCase()
+  return SENTIMENT_LABELS[value] || label || '尚未判断'
+}
+
+function sentimentTone(label) {
+  const value = String(label || '').toUpperCase()
+  return ['POSITIVE', 'NEUTRAL', 'NEGATIVE', 'MIXED'].includes(value)
+    ? value.toLowerCase()
+    : 'neutral'
+}
+
+function formatSentimentScore(score) {
+  if (score === null || score === undefined || score === '') return '—'
+  const value = Number(score)
+  if (!Number.isFinite(value)) return String(score)
+  return value > 0 ? `+${value}` : String(value)
 }
 
 function formatDateTime(value) {
@@ -519,9 +626,9 @@ button:disabled { cursor: wait; opacity: 0.6; }
 .empty-list > span, .empty-detail > span { margin-bottom: 12px; color: #9b87d8; font-size: 46px; }
 .empty-list p, .empty-detail p, .result-empty p { max-width: 350px; margin: 7px 0 0; font-size: 12px; line-height: 1.7; }
 
-.task-detail { min-width: 0; min-height: 0; overflow: hidden; padding: clamp(16px, 2vw, 22px); }
+.task-detail { min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; padding: clamp(18px, 2.2vw, 28px); scrollbar-gutter: stable; }
 .detail-header { gap: 20px; min-height: 38px; margin-bottom: 12px; }
-.detail-header h2 { min-width: 0; overflow: hidden; margin: 0; color: var(--dashboard-text-strong, #17131f); font-size: 21px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.detail-header h2 { min-width: 0; overflow: hidden; margin: 0; color: var(--dashboard-text-strong, #17131f); font-size: clamp(21px, 2vw, 27px); line-height: 1.2; letter-spacing: -0.025em; text-overflow: ellipsis; white-space: nowrap; }
 .detail-heading-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; }
 .detail-header p { margin: 0; color: var(--dashboard-text-muted, #756e7c); font-size: 12px; white-space: nowrap; }
 .icon-action { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 9px; }
@@ -536,10 +643,61 @@ button:disabled { cursor: wait; opacity: 0.6; }
 .progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5ba3df, #835de0); transition: width 0.4s ease; }
 .progress-panel p { margin: 0; color: #756d80; font-size: 11px; }
 
-.result-section, .task-info-section, .timeline-section { margin-top: 13px; }
-.section-heading { margin-bottom: 8px; }
-.section-heading h3 { margin: 0; font-size: 14px; }
+.result-section, .task-info-section, .timeline-section { margin-top: 16px; }
+.result-section { padding: clamp(16px, 2vw, 22px); border: 1px solid var(--dashboard-border-soft, #e1dbe5); border-radius: 20px; background: color-mix(in srgb, var(--dashboard-surface-soft, #fbf9fc) 68%, transparent); }
+.section-heading { margin-bottom: 13px; }
+.section-heading h3 { margin: 0; font-size: 15px; }
 .section-heading time { color: var(--dashboard-text-muted, #827b88); font-size: 10px; }
+.section-icon { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border-radius: 10px; background: #eee9ff; }
+.section-title-copy { display: grid; gap: 2px; }
+.section-title-copy p { margin: 0; color: var(--dashboard-text-muted, #827b88); font-size: 10px; }
+
+.nutrient-result-layout { display: grid; grid-template-columns: minmax(190px, 0.72fr) minmax(0, 1.5fr); gap: 12px; }
+.nutrient-hero-card { position: relative; display: flex; min-height: 210px; flex-direction: column; overflow: hidden; padding: 20px; border: 1px solid rgba(209, 116, 69, 0.2); border-radius: 18px; background: linear-gradient(145deg, rgba(255, 233, 213, 0.95), rgba(255, 246, 227, 0.88)); color: #6f311b; }
+.nutrient-hero-card::after { position: absolute; right: -36px; bottom: -48px; width: 140px; height: 140px; border-radius: 50%; background: rgba(226, 119, 63, 0.1); content: ''; }
+.result-card-icon { display: grid; width: 42px; height: 42px; margin-bottom: 20px; place-items: center; border-radius: 13px; background: rgba(255, 255, 255, 0.72); color: #d55d2a; box-shadow: 0 8px 20px rgba(176, 84, 43, 0.1); }
+.nutrient-hero-card > div:nth-child(2) { display: grid; gap: 6px; }
+.nutrient-hero-card span { font-size: 12px; font-weight: 750; }
+.nutrient-hero-card strong { font-size: clamp(27px, 3vw, 38px); line-height: 1; letter-spacing: -0.04em; }
+.nutrient-hero-card p { z-index: 1; max-width: 230px; margin: auto 0 0; color: rgba(111, 49, 27, 0.7); font-size: 10px; line-height: 1.6; }
+
+.nutrient-metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.nutrient-metric-card { display: flex; min-width: 0; min-height: 96px; align-items: center; gap: 13px; padding: 15px; border: 1px solid var(--dashboard-border-soft, #e1dbe5); border-radius: 16px; background: var(--dashboard-surface, #fff); box-shadow: 0 8px 22px rgba(45, 33, 66, 0.045); }
+.nutrient-metric-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.metric-icon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 12px; font-size: 20px; }
+.nutrient-metric-card > div { display: grid; min-width: 0; gap: 6px; }
+.nutrient-metric-card > div span { color: var(--dashboard-text-muted, #77707e); font-size: 11px; font-weight: 700; }
+.nutrient-metric-card > div strong { overflow-wrap: anywhere; color: var(--dashboard-text-strong, #17131f); font-size: 17px; }
+.nutrient-metric-card.protein .metric-icon { background: #e6f4e8; color: #3b7d4a; }
+.nutrient-metric-card.carbohydrate .metric-icon { background: #fff0dc; color: #b36b20; }
+.nutrient-metric-card.fat .metric-icon { background: #e5f1fb; color: #337bab; }
+.nutrient-metric-card.sugar .metric-icon { background: #fbe8f0; color: #b94e79; }
+.nutrient-metric-card.sodium .metric-icon { background: #e6f3f1; color: #2d8177; }
+
+.sentiment-result-layout { display: grid; gap: 12px; }
+.sentiment-overview-card { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 15px; min-height: 106px; padding: 18px 20px; border: 1px solid rgba(136, 95, 206, 0.18); border-radius: 18px; background: linear-gradient(135deg, rgba(240, 232, 255, 0.94), rgba(255, 236, 243, 0.86)); }
+.sentiment-overview-card.positive { background: linear-gradient(135deg, rgba(227, 247, 234, 0.96), rgba(255, 239, 225, 0.86)); }
+.sentiment-overview-card.negative { background: linear-gradient(135deg, rgba(242, 237, 255, 0.96), rgba(232, 241, 255, 0.9)); }
+.sentiment-overview-card.mixed { background: linear-gradient(135deg, rgba(255, 239, 217, 0.94), rgba(239, 232, 255, 0.9)); }
+.sentiment-symbol { display: grid; width: 52px; height: 52px; place-items: center; border-radius: 16px; background: rgba(255, 255, 255, 0.7); color: #a04f80; box-shadow: 0 8px 22px rgba(111, 75, 151, 0.1); }
+.sentiment-symbol .material-symbols-outlined { font-size: 27px; font-variation-settings: 'FILL' 1; }
+.sentiment-label-copy { display: grid; gap: 5px; }
+.sentiment-label-copy span, .sentiment-score span { color: var(--dashboard-text-muted, #756e7c); font-size: 10px; font-weight: 700; }
+.sentiment-label-copy strong { color: var(--dashboard-text-strong, #17131f); font-size: 22px; }
+.sentiment-score { display: grid; min-width: 78px; gap: 4px; text-align: right; }
+.sentiment-score strong { color: #7655cd; font-size: 28px; line-height: 1; }
+.sentiment-copy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.sentiment-copy-card { min-width: 0; min-height: 152px; padding: 17px; border: 1px solid var(--dashboard-border-soft, #e1dbe5); border-radius: 16px; background: var(--dashboard-surface, #fff); }
+.sentiment-copy-card.summary-copy { box-shadow: inset 3px 0 0 #8c70de; }
+.sentiment-copy-card.suggestion-copy { box-shadow: inset 3px 0 0 #d79b3f; }
+.copy-card-title { display: flex; align-items: center; gap: 10px; }
+.copy-card-title > span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: #eee9ff; color: #7357d9; font-size: 20px; }
+.suggestion-copy .copy-card-title > span { background: #fff1d8; color: #ad741e; }
+.copy-card-title > div { display: grid; gap: 2px; }
+.copy-card-title > div span { color: var(--dashboard-text-muted, #77707e); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.copy-card-title > div strong { font-size: 13px; }
+.sentiment-copy-card p { margin: 14px 0 0; color: var(--dashboard-text, #26202d); font-size: 12px; line-height: 1.85; white-space: pre-wrap; }
+
 .result-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
 .result-card { display: flex; min-width: 0; min-height: 50px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 13px; border: 1px solid var(--dashboard-border-soft, #e1dbe5); border-radius: 11px; background: var(--dashboard-surface-soft, #fbf9fc); }
 .result-card span { flex: 0 0 auto; color: var(--dashboard-text-muted, #77707e); font-size: 13px; font-weight: 650; }
@@ -577,6 +735,9 @@ button:disabled { cursor: wait; opacity: 0.6; }
 @media (max-width: 1180px) {
   .workspace-card { grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr); }
   .result-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nutrient-result-layout { grid-template-columns: 1fr; }
+  .nutrient-hero-card { min-height: 176px; }
+  .sentiment-copy-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 760px) {
@@ -586,6 +747,10 @@ button:disabled { cursor: wait; opacity: 0.6; }
   .summary-grid { flex-basis: 114px; }
   .workspace-card { grid-template-columns: minmax(230px, 0.42fr) minmax(0, 1fr); }
   .task-detail { padding: 20px 16px; }
+  .detail-header { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .detail-heading-actions { width: 100%; }
+  .detail-heading-actions p { margin-right: auto; }
+  .section-heading { align-items: flex-start; gap: 10px; }
   .result-grid, .info-grid { grid-template-columns: 1fr 1fr; }
   .info-grid div, .info-grid div:nth-child(3n), .info-grid div:nth-last-child(-n + 3) { border-right: 1px solid var(--dashboard-border-soft, #e1dbe5); border-bottom: 1px solid var(--dashboard-border-soft, #e1dbe5); }
   .info-grid div:nth-child(2n) { border-right: 0; }
@@ -597,6 +762,11 @@ button:disabled { cursor: wait; opacity: 0.6; }
   .refresh-all-button { padding: 0 12px; }
   .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .result-grid, .info-grid { grid-template-columns: 1fr; }
+  .nutrient-metric-grid { grid-template-columns: 1fr; }
+  .nutrient-metric-card:last-child:nth-child(odd) { grid-column: auto; }
+  .sentiment-overview-card { grid-template-columns: 44px minmax(0, 1fr); }
+  .sentiment-symbol { width: 44px; height: 44px; border-radius: 13px; }
+  .sentiment-score { grid-column: 2; text-align: left; }
   .filter-row { grid-template-columns: 1fr; }
   .info-grid div, .info-grid div:nth-child(2n), .info-grid div:nth-last-child(-n + 2) { border-right: 0; border-bottom: 1px solid var(--dashboard-border-soft, #e1dbe5); }
   .info-grid div:last-child { border-bottom: 0; }

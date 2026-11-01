@@ -1,4 +1,4 @@
-import { DIET_API, IMAGE_API, resolveApiUrl } from '../../../api/index.js'
+import { AI_API, DIET_API, IMAGE_API, resolveApiUrl } from '../../../api/index.js'
 import { loadProtectedFileUrl } from '../../../api/protected-file.js'
 import { getAuthSession } from '../../auth/session.js'
 
@@ -115,17 +115,9 @@ export function normalizeDietRecord(raw = {}) {
 
 export function createDietRecordDTO(meal = {}) {
   return {
-    id: meal.id ?? null,
     eatTime: meal.eatTime,
     mealType: Number(meal.mealType),
     foodName: String(meal.foodName ?? meal.name ?? '').trim(),
-    calories: toNumber(meal.calories ?? meal.kcal),
-    protein: toNumber(meal.protein),
-    fat: toNumber(meal.fat),
-    carbohydrate: toNumber(meal.carbohydrate ?? meal.carbs),
-    sugar: toNumber(meal.sugar),
-    sodium: toNumber(meal.sodium),
-    fullnessScore: meal.fullnessScore || null,
     location: meal.location ?? meal.place ?? 'home',
     note: String(meal.note ?? meal.desc ?? '').trim(),
     imageUrl: String(meal.imageUrl ?? meal.img ?? '').trim(),
@@ -156,11 +148,15 @@ export function addDietRecord(meal) {
 }
 
 export function updateDietRecord(meal) {
-  return postJson(DIET_API.update, createDietRecordDTO(meal), '修改饮食记录失败')
+  return postJson(DIET_API.update, { id: meal.id, ...createDietRecordDTO(meal) }, '修改饮食记录失败')
 }
 
 export function deleteDietRecord(id) {
   return postJson(DIET_API.delete(id), {}, '删除饮食记录失败')
+}
+
+export function submitDietNutritionAnalysis(payload) {
+  return postJson(AI_API.nutrition.submit, payload, '营养分析任务提交失败')
 }
 
 /** 上传饮食图片，返回可保存到 diet_record.image_url 的文件服务相对地址。 */

@@ -151,12 +151,18 @@ const mealGroups = computed(() => [
   left: 1px;
   top: 14px;
   z-index: 1;
+  box-sizing: border-box;
   width: 12px;
   height: 12px;
   border-radius: 999px;
+  background: #fff8f6;
+  border: 2px solid #ba5839;
+  box-shadow: 0 0 0 3px #fff8f6;
+  transition: background 0.18s ease;
+}
+
+.timeline-entry.selected .time-dot {
   background: #ba5839;
-  border: 3px solid #fff8f6;
-  box-shadow: 0 0 0 1px rgba(154, 64, 36, 0.28);
 }
 
 .meal-card {
