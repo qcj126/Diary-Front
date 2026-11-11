@@ -1,4 +1,6 @@
 import { AI_API, IMAGE_API, LOVE_DASHBOARD_API, resolveApiUrl } from '../../../api/index.js'
+import { waitForImageUploads } from '../../../api/image-upload-status.js'
+import { uploadMultipart } from '../../../api/multipart-upload.js'
 import { loadProtectedFileUrl } from '../../../api/protected-file.js'
 import { getAuthSession } from '../../auth/session.js'
 import type {
@@ -13,6 +15,17 @@ import type {
 } from '../types/records'
 
 type ApiObject = Record<string, any>
+
+export type ImageUploadProgress = {
+  phase: 'preparing' | 'transferring' | 'processing'
+  percentage: number
+  description: string
+}
+
+export type SaveRecordOptions = {
+  signal?: AbortSignal
+  onImageUploadProgress?: (progress: ImageUploadProgress) => void
+}
 
 class ApiRequestError extends Error {
   code?: string
@@ -484,32 +497,56 @@ function recordToDTO(
   }
 }
 
-async function imageUrlToFile(url: string, index: number): Promise<File> {
-  const response = await fetch(url)
+async function imageUrlToFile(url: string, index: number, signal?: AbortSignal): Promise<File> {
+  const response = await fetch(url, { signal })
   if (!response.ok) throw new Error('读取待上传图片失败')
   const blob = await response.blob()
   const extension = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
   return new File([blob], `love-record-${Date.now()}-${index}.${extension}`, { type: blob.type || 'image/jpeg' })
 }
 
-async function uploadImages(urls: string[]): Promise<string[]> {
+async function uploadImages(urls: string[], options: SaveRecordOptions = {}): Promise<string[]> {
   if (!urls.length) return []
-  const files = await Promise.all(urls.map(imageUrlToFile))
+  options.onImageUploadProgress?.({ phase: 'preparing', percentage: 0, description: '正在准备图片...' })
+  const files = await Promise.all(urls.map((url, index) => imageUrlToFile(url, index, options.signal)))
   const formData = new FormData()
   files.forEach((file) => formData.append('files', file, file.name))
   formData.append('code', '1000')
-  const ids = await requestJson(LOVE_DASHBOARD_API.files.uploadImages, {
-    method: 'POST',
-    headers: authHeaders(false),
-    body: formData,
-  }, '上传恋爱记录图片失败')
-  return Array.isArray(ids) ? ids.map(toKey).filter(Boolean) : []
+  const result = await uploadMultipart({
+    url: LOVE_DASHBOARD_API.files.uploadImages,
+    formData,
+    signal: options.signal,
+    errorMessage: '上传恋爱记录图片失败',
+    onProgress: (percentage: number) => {
+      options.onImageUploadProgress?.({
+        phase: 'transferring',
+        percentage,
+        description: `正在上传 ${percentage}%`,
+      })
+    },
+  })
+  const ids = Array.isArray(result) ? result.map(toKey).filter(Boolean) : []
+  if (!ids.length) throw new Error('图片上传成功，但没有返回图片 ID')
+
+  options.onImageUploadProgress?.({ phase: 'processing', percentage: 100, description: '云端处理中...' })
+  await waitForImageUploads(ids, {
+    signal: options.signal,
+    onStatus: (statuses: Array<{ terminal: boolean; description: string }>) => {
+      const currentStatus = statuses.find((status) => !status.terminal) || statuses[0]
+      options.onImageUploadProgress?.({
+        phase: 'processing',
+        percentage: 100,
+        description: currentStatus?.description || '云端处理中...',
+      })
+    },
+  })
+  return ids
 }
 
-async function newRecordToDTO(draft: RecordDraft, coupleId: string): Promise<ApiObject> {
+async function newRecordToDTO(draft: RecordDraft, coupleId: string, options: SaveRecordOptions = {}): Promise<ApiObject> {
   const record = recordToDTO(draft, coupleId)
   const [imageIds, moodRows] = await Promise.all([
-    uploadImages(draft.images),
+    uploadImages(draft.images, options),
     diaryLoveControllerApi.moods.query(true),
   ])
   const moodByName = new Map(toList(moodRows).map((item) => [String(item.moodName ?? ''), toKey(item.id)]))
@@ -532,7 +569,12 @@ async function newRecordToDTO(draft: RecordDraft, coupleId: string): Promise<Api
   }
 }
 
-async function syncRecordImages(recordId: string, images: string[], current?: LoveRecord | null): Promise<void> {
+async function syncRecordImages(
+  recordId: string,
+  images: string[],
+  current?: LoveRecord | null,
+  options: SaveRecordOptions = {},
+): Promise<void> {
   const desiredImages = images.filter(Boolean)
   const currentRefs = (current?.imageRefs ?? []).filter((item) => item.relationId && item.imageId)
   const currentImages = currentRefs.map((item) => item.url)
@@ -559,7 +601,7 @@ async function syncRecordImages(recordId: string, images: string[], current?: Lo
   }
 
   const changedAssignments = assignments.filter((item) => item.ref?.url !== item.url)
-  const uploadedImageIds = await uploadImages(changedAssignments.map((item) => item.url))
+  const uploadedImageIds = await uploadImages(changedAssignments.map((item) => item.url), options)
   if (uploadedImageIds.length !== changedAssignments.length) throw new Error('图片上传结果数量不一致')
   changedAssignments.forEach((item, index) => { item.uploadedImageId = uploadedImageIds[index] })
 
@@ -583,6 +625,7 @@ export async function saveRecordApi(
   relationship: RelationshipInfo,
   draft: RecordDraft,
   current?: LoveRecord | null,
+  options: SaveRecordOptions = {},
 ): Promise<void> {
   const ensured = await ensureRelationship(relationship)
   const coupleId = toKey(ensured.id)
@@ -603,12 +646,12 @@ export async function saveRecordApi(
     const dto = recordToDTO(draft, coupleId, current)
     await diaryLoveControllerApi.records.update(dto)
   } else {
-    await diaryLoveControllerApi.records.add(await newRecordToDTO(draft, coupleId))
+    await diaryLoveControllerApi.records.add(await newRecordToDTO(draft, coupleId, options))
     return
   }
 
   // 图片编辑仍沿用现有接口；心情和标签已随记录聚合，不再访问 record-moods / record-tags。
-  await syncRecordImages(recordId, draft.images, current)
+  await syncRecordImages(recordId, draft.images, current, options)
 }
 
 export function deleteRecordApi(id: string): Promise<any> {

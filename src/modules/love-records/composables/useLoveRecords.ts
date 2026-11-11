@@ -11,6 +11,7 @@ import {
   saveRecordApi,
   saveRelationshipApi,
 } from '../api/loveRecords'
+import type { SaveRecordOptions } from '../api/loveRecords'
 import type { Anniversary, LoveData, LoveLocationOption, LoveRecord, RecordCategory, RecordDraft, ViewKey } from '../types/records'
 import { daysBetween, nextOccurrence, parseLocalDate } from '../utils/date'
 
@@ -172,11 +173,11 @@ export function useLoveRecords() {
     editingId.value = null
   }
 
-  async function saveRecord(draft: RecordDraft): Promise<void> {
+  async function saveRecord(draft: RecordDraft, options: SaveRecordOptions = {}): Promise<void> {
     const current = draft.id
       ? data.value.records.find((item) => item.id === draft.id) ?? null
       : null
-    await saveRecordApi(data.value.relationship, draft, current)
+    await saveRecordApi(data.value.relationship, draft, current, options)
     await refreshData()
     closeDrawer()
   }

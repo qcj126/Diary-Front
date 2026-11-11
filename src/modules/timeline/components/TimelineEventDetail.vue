@@ -16,7 +16,18 @@
         <div v-else class="photo-empty">上传照片</div>
         <div v-if="isUploadingImage" class="photo-uploading" aria-live="polite">
           <span class="upload-spinner" aria-hidden="true"></span>
-          <span>上传中...</span>
+          <span>{{ imageUploadLabel }}</span>
+          <div
+            v-if="imageUploadPhase === 'transferring'"
+            class="upload-progress-track"
+            role="progressbar"
+            aria-label="图片上传进度"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            :aria-valuenow="imageUploadProgress"
+          >
+            <span class="upload-progress-value" :style="{ width: `${imageUploadProgress}%` }"></span>
+          </div>
         </div>
       </div>
 
@@ -114,9 +125,9 @@
           <button class="success-button" type="button" @click="cancelEditing">取消</button>
           <button
             class="save-button"
-            :class="{ 'is-ready': canSave }"
+            :class="{ 'is-ready': canSave && !isUploadingImage }"
             type="submit"
-            :disabled="!canSave"
+            :disabled="!canSave || isUploadingImage"
           >
             保存
           </button>
@@ -148,6 +159,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { waitForImageUploads } from '../../../api/image-upload-status.js'
 import {
   normalizeImageUrl,
   queryTimelineImageUrls,
@@ -180,6 +192,9 @@ const editingFromDetail = ref(false)
 const showDeleteConfirm = ref(false)
 const pendingDeleteId = ref('')
 const isUploadingImage = ref(false)
+const imageUploadProgress = ref(0)
+const imageUploadPhase = ref('idle')
+const imageProcessingDescription = ref('云端处理中...')
 const imageUploadError = ref('')
 const validationErrors = reactive({
   title: '',
@@ -188,9 +203,7 @@ const validationErrors = reactive({
   imageUrl: '',
 })
 let activeUploadToken = 0
-
-const IMAGE_URL_POLL_DELAY = 3000
-const IMAGE_URL_POLL_INTERVAL = 3000
+let activeUploadController = null
 
 const isCreating = computed(() => Boolean(props.category))
 const selectedCategory = computed(() => (
@@ -206,6 +219,11 @@ const hasRequiredFields = computed(() => Boolean(
     && (draft.imageUrl || draft.imageId)
 ))
 const canSave = computed(() => (isCreating.value ? hasRequiredFields.value : true))
+const imageUploadLabel = computed(() => (
+  imageUploadPhase.value === 'transferring'
+    ? `正在上传 ${imageUploadProgress.value}%`
+    : imageProcessingDescription.value
+))
 
 const draft = reactive({
   id: '',
@@ -221,12 +239,6 @@ const draft = reactive({
   categoryName: '',
   categoryIcon: '',
 })
-
-function wait(ms) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms)
-  })
-}
 
 function toKey(value) {
   return String(value ?? '').trim()
@@ -283,23 +295,6 @@ function validateRequiredFields() {
     && !validationErrors.imageUrl
 }
 
-async function pollImageUrl(imageIds, token) {
-  await wait(IMAGE_URL_POLL_DELAY)
-
-  while (token === activeUploadToken) {
-    if (token !== activeUploadToken) return null
-
-    const images = await queryTimelineImageUrls(imageIds)
-    const image = images.find((item) => imageIds.includes(String(item?.id)))
-    const url = normalizeImageUrl(image?.url)
-    if (url) return { id: String(image.id), url }
-
-    await wait(IMAGE_URL_POLL_INTERVAL)
-  }
-
-  return null
-}
-
 function syncDraft(event) {
   const category = getCategoryById(event?.categoryId) || getCategoryByKey(event?.categoryKey) || props.category
   draft.id = toKey(event?.id)
@@ -342,22 +337,51 @@ async function handlePhotoUpload(event) {
 
   const token = activeUploadToken + 1
   activeUploadToken = token
+  activeUploadController?.abort()
+  const uploadController = new AbortController()
+  activeUploadController = uploadController
   isUploadingImage.value = true
+  imageUploadProgress.value = 0
+  imageUploadPhase.value = 'transferring'
+  imageProcessingDescription.value = '云端处理中...'
   imageUploadError.value = ''
   clearValidationError('imageUrl')
   draft.imageUrl = URL.createObjectURL(file)
 
   try {
-    const imageIds = await uploadTimelineImages([file], {
-      code: 1000,
-    })
+    const imageIds = await uploadTimelineImages(
+      [file],
+      { code: 1000 },
+      {
+        onProgress: (percentage) => {
+          if (token === activeUploadToken) imageUploadProgress.value = percentage
+        },
+        signal: uploadController.signal,
+      },
+    )
+    if (token !== activeUploadToken) return
+
+    imageUploadProgress.value = 100
+    imageUploadPhase.value = 'processing'
     draft.imageId = imageIds[0] || null
 
-    const image = await pollImageUrl(imageIds, token)
-    if (!image || token !== activeUploadToken) return
+    const readyStatuses = await waitForImageUploads(imageIds, {
+      signal: uploadController.signal,
+      onStatus: (statuses) => {
+        if (token !== activeUploadToken) return
+        const currentStatus = statuses.find((status) => !status.terminal) || statuses[0]
+        imageProcessingDescription.value = currentStatus?.description || '云端处理中...'
+      },
+    })
+    if (!readyStatuses || token !== activeUploadToken) return
 
-    draft.imageId = image.id
-    draft.imageUrl = image.url
+    const images = await queryTimelineImageUrls(imageIds)
+    const image = images.find((item) => imageIds.includes(String(item?.id)))
+    const url = normalizeImageUrl(image?.url)
+    if (!image || !url) throw new Error('图片处理完成，但未获取到访问地址')
+
+    draft.imageId = String(image.id)
+    draft.imageUrl = url
   } catch (error) {
     console.error(error)
     if (token === activeUploadToken) {
@@ -366,6 +390,8 @@ async function handlePhotoUpload(event) {
   } finally {
     if (token === activeUploadToken) {
       isUploadingImage.value = false
+      imageUploadPhase.value = 'idle'
+      activeUploadController = null
     }
     input.value = ''
   }
@@ -401,7 +427,12 @@ function startEditing() {
 
 function cancelEditing() {
   activeUploadToken += 1
+  activeUploadController?.abort()
+  activeUploadController = null
   isUploadingImage.value = false
+  imageUploadProgress.value = 0
+  imageUploadPhase.value = 'idle'
+  imageProcessingDescription.value = '云端处理中...'
   imageUploadError.value = ''
   clearValidationErrors()
   resetDraft()
@@ -419,7 +450,12 @@ watch(
   () => [props.event, props.category],
   ([event, category]) => {
     activeUploadToken += 1
+    activeUploadController?.abort()
+    activeUploadController = null
     isUploadingImage.value = false
+    imageUploadProgress.value = 0
+    imageUploadPhase.value = 'idle'
+    imageProcessingDescription.value = '云端处理中...'
     imageUploadError.value = ''
     clearValidationErrors()
     editingFromDetail.value = false
@@ -447,6 +483,8 @@ watch(
 
 onBeforeUnmount(() => {
   activeUploadToken += 1
+  activeUploadController?.abort()
+  activeUploadController = null
 })
 </script>
 
@@ -552,6 +590,22 @@ onBeforeUnmount(() => {
   border-top-color: #7df4ff;
   border-radius: 999px;
   animation: image-upload-spin 0.8s linear infinite;
+}
+
+.upload-progress-track {
+  width: min(72%, 280px);
+  height: 0.4rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(224, 251, 255, 0.24);
+}
+
+.upload-progress-value {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #7df4ff;
+  transition: width 0.15s ease-out;
 }
 
 .view-mode,

@@ -64,7 +64,11 @@
           :record="editingRecord"
           :locations="locationOptions"
           :locations-loading="locationsLoading"
-          @close="closeDrawer"
+          :saving="recordSaving"
+          :upload-label="recordUploadLabel"
+          :upload-progress="recordUploadProgress"
+          :upload-phase="recordUploadPhase"
+          @close="handleCloseRecordForm"
           @save="handleSaveRecord"
         />
       </div>
@@ -143,6 +147,11 @@ const footerStats = computed(() => {
 })
 const notice = ref('')
 const noticeError = ref(false)
+const recordSaving = ref(false)
+const recordUploadProgress = ref(0)
+const recordUploadPhase = ref<'idle' | 'preparing' | 'transferring' | 'processing'>('idle')
+const recordUploadLabel = ref('')
+let recordSaveController: AbortController | null = null
 let noticeTimer = 0
 const sentimentStatuses = ref<Record<string, string>>({})
 const sentimentResult = ref<SentimentResult | null>(null)
@@ -189,8 +198,48 @@ async function runMutation(operation: () => Promise<void>, successMessage: strin
   }
 }
 
-function handleSaveRecord(draft: RecordDraft): void {
-  void runMutation(() => saveRecord(draft), draft.id ? '记录修改成功' : '记录新增成功')
+function handleCloseRecordForm(): void {
+  recordSaveController?.abort()
+  recordSaveController = null
+  recordSaving.value = false
+  recordUploadPhase.value = 'idle'
+  closeDrawer()
+}
+
+async function handleSaveRecord(draft: RecordDraft): Promise<void> {
+  if (recordSaving.value) return
+
+  recordSaveController?.abort()
+  const controller = new AbortController()
+  recordSaveController = controller
+  recordSaving.value = true
+  recordUploadProgress.value = 0
+  recordUploadPhase.value = 'idle'
+  recordUploadLabel.value = '正在保存记录...'
+
+  try {
+    await saveRecord(draft, {
+      signal: controller.signal,
+      onImageUploadProgress: (progress) => {
+        recordUploadPhase.value = progress.phase
+        recordUploadProgress.value = progress.percentage
+        recordUploadLabel.value = progress.description
+      },
+    })
+    showNotice(draft.id ? '记录修改成功' : '记录新增成功')
+  } catch (caught) {
+    if (!controller.signal.aborted) {
+      showNotice(caught instanceof Error ? caught.message : '服务端操作失败', true)
+    }
+  } finally {
+    if (recordSaveController === controller) {
+      recordSaveController = null
+      recordSaving.value = false
+      recordUploadProgress.value = 0
+      recordUploadPhase.value = 'idle'
+      recordUploadLabel.value = ''
+    }
+  }
 }
 
 function handleDeleteRecord(id: string): void {
@@ -345,6 +394,8 @@ function closeSentimentResult(): void {
 }
 
 onBeforeUnmount(() => {
+  recordSaveController?.abort()
+  recordSaveController = null
   sentimentPollTimers.forEach((timer) => window.clearTimeout(timer))
   sentimentPollTimers.clear()
 })

@@ -144,9 +144,12 @@
                 @change="handleImageChange"
               />
               <img v-if="draft.coverImg" :src="draft.coverImg" alt="食谱图片预览" />
-              <span class="upload-prompt">
+              <span class="upload-prompt" :class="{ 'is-uploading': imageUploading }">
                 <span class="material-symbols-outlined">add_photo_alternate</span>
-                <strong>{{ imageUploading ? '上传中...' : draft.coverImg ? '重新上传图片' : '选择图片上传' }}</strong>
+                <strong>{{ imageUploading ? imageUploadLabel : draft.coverImg ? '重新上传图片' : '选择图片上传' }}</strong>
+                <span v-if="imageUploading && imageUploadPhase === 'transferring'" class="image-progress-track">
+                  <span class="image-progress-value" :style="{ width: `${imageUploadProgress}%` }"></span>
+                </span>
               </span>
             </label>
             <p v-if="imageError" class="form-error">{{ imageError }}</p>
@@ -297,7 +300,8 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { waitForImageUploads } from '../../api/image-upload-status.js'
 import {
   queryCookWays,
   queryIngredientCategories,
@@ -326,13 +330,24 @@ const draft = ref({})
 const ingredients = ref([])
 const steps = ref([])
 const imageUploading = ref(false)
+const imageUploadProgress = ref(0)
+const imageUploadPhase = ref('idle')
+const imageProcessingDescription = ref('云端处理中...')
 const imageError = ref('')
 const ingredientCategoriesByMain = ref({})
 const cookWayOptions = ref([])
 const systemInfoLoading = ref(false)
 const systemInfoError = ref('')
 let imagePreviewObjectUrl = ''
+let imageUploadController = null
+let imageUploadToken = 0
 let rowId = 0
+
+const imageUploadLabel = computed(() => (
+  imageUploadPhase.value === 'transferring'
+    ? `正在上传 ${imageUploadProgress.value}%`
+    : imageProcessingDescription.value
+))
 
 function nextRowId() {
   rowId += 1
@@ -553,18 +568,50 @@ async function handleImageChange(event) {
   imageError.value = ''
   if (!file) return
 
+  imageUploadToken += 1
+  const token = imageUploadToken
+  imageUploadController?.abort()
+  const controller = new AbortController()
+  imageUploadController = controller
   imageUploading.value = true
+  imageUploadProgress.value = 0
+  imageUploadPhase.value = 'transferring'
+  imageProcessingDescription.value = '云端处理中...'
 
   try {
-    const [imageId] = await uploadRecipeImages([file])
+    const [imageId] = await uploadRecipeImages([file], {
+      signal: controller.signal,
+      onProgress: (percentage) => {
+        if (token === imageUploadToken) imageUploadProgress.value = percentage
+      },
+    })
+    if (token !== imageUploadToken) return
+
+    imageUploadProgress.value = 100
+    imageUploadPhase.value = 'processing'
+    await waitForImageUploads([imageId], {
+      signal: controller.signal,
+      onStatus: (statuses) => {
+        if (token !== imageUploadToken) return
+        imageProcessingDescription.value = statuses[0]?.description || '云端处理中...'
+      },
+    })
+    if (token !== imageUploadToken) return
+
     releaseImagePreview()
     imagePreviewObjectUrl = URL.createObjectURL(file)
     draft.value.imageId = imageId
     draft.value.coverImg = imagePreviewObjectUrl
   } catch (error) {
-    imageError.value = error instanceof Error ? error.message : '图片上传失败'
+    if (token === imageUploadToken) {
+      imageError.value = error instanceof Error ? error.message : '图片上传失败'
+    }
   } finally {
-    imageUploading.value = false
+    if (token === imageUploadToken) {
+      imageUploading.value = false
+      imageUploadPhase.value = 'idle'
+      imageUploadController = null
+    }
     event.target.value = ''
   }
 }
@@ -572,6 +619,12 @@ async function handleImageChange(event) {
 watch(
   () => props.recipe,
   (next) => {
+    imageUploadToken += 1
+    imageUploadController?.abort()
+    imageUploadController = null
+    imageUploading.value = false
+    imageUploadProgress.value = 0
+    imageUploadPhase.value = 'idle'
     releaseImagePreview()
     draft.value = cloneRecipe(next)
     ingredients.value = formatIngredients(next)
@@ -584,7 +637,12 @@ watch(
   { immediate: true },
 )
 
-onBeforeUnmount(releaseImagePreview)
+onBeforeUnmount(() => {
+  imageUploadToken += 1
+  imageUploadController?.abort()
+  imageUploadController = null
+  releaseImagePreview()
+})
 onMounted(loadSystemInfoOptions)
 
 
@@ -887,6 +945,27 @@ function handleDelete() {
   gap: 10px;
   padding: 10px 14px;
   border-radius: 8px;
+}
+
+.upload-prompt.is-uploading {
+  flex-direction: column;
+  min-width: min(80%, 280px);
+}
+
+.image-progress-track {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.image-progress-value {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: currentColor;
+  transition: width 0.15s ease-out;
 }
 
 .upload-box.has-image .upload-prompt {

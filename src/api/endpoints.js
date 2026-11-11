@@ -100,6 +100,7 @@ export const IMAGE_API = {
   file: (fileName) => `${API_BASE}/file/images/${encodeURIComponent(decodeFileName(fileName))}`,
   upload: `${API_BASE}/file/upload/images`,
   queryUrls: `${API_BASE}/file/query/images/urls`,
+  queryStatuses: `${API_BASE}/file/query/images/statuses`,
 }
 
 export const GOAL_API = {
