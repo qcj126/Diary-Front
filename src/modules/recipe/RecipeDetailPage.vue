@@ -138,7 +138,7 @@
             <label class="upload-box" :class="{ 'has-image': draft.coverImg }">
               <input
                 type="file"
-                accept="image/*"
+                accept=".png,.jpg,.jpeg,image/png,image/jpeg"
                 aria-label="上传食谱图片"
                 :disabled="imageUploading"
                 @change="handleImageChange"
@@ -575,14 +575,18 @@ async function handleImageChange(event) {
   imageUploadController = controller
   imageUploading.value = true
   imageUploadProgress.value = 0
-  imageUploadPhase.value = 'transferring'
-  imageProcessingDescription.value = '云端处理中...'
+  imageUploadPhase.value = 'validating'
+  imageProcessingDescription.value = '正在校验图片...'
 
   try {
     const [imageId] = await uploadRecipeImages([file], {
       signal: controller.signal,
-      onProgress: (percentage) => {
-        if (token === imageUploadToken) imageUploadProgress.value = percentage
+      onProgress: (percentage, detail) => {
+        if (token === imageUploadToken) {
+          imageUploadProgress.value = percentage
+          imageUploadPhase.value = detail?.phase || 'transferring'
+          imageProcessingDescription.value = detail?.description || '正在处理图片...'
+        }
       },
     })
     if (token !== imageUploadToken) return

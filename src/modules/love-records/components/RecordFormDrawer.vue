@@ -5,7 +5,7 @@
       <label><span>记录标题 <b>*</b></span><input v-model.trim="draft.title" maxlength="30" placeholder="给这段回忆起个名字" required></label>
       <div class="two-columns"><label><span>日期 <b>*</b></span><input v-model="draft.date" type="date" required></label><label><span>分类</span><select v-model="draft.category"><option v-for="category in categories" :key="category">{{ category }}</option></select></label></div>
       <label><span>想说的话</span><textarea v-model.trim="draft.content" rows="5" maxlength="500" placeholder="写下当时发生的事、想对 TA 说的话…… 😊" /></label>
-      <section><div class="field-title"><span>照片</span><small>{{ draft.images.length }} / 8</small></div><div class="upload-zone" :class="{ dragging }" @dragover.prevent="dragging = true" @dragleave="dragging = false" @drop.prevent="onDrop"><input ref="fileInput" type="file" accept="image/*" multiple :disabled="saving" @change="onFiles"><span class="material-symbols-outlined">add_photo_alternate</span><p>拖拽照片到这里，或 <button type="button" :disabled="saving" @click="fileInput?.click()">点击上传</button></p><small>支持 JPG、PNG，单张不超过 5MB</small></div><div v-if="saving && uploadLabel" class="record-upload-progress"><span>{{ uploadLabel }}</span><div v-if="uploadPhase === 'transferring'" role="progressbar" aria-label="恋爱记录图片上传进度" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="uploadProgress"><i :style="{ width: `${uploadProgress}%` }" /></div></div><div v-if="draft.images.length" class="upload-thumbs"><div v-for="(image, index) in draft.images" :key="`${image}-${index}`"><img :src="image" alt="照片预览"><button type="button" aria-label="删除照片" :disabled="saving" @click="draft.images.splice(index, 1)"><span class="material-symbols-outlined">close</span></button></div></div></section>
+      <section><div class="field-title"><span>照片</span><small>{{ draft.images.length }} / 8</small></div><div class="upload-zone" :class="{ dragging }" @dragover.prevent="dragging = true" @dragleave="dragging = false" @drop.prevent="onDrop"><input ref="fileInput" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" multiple :disabled="saving" @change="onFiles"><span class="material-symbols-outlined">add_photo_alternate</span><p>拖拽照片到这里，或 <button type="button" :disabled="saving" @click="fileInput?.click()">点击上传</button></p><small>支持 JPG、PNG，单张不超过 100MB</small></div><div v-if="saving && uploadLabel" class="record-upload-progress"><span>{{ uploadLabel }}</span><div v-if="uploadPhase === 'transferring'" role="progressbar" aria-label="恋爱记录图片上传进度" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="uploadProgress"><i :style="{ width: `${uploadProgress}%` }" /></div></div><div v-if="draft.images.length" class="upload-thumbs"><div v-for="(image, index) in draft.images" :key="`${image}-${index}`"><img :src="image" alt="照片预览"><button type="button" aria-label="删除照片" :disabled="saving" @click="removeImage(index)"><span class="material-symbols-outlined">close</span></button></div></div></section>
       <section class="location-editor">
         <div class="field-title"><span>地点</span><small>{{ locationsLoading ? '正在查询已有地点…' : `${locations.length} 个已有地点` }}</small></div>
         <select v-model="locationMode" @change="changeLocationMode">
@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import type { LoveLocationOption, LoveRecord, Mood, NewLocationDraft, RecordCategory, RecordDraft } from '../types/records'
 import { toInputDate } from '../utils/date'
 const props = defineProps<{
@@ -68,7 +68,7 @@ const props = defineProps<{
   saving: boolean
   uploadLabel: string
   uploadProgress: number
-  uploadPhase: 'idle' | 'preparing' | 'transferring' | 'processing'
+  uploadPhase: 'idle' | 'preparing' | 'validating' | 'hashing' | 'checking' | 'transferring' | 'instant' | 'merging' | 'processing'
 }>()
 const emit = defineEmits<{ close: []; save: [draft: RecordDraft] }>()
 const isEditing = computed(() => props.record !== null)
@@ -91,6 +91,7 @@ function syncSelectedLocation(force = false): void {
   draft.locationDetails = location ? toLocationDraft(location) : null
 }
 function reset(): void {
+  releaseLocalPreviews()
   Object.assign(draft, props.record
     ? { ...props.record, locationId: props.record.locationId ?? null, newLocation: null, locationDetails: null, images: [...props.record.images], moods: [...props.record.moods], tags: [...props.record.tags] }
     : emptyDraft())
@@ -116,9 +117,9 @@ function changeLocationMode(): void {
 }
 function toggleMood(mood: Mood): void { draft.moods = draft.moods.includes(mood) ? draft.moods.filter((item) => item !== mood) : [...draft.moods, mood] }
 function addTag(): void { const value = tagInput.value.replace(/^#/, '').trim(); if (value && !draft.tags.includes(value)) draft.tags.push(value); tagInput.value = '' }
-async function readFiles(files: File[]): Promise<void> { for (const file of files.slice(0, 8 - draft.images.length)) { if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) continue; draft.images.push(await fileToDataUrl(file)) } }
-// Data URL 只用于即时预览；保存时由 API 层转换回文件并上传到 diary-file。
-function fileToDataUrl(file: File): Promise<string> { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file) }) }
+function releaseLocalPreviews(): void { draft.images.filter((url) => url.startsWith('blob:')).forEach((url) => URL.revokeObjectURL(url)) }
+function removeImage(index: number): void { const [url] = draft.images.splice(index, 1); if (url?.startsWith('blob:')) URL.revokeObjectURL(url) }
+async function readFiles(files: File[]): Promise<void> { for (const file of files.slice(0, 8 - draft.images.length)) { if (!['image/png', 'image/jpeg'].includes(file.type) || file.size > 100 * 1024 * 1024) continue; draft.images.push(URL.createObjectURL(file)) } }
 function onFiles(event: Event): void { const input = event.target as HTMLInputElement; if (!props.saving) void readFiles(Array.from(input.files ?? [])); input.value = '' }
 function onDrop(event: DragEvent): void { dragging.value = false; if (!props.saving) void readFiles(Array.from(event.dataTransfer?.files ?? [])) }
 function submit(): void {
@@ -141,6 +142,7 @@ function submit(): void {
     important: draft.important,
   })
 }
+onBeforeUnmount(releaseLocalPreviews)
 </script>
 
 <style scoped>

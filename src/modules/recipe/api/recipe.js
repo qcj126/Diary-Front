@@ -1,5 +1,5 @@
 import { AI_API, ICON_API, IMAGE_API, RECIPE_API, RECIPE_SYS_API, resolveApiUrl } from '../../../api/index.js'
-import { uploadMultipart } from '../../../api/multipart-upload.js'
+import { uploadImageFiles } from '../../../api/chunked-image-upload.js'
 import { loadProtectedFileUrl } from '../../../api/protected-file.js'
 import { DIFFICULTY_LABELS, MEAL_TYPE_LABELS } from '../../../constants/recipe.js'
 import { getAuthSession } from '../../auth/session.js'
@@ -392,18 +392,9 @@ export function createRecipeDTO(recipe = {}) {
 }
 
 export async function uploadRecipeImages(files, { onProgress, signal } = {}) {
-  const formData = new FormData()
-  for (const file of files) {
-    formData.append('files', file)
-  }
-  formData.append('code', '2000')
-
-  const result = await uploadMultipart({
-    url: RECIPE_API.uploadImages,
-    formData,
+  const result = await uploadImageFiles(files, 2000, {
     onProgress,
     signal,
-    errorMessage: '图片上传失败',
   })
   const ids = Array.isArray(result) ? result : [result]
   const imageIds = ids

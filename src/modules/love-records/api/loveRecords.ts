@@ -1,6 +1,6 @@
 import { AI_API, IMAGE_API, LOVE_DASHBOARD_API, resolveApiUrl } from '../../../api/index.js'
+import { uploadImageFiles } from '../../../api/chunked-image-upload.js'
 import { waitForImageUploads } from '../../../api/image-upload-status.js'
-import { uploadMultipart } from '../../../api/multipart-upload.js'
 import { loadProtectedFileUrl } from '../../../api/protected-file.js'
 import { getAuthSession } from '../../auth/session.js'
 import type {
@@ -17,7 +17,7 @@ import type {
 type ApiObject = Record<string, any>
 
 export type ImageUploadProgress = {
-  phase: 'preparing' | 'transferring' | 'processing'
+  phase: 'preparing' | 'validating' | 'hashing' | 'checking' | 'transferring' | 'instant' | 'merging' | 'processing'
   percentage: number
   description: string
 }
@@ -509,19 +509,13 @@ async function uploadImages(urls: string[], options: SaveRecordOptions = {}): Pr
   if (!urls.length) return []
   options.onImageUploadProgress?.({ phase: 'preparing', percentage: 0, description: '正在准备图片...' })
   const files = await Promise.all(urls.map((url, index) => imageUrlToFile(url, index, options.signal)))
-  const formData = new FormData()
-  files.forEach((file) => formData.append('files', file, file.name))
-  formData.append('code', '1000')
-  const result = await uploadMultipart({
-    url: LOVE_DASHBOARD_API.files.uploadImages,
-    formData,
+  const result = await uploadImageFiles(files, 1000, {
     signal: options.signal,
-    errorMessage: '上传恋爱记录图片失败',
-    onProgress: (percentage: number) => {
+    onProgress: (percentage: number, detail: { phase?: ImageUploadProgress['phase']; description?: string }) => {
       options.onImageUploadProgress?.({
-        phase: 'transferring',
+        phase: detail?.phase ?? 'transferring',
         percentage,
-        description: `正在上传 ${percentage}%`,
+        description: detail?.description ?? `正在上传 ${percentage}%`,
       })
     },
   })

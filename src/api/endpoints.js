@@ -99,6 +99,9 @@ export const ICON_API = {
 export const IMAGE_API = {
   file: (fileName) => `${API_BASE}/file/images/${encodeURIComponent(decodeFileName(fileName))}`,
   upload: `${API_BASE}/file/upload/images`,
+  initializeUpload: `${API_BASE}/file/upload/images/init`,
+  uploadChunk: (uploadId, chunkIndex) => `${API_BASE}/file/upload/images/${encodeURIComponent(uploadId)}/chunks/${encodeURIComponent(chunkIndex)}`,
+  completeUpload: (uploadId) => `${API_BASE}/file/upload/images/${encodeURIComponent(uploadId)}/complete`,
   queryUrls: `${API_BASE}/file/query/images/urls`,
   queryStatuses: `${API_BASE}/file/query/images/statuses`,
 }

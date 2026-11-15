@@ -1,5 +1,5 @@
 import { IMAGE_API, resolveApiUrl, TIMELINE_API } from '../../../api/index.js'
-import { uploadMultipart } from '../../../api/multipart-upload.js'
+import { uploadImageFiles } from '../../../api/chunked-image-upload.js'
 import { loadProtectedFileUrl } from '../../../api/protected-file.js'
 import { getAuthSession } from '../../auth/session.js'
 
@@ -60,19 +60,9 @@ function normalizeCarouselImageUrl(image) {
 }
 
 export async function uploadTimelineImages(files, imageDTO, { onProgress, signal } = {}) {
-  const formData = new FormData()
-  for (const file of files) {
-    formData.append('files', file, file.name)
-  }
-
-  formData.append('code', String(imageDTO?.code ?? 1000))
-
-  const ids = await uploadMultipart({
-    url: TIMELINE_API.uploadImages,
-    formData,
+  const ids = await uploadImageFiles(files, imageDTO?.code ?? 1000, {
     onProgress,
     signal,
-    errorMessage: '图片上传失败',
   })
   if (!Array.isArray(ids) || ids.length === 0) {
     throw new Error('Image upload succeeded, but no image IDs were returned.')

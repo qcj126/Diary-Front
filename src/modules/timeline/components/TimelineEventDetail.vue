@@ -110,7 +110,7 @@
         <label class="photo-field">
           <span>照片</span>
           <span class="upload-button" :class="{ disabled: isUploadingImage }">
-            <input type="file" accept="image/*" :disabled="isUploadingImage" @change="handlePhotoUpload" />
+            <input type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" :disabled="isUploadingImage" @change="handlePhotoUpload" />
             上传照片
           </span>
           <p v-if="validationErrors.imageUrl" class="field-error photo-error">
@@ -342,19 +342,27 @@ async function handlePhotoUpload(event) {
   activeUploadController = uploadController
   isUploadingImage.value = true
   imageUploadProgress.value = 0
-  imageUploadPhase.value = 'transferring'
-  imageProcessingDescription.value = '云端处理中...'
+  imageUploadPhase.value = 'validating'
+  imageProcessingDescription.value = '正在校验图片...'
   imageUploadError.value = ''
   clearValidationError('imageUrl')
-  draft.imageUrl = URL.createObjectURL(file)
+  const previousImageUrl = draft.imageUrl
+  const previousImageId = draft.imageId
+  if (previousImageUrl.startsWith('blob:')) URL.revokeObjectURL(previousImageUrl)
+  const previewUrl = URL.createObjectURL(file)
+  draft.imageUrl = previewUrl
 
   try {
     const imageIds = await uploadTimelineImages(
       [file],
       { code: 1000 },
       {
-        onProgress: (percentage) => {
-          if (token === activeUploadToken) imageUploadProgress.value = percentage
+        onProgress: (percentage, detail) => {
+          if (token === activeUploadToken) {
+            imageUploadProgress.value = percentage
+            imageUploadPhase.value = detail?.phase || 'transferring'
+            imageProcessingDescription.value = detail?.description || '正在处理图片...'
+          }
         },
         signal: uploadController.signal,
       },
@@ -380,11 +388,15 @@ async function handlePhotoUpload(event) {
     const url = normalizeImageUrl(image?.url)
     if (!image || !url) throw new Error('图片处理完成，但未获取到访问地址')
 
+    URL.revokeObjectURL(previewUrl)
     draft.imageId = String(image.id)
     draft.imageUrl = url
   } catch (error) {
     console.error(error)
     if (token === activeUploadToken) {
+      URL.revokeObjectURL(previewUrl)
+      draft.imageId = previousImageId
+      draft.imageUrl = previousImageUrl
       imageUploadError.value = error instanceof Error ? error.message : '图片上传失败'
     }
   } finally {
