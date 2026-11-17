@@ -2,13 +2,8 @@ import { IMAGE_API } from './endpoints.js'
 import { uploadMultipart } from './multipart-upload.js'
 import { getAuthSession } from '../modules/auth/session.js'
 
-export const IMAGE_CHUNK_SIZE = 256 * 1024
-export const MAX_IMAGE_SIZE = 100 * 1024 * 1024
-
 const MAX_CONCURRENT_CHUNKS = 4
 const MAX_CHUNK_ATTEMPTS = 3
-const IMAGE_TYPES = new Set(['image/png', 'image/jpeg'])
-const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg'])
 
 function abortError() {
   return new DOMException('图片上传已取消', 'AbortError')
@@ -62,6 +57,65 @@ async function postJson(url, body, signal, fallback) {
   return responseData(payload)
 }
 
+async function getJson(url, signal, fallback) {
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: authHeaders(),
+    signal,
+  })
+  const payload = parseApiPayload(await response.text())
+  const code = payload && typeof payload === 'object' ? payload.code : undefined
+  const successfulCode = code === undefined || String(code) === '200' || String(code) === '0'
+  if (!response.ok || !successfulCode) {
+    const message = payload && typeof payload === 'object'
+      ? payload.message || payload.msg || payload.error
+      : null
+    throw new Error(message || fallback)
+  }
+  return responseData(payload)
+}
+
+function positiveInteger(value, fieldName) {
+  const normalized = Number(value)
+  if (!Number.isSafeInteger(normalized) || normalized <= 0) {
+    throw new Error(`服务端返回的 ${fieldName} 配置无效`)
+  }
+  return normalized
+}
+
+function stringSet(value, fieldName) {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`服务端返回的 ${fieldName} 配置无效`)
+  }
+  const normalized = value
+    .map((item) => String(item ?? '').trim().toLowerCase())
+    .filter(Boolean)
+  if (normalized.length === 0) {
+    throw new Error(`服务端返回的 ${fieldName} 配置无效`)
+  }
+  return new Set(normalized)
+}
+
+async function loadUploadConfig(signal) {
+  const result = await getJson(
+    IMAGE_API.uploadConfig,
+    signal,
+    '获取图片上传配置失败',
+  )
+  return {
+    chunkSize: positiveInteger(result?.chunkSize, 'chunkSize'),
+    maxImageSize: positiveInteger(result?.maxImageSize, 'maxImageSize'),
+    allowedMimeTypes: stringSet(result?.allowedMimeTypes, 'allowedMimeTypes'),
+    allowedExtensions: stringSet(result?.allowedExtensions, 'allowedExtensions'),
+  }
+}
+
+function formatFileSize(size) {
+  if (size >= 1024 * 1024) return `${Math.round(size / (1024 * 1024))}MB`
+  if (size >= 1024) return `${Math.round(size / 1024)}KB`
+  return `${size}B`
+}
+
 function toHex(buffer) {
   return Array.from(new Uint8Array(buffer), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
@@ -101,12 +155,15 @@ export function calculateFileSha256(file, signal) {
   })
 }
 
-async function validateImageFile(file) {
+async function validateImageFile(file, uploadConfig) {
   if (!(file instanceof File) || file.size <= 0) throw new Error('请选择有效的图片文件')
-  if (file.size > MAX_IMAGE_SIZE) throw new Error(`${file.name} 超过 100MB 限制`)
+  if (file.size > uploadConfig.maxImageSize) {
+    throw new Error(`${file.name} 超过 ${formatFileSize(uploadConfig.maxImageSize)} 限制`)
+  }
 
   const extension = file.name.split('.').pop()?.toLowerCase() || ''
-  if (!IMAGE_TYPES.has(file.type) || !IMAGE_EXTENSIONS.has(extension)) {
+  if (!uploadConfig.allowedMimeTypes.has(file.type.toLowerCase())
+    || !uploadConfig.allowedExtensions.has(extension)) {
     throw new Error(`${file.name} 只允许 JPG、PNG 格式`)
   }
 
@@ -222,14 +279,14 @@ function normalizeInitResult(result, requestedChunkSize, requestedTotalChunks) {
 }
 
 async function uploadOneImage(file, imageTypeCode, options) {
-  const { signal, onState } = options
+  const { signal, onState, uploadConfig } = options
   onState?.({ phase: 'validating', percentage: 0, description: `正在校验 ${file.name}` })
-  await validateImageFile(file)
+  await validateImageFile(file, uploadConfig)
   throwIfAborted(signal)
 
   onState?.({ phase: 'hashing', percentage: 0, description: `正在计算 ${file.name} 的摘要` })
   const sha256 = await calculateFileSha256(file, signal)
-  const totalChunks = Math.ceil(file.size / IMAGE_CHUNK_SIZE)
+  const totalChunks = Math.ceil(file.size / uploadConfig.chunkSize)
 
   onState?.({ phase: 'checking', percentage: 0, description: `正在检查 ${file.name} 是否已上传` })
   const init = normalizeInitResult(await postJson(
@@ -239,19 +296,19 @@ async function uploadOneImage(file, imageTypeCode, options) {
       fileSize: file.size,
       mimeType: file.type,
       sha256,
-      chunkSize: IMAGE_CHUNK_SIZE,
+      chunkSize: uploadConfig.chunkSize,
       totalChunks,
       imageTypeCode: Number(imageTypeCode),
     },
     signal,
     '初始化图片上传失败',
-  ), IMAGE_CHUNK_SIZE, totalChunks)
+  ), uploadConfig.chunkSize, totalChunks)
 
   if (init.instantUpload) {
     onState?.({ phase: 'instant', percentage: 100, description: `${file.name} 已秒传` })
     return init.imageId
   }
-  if (init.chunkSize !== IMAGE_CHUNK_SIZE || init.totalChunks !== totalChunks) {
+  if (init.chunkSize !== uploadConfig.chunkSize || init.totalChunks !== totalChunks) {
     throw new Error('服务端返回的分片参数与客户端不一致')
   }
 
@@ -280,18 +337,29 @@ async function uploadOneImage(file, imageTypeCode, options) {
 }
 
 /**
- * 顺序处理多个文件，单个文件内部最多并发上传 4 个 256KB 分片。
+ * 顺序处理多个文件，分片大小由后端配置决定，单个文件内部最多并发上传4个分片。
  * onProgress 的第二个参数包含当前阶段，兼容原来只接收 percentage 的调用方。
  */
 export async function uploadImageFiles(files, imageTypeCode, { signal, onProgress } = {}) {
   const imageFiles = Array.from(files || [])
   if (!imageFiles.length) throw new Error('请选择待上传的图片')
 
+  onProgress?.(0, {
+    phase: 'preparing',
+    percentage: 0,
+    description: '正在获取图片上传配置',
+    fileIndex: 0,
+    fileCount: imageFiles.length,
+  })
+  const uploadConfig = await loadUploadConfig(signal)
+  throwIfAborted(signal)
+
   const imageIds = []
   for (let index = 0; index < imageFiles.length; index += 1) {
     const file = imageFiles[index]
     const imageId = await uploadOneImage(file, imageTypeCode, {
       signal,
+      uploadConfig,
       onState: (state) => {
         const percentage = Math.round(((index + state.percentage / 100) / imageFiles.length) * 100)
         onProgress?.(percentage, { ...state, fileIndex: index, fileCount: imageFiles.length })
