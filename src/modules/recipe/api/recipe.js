@@ -1,4 +1,4 @@
-import { AI_API, ICON_API, IMAGE_API, RECIPE_API, RECIPE_SYS_API, resolveApiUrl } from '../../../api/index.js'
+import { AI_API, ICON_API, RECIPE_API, RECIPE_SYS_API, resolveApiUrl } from '../../../api/index.js'
 import { uploadImageFiles } from '../../../api/chunked-image-upload.js'
 import { loadProtectedFileUrl } from '../../../api/protected-file.js'
 import { queryThumbnailUrlMap } from '../../../api/thumbnail.js'
@@ -54,12 +54,6 @@ function normalizeImageUrl(url) {
   if (!value) return ''
   if (/^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
     return value
-  }
-  const normalized = value.replaceAll('\\', '/')
-  const imagePath = '/file/images/'
-  const imagePathIndex = normalized.toLowerCase().lastIndexOf(imagePath)
-  if (imagePathIndex >= 0) {
-    return encodeURI(IMAGE_API.file(normalized.slice(imagePathIndex + imagePath.length)))
   }
   return resolveApiUrl(value)
 }

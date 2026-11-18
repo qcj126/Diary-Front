@@ -74,12 +74,6 @@ function normalizeImageUrl(url) {
   if (!value || /^(https?:)?\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
     return value
   }
-  const normalized = value.replaceAll('\\', '/')
-  const imagePath = '/file/images/'
-  const imagePathIndex = normalized.toLowerCase().lastIndexOf(imagePath)
-  if (imagePathIndex >= 0) {
-    return encodeURI(IMAGE_API.file(normalized.slice(imagePathIndex + imagePath.length)))
-  }
   return resolveApiUrl(value)
 }
 
