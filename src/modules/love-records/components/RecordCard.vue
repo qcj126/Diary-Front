@@ -1,7 +1,7 @@
 <template>
   <article class="record-card" tabindex="0" @click="$emit('open', record.id)" @keydown.enter="$emit('open', record.id)">
     <div class="cover">
-      <img v-if="record.images[0]" :src="record.images[0]" :alt="record.title">
+      <img v-if="record.thumbnails[0] || record.images[0]" :src="record.thumbnails[0] || record.images[0]" :alt="record.title">
       <span v-else class="empty-cover material-symbols-outlined">favorite</span>
       <button
         class="ai-analysis-button"

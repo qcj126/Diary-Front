@@ -17,7 +17,7 @@
         <p class="content">{{ record.content }}</p>
         <div class="place"><span class="material-symbols-outlined">location_on</span><span><small>记录地点</small><b>{{ record.location || '未记录地点' }}</b></span><button v-if="record.location" type="button" @click="$emit('map')">在地图中查看</button></div>
       </section>
-      <section v-if="related.length" class="related"><div class="section-heading"><span>关联记录</span><i /></div><button v-for="item in related" :key="item.id" type="button" @click="$emit('open', item.id)"><img v-if="item.images[0]" :src="item.images[0]" alt=""><span v-else class="related-empty material-symbols-outlined">favorite</span><span><b>{{ item.title }}</b><small>{{ item.date }} · {{ item.location }}</small></span><span class="material-symbols-outlined">chevron_right</span></button></section>
+      <section v-if="related.length" class="related"><div class="section-heading"><span>关联记录</span><i /></div><button v-for="item in related" :key="item.id" type="button" @click="$emit('open', item.id)"><img v-if="item.thumbnails[0] || item.images[0]" :src="item.thumbnails[0] || item.images[0]" alt=""><span v-else class="related-empty material-symbols-outlined">favorite</span><span><b>{{ item.title }}</b><small>{{ item.date }} · {{ item.location }}</small></span><span class="material-symbols-outlined">chevron_right</span></button></section>
     </div>
     <footer><button class="edit" type="button" @click="$emit('edit', record.id)"><span class="material-symbols-outlined">edit</span>编辑</button><span>ESC 关闭 · ← → 切换</span><button class="delete" type="button" @click="confirmDelete"><span class="material-symbols-outlined">delete</span>删除</button></footer>
   </aside>

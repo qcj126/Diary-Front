@@ -69,13 +69,11 @@ export const LOVE_DASHBOARD_API = {
     delete: (id) => `${API_BASE}/love/delete/moods/${encodeURIComponent(id)}`,
   },
   files: {
-    uploadImages: `${API_BASE}/file/upload/images`,
     queryImageUrls: `${API_BASE}/file/query/images/urls`,
   },
 }
 
 export const TIMELINE_API = {
-  uploadImages: `${API_BASE}/file/upload/images`,
   queryImageUrls: `${API_BASE}/file/query/images/urls`,
   queryCarouselImages: `${API_BASE}/file/query/images/carousel`,
   categoryAdd: `${API_BASE}/time-machine/category/add`,
@@ -98,12 +96,13 @@ export const ICON_API = {
 
 export const IMAGE_API = {
   file: (fileName) => `${API_BASE}/file/images/${encodeURIComponent(decodeFileName(fileName))}`,
-  upload: `${API_BASE}/file/upload/images`,
   uploadConfig: `${API_BASE}/file/upload/images/config`,
   initializeUpload: `${API_BASE}/file/upload/images/init`,
   uploadChunk: (uploadId, chunkIndex) => `${API_BASE}/file/upload/images/${encodeURIComponent(uploadId)}/chunks/${encodeURIComponent(chunkIndex)}`,
   completeUpload: (uploadId) => `${API_BASE}/file/upload/images/${encodeURIComponent(uploadId)}/complete`,
   queryUrls: `${API_BASE}/file/query/images/urls`,
+  queryThumbnailUrls: `${API_BASE}/file/query/thumbnails/urls`,
+  thumbnailFile: (imageId) => `${API_BASE}/file/thumbnails/${encodeURIComponent(imageId)}`,
   queryStatuses: `${API_BASE}/file/query/images/statuses`,
 }
 
@@ -133,7 +132,6 @@ export const RECIPE_API = {
   queryCategory: `${API_BASE}/recipe/query/category`,
   updateCategory: `${API_BASE}/recipe/update/category`,
   deleteCategory: `${API_BASE}/recipe/delete/category`,
-  uploadImages: `${API_BASE}/file/upload/images`,
   queryImageUrls: `${API_BASE}/file/query/images/urls`,
   queryIcons: `${API_BASE}/file/sys/icon/query`,
 }

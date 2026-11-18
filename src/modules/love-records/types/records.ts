@@ -18,6 +18,7 @@ export interface LoveRecord {
   date: string
   content: string
   images: string[]
+  thumbnails: string[]
   location: string
   point: GeoPoint
   moods: Mood[]
@@ -25,7 +26,7 @@ export interface LoveRecord {
   category: RecordCategory
   important: boolean
   sort?: number
-  imageRefs?: Array<{ relationId: string; imageId: string; url: string }>
+  imageRefs?: Array<{ relationId: string; imageId: string; url: string; thumbnailUrl: string }>
   moodRefs?: Array<{ relationId: string; moodId: string; name: Mood }>
   tagRefs?: Array<{ relationId: string; tagId: string; name: string }>
 }

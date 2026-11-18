@@ -31,7 +31,7 @@
       <aside class="card-side">
         <span class="event-date">{{ event.date }}</span>
         <div class="event-image-frame">
-          <img v-if="event.imageUrl" :src="event.imageUrl" :alt="event.title" />
+          <img v-if="event.thumbnailUrl || event.imageUrl" :src="event.thumbnailUrl || event.imageUrl" :alt="event.title" />
           <span v-else>照片</span>
         </div>
       </aside>

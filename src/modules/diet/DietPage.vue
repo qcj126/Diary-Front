@@ -113,7 +113,7 @@
           <label class="field wide">
             <span>上传图片</span>
             <input accept="image/png,image/jpeg" type="file" :disabled="uploadingImage" @change="uploadImage" />
-            <small v-if="uploadingImage">图片上传中，请稍候…</small>
+            <small v-if="uploadingImage">{{ imageUploadDescription }}（{{ imageUploadProgress }}%）</small>
           </label>
           <label class="field wide">
             <span>图片地址（可选）</span>
@@ -227,6 +227,8 @@ const emit = defineEmits(['preview-ai-result'])
 
 const segments = DIET_SEGMENTS
 const uploadingImage = ref(false)
+const imageUploadProgress = ref(0)
+const imageUploadDescription = ref('正在准备图片')
 
 const activeSegment = ref('all')
 const search = ref('')
@@ -341,6 +343,7 @@ function openEditDialog() {
     location: meal.place,
     note: meal.desc,
     imageUrl: meal.imageUrl ?? meal.img,
+    imageId: meal.imageId ?? '0',
   }
   dialogOpen.value = true
 }
@@ -374,13 +377,24 @@ async function uploadImage(event) {
   const file = event.target.files?.[0]
   if (!file) return
   uploadingImage.value = true
+  imageUploadProgress.value = 0
+  imageUploadDescription.value = '正在准备图片'
   try {
-    form.value.imageUrl = await uploadDietImage(file)
+    const uploaded = await uploadDietImage(file, {
+      onProgress: (percentage, detail) => {
+        imageUploadProgress.value = percentage
+        imageUploadDescription.value = detail?.description || `正在上传图片 ${percentage}%`
+      },
+    })
+    form.value.imageId = uploaded.imageId
+    form.value.imageUrl = uploaded.imageUrl
     setNotice('success', '图片上传成功')
   } catch (error) {
     setNotice('error', error.message || '图片上传失败')
   } finally {
     uploadingImage.value = false
+    imageUploadProgress.value = 0
+    imageUploadDescription.value = '正在准备图片'
     event.target.value = ''
   }
 }
@@ -411,6 +425,7 @@ function createEmptyForm() {
     location: 'home',
     note: '',
     imageUrl: '',
+    imageId: '0',
   }
 }
 

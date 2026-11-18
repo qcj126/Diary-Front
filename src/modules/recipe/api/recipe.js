@@ -1,6 +1,7 @@
 import { AI_API, ICON_API, IMAGE_API, RECIPE_API, RECIPE_SYS_API, resolveApiUrl } from '../../../api/index.js'
 import { uploadImageFiles } from '../../../api/chunked-image-upload.js'
 import { loadProtectedFileUrl } from '../../../api/protected-file.js'
+import { queryThumbnailUrlMap } from '../../../api/thumbnail.js'
 import { DIFFICULTY_LABELS, MEAL_TYPE_LABELS } from '../../../constants/recipe.js'
 import { getAuthSession } from '../../auth/session.js'
 
@@ -101,7 +102,10 @@ async function attachRecipeImageUrls(page) {
   const imageIds = page.records.map((recipe) => recipe.imageId)
 
   try {
-    const images = await queryRecipeImageUrls(imageIds)
+    const [images, thumbnailMap] = await Promise.all([
+      queryRecipeImageUrls(imageIds),
+      queryThumbnailUrlMap(imageIds),
+    ])
     const imageMap = new Map(images.map((image) => [String(image.id), image.url]))
     if (!imageMap.size) return page
 
@@ -115,6 +119,7 @@ async function attachRecipeImageUrls(page) {
         return {
           ...recipe,
           imageUrl,
+          thumbnailUrl: thumbnailMap.get(imageId) || '',
           coverImg: imageUrl,
           detail: {
             ...recipe.detail,

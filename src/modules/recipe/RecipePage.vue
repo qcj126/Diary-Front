@@ -154,7 +154,7 @@
                     :meal-type="recipe.mealType"
                     :duration="recipe.duration"
                     :title="recipe.title"
-                    :image-url="recipe.imageUrl"
+                    :image-url="recipe.thumbnailUrl || recipe.imageUrl"
                     :ingredients="recipe.ingredients"
                     :steps="recipe.steps"
                     :is-favorite="recipe.isFavorite"

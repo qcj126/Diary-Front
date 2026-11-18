@@ -1,4 +1,7 @@
 import { AI_API, DIET_API, IMAGE_API, resolveApiUrl } from '../../../api/index.js'
+import { uploadImageFiles } from '../../../api/chunked-image-upload.js'
+import { waitForImageUploads } from '../../../api/image-upload-status.js'
+import { queryThumbnailUrlMap } from '../../../api/thumbnail.js'
 import { loadProtectedFileUrl } from '../../../api/protected-file.js'
 import { getAuthSession } from '../../auth/session.js'
 
@@ -80,10 +83,6 @@ function normalizeImageUrl(url) {
   return resolveApiUrl(value)
 }
 
-function wait(milliseconds) {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
-}
-
 export function normalizeDietRecord(raw = {}) {
   const meal = mealTypeMap[Number(raw.mealType)] || { type: 'snack', period: raw.mealTypeName || '其他' }
   const eatTime = String(raw.eatTime || '')
@@ -107,7 +106,9 @@ export function normalizeDietRecord(raw = {}) {
     sodium: toNumber(raw.sodium),
     fullnessScore: raw.fullnessScore ?? null,
     imageUrl: String(raw.imageUrl ?? '').trim(),
+    imageId: String(raw.imageId ?? '0').trim() || '0',
     img: normalizeImageUrl(raw.imageUrl),
+    thumbnailUrl: '',
     createdAt: raw.createTime || '',
     updatedAt: raw.updateTime || '',
   }
@@ -121,6 +122,7 @@ export function createDietRecordDTO(meal = {}) {
     location: meal.location ?? meal.place ?? 'home',
     note: String(meal.note ?? meal.desc ?? '').trim(),
     imageUrl: String(meal.imageUrl ?? meal.img ?? '').trim(),
+    imageId: String(meal.imageId ?? '0').trim() || '0',
   }
 }
 
@@ -137,9 +139,11 @@ export async function queryDietRecords(filters = {}) {
     '查询饮食记录失败',
   )
   const records = (Array.isArray(payload) ? payload : []).map(normalizeDietRecord)
+  const thumbnailMap = await queryThumbnailUrlMap(records.map((record) => record.imageId))
   return Promise.all(records.map(async (record) => ({
     ...record,
     img: await loadProtectedFileUrl(record.img),
+    thumbnailUrl: thumbnailMap.get(record.imageId) || '',
   })))
 }
 
@@ -159,32 +163,25 @@ export function submitDietNutritionAnalysis(payload) {
   return postJson(AI_API.nutrition.submit, payload, '营养分析任务提交失败')
 }
 
-/** 上传饮食图片，返回可保存到 diet_record.image_url 的文件服务相对地址。 */
-export async function uploadDietImage(file) {
-  if (!(file instanceof File) || !file.type.startsWith('image/')) {
-    throw new Error('请选择图片文件')
-  }
-
-  const formData = new FormData()
-  formData.append('files', file, file.name)
-  formData.append('code', '1000')
-  const headers = authHeaders()
-  delete headers['Content-Type']
-  const res = await fetch(IMAGE_API.upload, {
-    method: 'POST',
-    headers,
-    body: formData,
-  })
-  const data = parseApiPayload(await res.text())
-  assertApiSuccess(res, data, '图片上传失败')
-  const imageId = String((Array.isArray(responseData(data)) ? responseData(data)[0] : responseData(data)) ?? '').trim()
+/** 通过统一分片链路上传饮食图片，返回图片ID和原图文件服务地址。 */
+export async function uploadDietImage(file, { signal, onProgress } = {}) {
+  const imageIds = await uploadImageFiles([file], 1000, { signal, onProgress })
+  const imageId = String(imageIds[0] ?? '').trim()
   if (!imageId) throw new Error('图片上传成功，但未返回图片 ID')
 
-  for (let attempt = 0; attempt < 15; attempt += 1) {
-    const images = await postJson(IMAGE_API.queryUrls, [imageId], '查询图片地址失败')
-    const imageUrl = Array.isArray(images) ? String(images[0]?.url ?? images[0]?.imageUrl ?? '').trim() : ''
-    if (imageUrl) return imageUrl
-    await wait(500)
-  }
-  throw new Error('图片已提交，但 OSS 上传尚未完成，请稍后重试')
+  await waitForImageUploads([imageId], {
+    signal,
+    onStatus: (statuses) => {
+      const current = statuses.find((status) => !status.terminal) || statuses[0]
+      onProgress?.(100, {
+        phase: 'processing',
+        description: current?.description || '云端正在生成缩略图',
+      })
+    },
+  })
+
+  const images = await postJson(IMAGE_API.queryUrls, [imageId], '查询图片地址失败')
+  const imageUrl = Array.isArray(images) ? String(images[0]?.url ?? images[0]?.imageUrl ?? '').trim() : ''
+  if (!imageUrl) throw new Error('图片处理完成，但未获取到访问地址')
+  return { imageId, imageUrl }
 }

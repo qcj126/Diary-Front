@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { ICON_API } from '../../../api/index.js'
 import { CAROUSEL_CONFIG, TIMELINE_COLOR_MAP } from '../../../constants/timeline.js'
-import { normalizeImageUrl, queryCarouselImageUrls, queryTimelineImageUrls } from '../api/images.js'
+import { normalizeImageUrl, queryCarouselImageUrls, queryTimelineImageUrls, queryTimelineThumbnailUrls } from '../api/images.js'
 import {
   addTimeCard,
   addTimeCategory,
@@ -146,11 +146,15 @@ async function attachImageUrls(events) {
   if (!imageIds.length) return events
 
   try {
-    const images = await queryTimelineImageUrls(imageIds)
+    const [images, thumbnailMap] = await Promise.all([
+      queryTimelineImageUrls(imageIds),
+      queryTimelineThumbnailUrls(imageIds),
+    ])
     const imageMap = new Map(images.map((image) => [String(image?.id), normalizeImageUrl(image?.url)]))
     return events.map((event) => ({
       ...event,
       imageUrl: event.imageUrl || imageMap.get(String(event.imageId)) || '',
+      thumbnailUrl: thumbnailMap.get(String(event.imageId)) || '',
     }))
   } catch (error) {
     console.error(error)

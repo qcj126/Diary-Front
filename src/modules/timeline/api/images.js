@@ -1,6 +1,7 @@
 import { IMAGE_API, resolveApiUrl, TIMELINE_API } from '../../../api/index.js'
 import { uploadImageFiles } from '../../../api/chunked-image-upload.js'
 import { loadProtectedFileUrl } from '../../../api/protected-file.js'
+import { queryThumbnailUrlMap } from '../../../api/thumbnail.js'
 import { getAuthSession } from '../../auth/session.js'
 
 function authHeaders(contentType = 'application/json') {
@@ -92,6 +93,10 @@ export async function queryTimelineImageUrls(imageIds) {
   })))
 }
 
+export async function queryTimelineThumbnailUrls(imageIds) {
+  return queryThumbnailUrlMap(imageIds)
+}
+
 export async function queryCarouselImageUrls() {
   return queryCarouselImageUrlsFromApi()
 }
@@ -104,9 +109,14 @@ async function queryCarouselImageUrlsFromApi() {
   const data = parseApiPayload(await res.text())
   assertApiSuccess(res, data, 'Carousel image query failed.')
 
-  const images = getResponseData(data)
-  const urls = Array.isArray(images) ? images.map(normalizeCarouselImageUrl).filter(Boolean) : []
-  return Promise.all(urls.map(loadProtectedFileUrl))
+  const images = Array.isArray(getResponseData(data)) ? getResponseData(data) : []
+  const thumbnailMap = await queryThumbnailUrlMap(images.map((image) => image?.id ?? image?.imageId))
+  return Promise.all(images.map(async (image) => {
+    const imageId = String(image?.id ?? image?.imageId ?? '').trim()
+    if (thumbnailMap.has(imageId)) return thumbnailMap.get(imageId)
+    const originalUrl = normalizeCarouselImageUrl(image)
+    return originalUrl ? loadProtectedFileUrl(originalUrl) : ''
+  })).then((urls) => urls.filter(Boolean))
 }
 
 export function normalizeImageUrl(url) {

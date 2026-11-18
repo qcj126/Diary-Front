@@ -2,6 +2,7 @@ import { AI_API, IMAGE_API, LOVE_DASHBOARD_API, resolveApiUrl } from '../../../a
 import { uploadImageFiles } from '../../../api/chunked-image-upload.js'
 import { waitForImageUploads } from '../../../api/image-upload-status.js'
 import { loadProtectedFileUrl } from '../../../api/protected-file.js'
+import { queryThumbnailUrlMap } from '../../../api/thumbnail.js'
 import { getAuthSession } from '../../auth/session.js'
 import type {
   Anniversary,
@@ -283,9 +284,12 @@ export async function loadLoveData(
   }))
 
   const imageIds = [...new Set(relationGroups.flatMap((group) => group.images.map((item) => toKey(item.imageId))).filter(Boolean))]
-  const imageRows = imageIds.length
-    ? toList(await postJson(LOVE_DASHBOARD_API.files.queryImageUrls, imageIds, '查询图片地址失败'))
-    : []
+  const [imageRows, thumbnailUrls] = await Promise.all([
+    imageIds.length
+      ? postJson(LOVE_DASHBOARD_API.files.queryImageUrls, imageIds, '查询图片地址失败').then(toList)
+      : Promise.resolve([]),
+    queryThumbnailUrlMap(imageIds),
+  ])
 
   const locations = new Map(toList(locationRows).map((item) => [toKey(item.id), item]))
   const moodDictionary = new Map(toList(moodRows).map((item) => [toKey(item.id), item]))
@@ -304,6 +308,7 @@ export async function loadLoveData(
       relationId: toKey(item.id),
       imageId: toKey(item.imageId),
       url: imageUrls.get(toKey(item.imageId)) ?? '',
+      thumbnailUrl: thumbnailUrls.get(toKey(item.imageId)) ?? '',
     })).filter((item) => item.imageId && item.url)
     const moodRefs = toList(raw.moods ?? raw.moodIds).map((item) => {
       const moodId = toKey(typeof item === 'object' ? item.moodId ?? item.id : item)
@@ -334,6 +339,7 @@ export async function loadLoveData(
       date: String(raw.recordDate ?? '').slice(0, 10),
       content: String(raw.content ?? ''),
       images: imageRefs.map((item) => item.url),
+      thumbnails: imageRefs.map((item) => item.thumbnailUrl || item.url),
       location: String(location?.name ?? ''),
       point: {
         lat: Number.isFinite(latitude) ? latitude : 29.56,

@@ -23,8 +23,8 @@
           <div class="meal-card" :class="{ outside: group.key === 'outside' }">
             <time class="meal-time">{{ meal.recordedAt || meal.time }}</time>
 
-            <div class="meal-photo" :class="{ empty: !meal.img }">
-              <img v-if="meal.img" :src="meal.img" :alt="meal.name" />
+            <div class="meal-photo" :class="{ empty: !(meal.thumbnailUrl || meal.img) }">
+              <img v-if="meal.thumbnailUrl || meal.img" :src="meal.thumbnailUrl || meal.img" :alt="meal.name" />
             </div>
 
             <div class="meal-body">
